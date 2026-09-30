@@ -1,7 +1,7 @@
 // First cut of design section 10 normalize + strict validate, plus the attribute inventory.
 // Reads the live DOM for measurement only; product code never does this.
 
-export type Classification = 'presentation' | 'geometry' | 'metadata' | 'unclassified';
+export type Classification = 'presentation' | 'geometry' | 'metadata' | 'passthrough' | 'unclassified';
 export type Inventory = Record<string, Record<string, Record<string, Classification>>>;
 
 const PRESENTATION = [
@@ -40,7 +40,7 @@ const GEOMETRY_BY_TAG: Record<string, string[]> = {
 };
 export function classify(tag: string, attr: string): Classification {
   if (PRESENTATION_SET.has(attr)) return 'presentation';
-  if (attr.startsWith('aria-') || attr.startsWith('data-dv-')) return 'geometry'; // allowed pass-through
+  if (attr.startsWith('aria-') || attr.startsWith('data-dv-')) return 'passthrough'; // allowed as-is (aria-*, data-dv-*)
   if ((GEOMETRY_BY_TAG[tagKey(tag)] ?? []).includes(attr)) return 'geometry';
   if (METADATA_ALWAYS.has(attr) || attr.startsWith('data-')) return 'metadata';
   if ((METADATA_BY_TAG[tagKey(tag)] ?? []).includes(attr)) return 'metadata';
@@ -119,6 +119,12 @@ function walk(el: Element, fn: (e: Element) => void) {
 
 export function exportProbe(liveSvg: SVGSVGElement, opts: { inject?: boolean } = {}) {
   const clone = liveSvg.cloneNode(true) as SVGSVGElement;
+  if (opts.inject) {
+    // Negative control: injected BEFORE normalize, so it must survive the strip step and reach the validator.
+    const target = clone.querySelector('path') as Element;
+    target.setAttribute('onclick', 'x');
+    target.setAttribute('foo', '1');
+  }
   // Stage 1: normalize
   materialize(liveSvg, clone); // (display:none / data-dv-interactive dropping omitted: none present in the spike chart)
   const removed: Record<string, number> = {};
@@ -146,12 +152,6 @@ export function exportProbe(liveSvg: SVGSVGElement, opts: { inject?: boolean } =
       if (v !== a.value) e.setAttribute(a.name, v);
     }
   });
-  if (opts.inject) {
-    // Negative control: attributes that no classification knows must reach the validator and be reported.
-    const target = clone.querySelector('path') as Element;
-    target.setAttribute('onclick', 'x');
-    target.setAttribute('foo', '1');
-  }
   // Stage 2: strict allowlist validation
   const disallowedAfterNormalize: string[] = [];
   walk(clone, (e) => {

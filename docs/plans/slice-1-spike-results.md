@@ -17,7 +17,7 @@ all numeric axes use `type="number"`, `scale="linear"`, explicit `domain`/`ticks
 | 2 | Grouped bars side by side; `stackId` bars and areas share a band; `sign` offset; stacked area top = sum | PASS | Grouped: two 62-wide rects per band, no overlap. Stacked: identical x and width (128) per category. Negative members start exactly at the zero line (delta 0) and positives sit on the first bar (delta 0). Stacked area top vs `yScale(a+b)`: max delta 0; stacked area x values at band centres: max delta 0. |
 | 3 | `null` members produce gaps | PASS | Line `[12,null,18,20]`: path `M123.75,164ZM378.75,116L506.25,100`, 2 moves. Bar: 3 rects for 4 categories, none zero-height. Stacked areas with a null member in both series: each fill path has 2 moves (broken). |
 | 4 | First commit has final geometry | PASS | After `flushSync(root.render(...))` line, area, bar and dot geometry are each non-empty (1, 1, 4, 4 items) and byte-identical to the geometry 3 animation frames and 500 ms later. |
-| 5 | Real chart passes normalize and strict allowlist; attribute inventory | PASS | Line + Bar + Area + grid + reference line + overlay chart. 0 disallowed elements or attributes after normalize; serialized SVG has no `class=`, `style=` or `recharts` (Recharts clip-path ids such as `recharts1-clip` are renamed by the id-namespacing step, which the probe performs). Negative control (5b): injecting `onclick` and `foo` into the clone is reported as `attr:path@onclick`, `event:path@onclick`, `attr:path@foo`, so the allowlist can fail. |
+| 5 | Real chart passes normalize and strict allowlist; attribute inventory | PASS | Line + Bar + Area + grid + reference line + overlay chart. 0 disallowed elements or attributes after normalize; serialized SVG has no `class=`, `style=` or `recharts` (Recharts clip-path ids such as `recharts1-clip` are renamed by the id-namespacing step, which the probe performs). Negative control (5b): `onclick` and `foo` are injected into the clone before the normalize step, so they pass through the strip step and are reported by the validator as `attr:path@onclick`, `event:path@onclick`, `attr:path@foo`, so the allowlist can fail. |
 | 6 | Inline `style` props resist host CSS (`text{fill:red} path{stroke-width:5} *{font-family:serif}`) | PASS | Negative control: an unstyled Line path is restyled to `stroke-width: 5px`, so the host rule does bite. Every component below kept its inline values. |
 
 No point failed, so no section 4 fallback applies and section 4 needs no change for these points. Observations the controller may want to fold into the design are listed at the end.
@@ -40,7 +40,7 @@ Also exported: `useOffset`, `useXAxisTicks`, `useYAxisTicks`, `useCartesianScale
 ## Attribute inventory summary
 
 `attribute-inventory.json` maps Recharts component class (for example `recharts-curve`, `recharts-rectangle`,
-`recharts-cartesian-axis-tick-line`) to element to attribute, each classified `presentation | geometry | metadata | unclassified`.
+`recharts-cartesian-axis-tick-line`) to element to attribute, each classified `presentation | geometry | metadata | passthrough | unclassified` (`passthrough` = `aria-*`, `data-dv-*`).
 Harness-authored elements (marked `data-spike-*`) are excluded. Observed across all cases: 36 component keys, 72 distinct
 element@attribute pairs: 15 presentation, 25 geometry, 32 metadata, **0 unclassified** (the suite fails if any appear).
 
@@ -56,7 +56,7 @@ Metadata that Recharts emits and the normalizer removes (beyond `class`, `style`
 - `svg`: `tabindex`; the root also has `role="application"`, which finalize replaces with `role="img"`.
 
 History: an earlier version of the probe stripped every attribute not in its geometry table, so the allowlist could not fail. That was
-fixed; the tag-specific metadata table above was built from the observed inventory, and the injected-attribute control (5b) proves unknown attributes now surface.
+fixed; the tag-specific metadata table above was built from the observed inventory, and the injected-attribute control (5b, injected before normalize) proves unknown attributes are not stripped and now surface.
 
 ## Observations for the design (no failing point)
 
