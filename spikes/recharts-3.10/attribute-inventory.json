@@ -1,0 +1,314 @@
+{
+  "recharts-cartesian-axis-line": {
+    "line": {
+      "angle": "metadata",
+      "class": "metadata",
+      "fill": "presentation",
+      "height": "metadata",
+      "orientation": "metadata",
+      "stroke": "presentation",
+      "style": "metadata",
+      "width": "metadata",
+      "x": "metadata",
+      "x1": "geometry",
+      "x2": "geometry",
+      "y": "metadata",
+      "y1": "geometry",
+      "y2": "geometry"
+    }
+  },
+  "recharts-cartesian-axis-tick-labels": {
+    "g": {
+      "class": "metadata"
+    }
+  },
+  "recharts-cartesian-axis-tick-line": {
+    "line": {
+      "angle": "metadata",
+      "class": "metadata",
+      "fill": "presentation",
+      "height": "metadata",
+      "orientation": "metadata",
+      "stroke": "presentation",
+      "style": "metadata",
+      "width": "metadata",
+      "x": "metadata",
+      "x1": "geometry",
+      "x2": "geometry",
+      "y": "metadata",
+      "y1": "geometry",
+      "y2": "geometry"
+    }
+  },
+  "recharts-cartesian-axis-tick-lines": {
+    "g": {
+      "class": "metadata"
+    }
+  },
+  "recharts-cartesian-axis-ticks": {
+    "g": {
+      "class": "metadata"
+    }
+  },
+  "recharts-cartesian-grid": {
+    "g": {
+      "class": "metadata"
+    }
+  },
+  "recharts-cartesian-grid-horizontal": {
+    "g": {
+      "class": "metadata"
+    }
+  },
+  "recharts-cartesian-grid-horizontal > line": {
+    "line": {
+      "fill": "presentation",
+      "height": "metadata",
+      "stroke": "presentation",
+      "width": "metadata",
+      "x": "metadata",
+      "x1": "geometry",
+      "x2": "geometry",
+      "y": "metadata",
+      "y1": "geometry",
+      "y2": "geometry"
+    }
+  },
+  "recharts-curve": {
+    "path": {
+      "class": "metadata",
+      "clip-path": "geometry",
+      "d": "geometry",
+      "fill": "presentation",
+      "fill-opacity": "presentation",
+      "height": "metadata",
+      "id": "geometry",
+      "stroke": "presentation",
+      "stroke-width": "presentation",
+      "style": "metadata",
+      "width": "metadata"
+    }
+  },
+  "recharts-dot": {
+    "circle": {
+      "class": "metadata",
+      "cx": "geometry",
+      "cy": "geometry",
+      "fill": "presentation",
+      "height": "metadata",
+      "r": "geometry",
+      "stroke": "presentation",
+      "stroke-width": "presentation",
+      "style": "metadata",
+      "width": "metadata"
+    }
+  },
+  "recharts-layer": {
+    "g": {
+      "class": "metadata",
+      "clip-path": "geometry",
+      "id": "geometry"
+    }
+  },
+  "recharts-layer > circle": {
+    "circle": {
+      "cx": "geometry",
+      "cy": "geometry",
+      "r": "geometry",
+      "style": "metadata"
+    }
+  },
+  "recharts-layer > clippath": {
+    "clipPath": {
+      "id": "geometry"
+    }
+  },
+  "recharts-layer > defs": {
+    "defs": {}
+  },
+  "recharts-layer > rect": {
+    "rect": {
+      "height": "geometry",
+      "width": "geometry",
+      "x": "geometry",
+      "y": "geometry"
+    }
+  },
+  "recharts-layer > text": {
+    "text": {
+      "style": "metadata",
+      "text-anchor": "presentation",
+      "x": "geometry",
+      "y": "geometry"
+    }
+  },
+  "recharts-rectangle": {
+    "path": {
+      "class": "metadata",
+      "d": "geometry",
+      "fill": "presentation",
+      "height": "metadata",
+      "k": "metadata",
+      "name": "metadata",
+      "radius": "metadata",
+      "style": "metadata",
+      "width": "metadata",
+      "x": "metadata",
+      "y": "metadata"
+    }
+  },
+  "recharts-reference-line-line": {
+    "line": {
+      "class": "metadata",
+      "fill": "presentation",
+      "fill-opacity": "presentation",
+      "stroke": "presentation",
+      "stroke-dasharray": "presentation",
+      "stroke-width": "presentation",
+      "style": "metadata",
+      "x1": "geometry",
+      "x2": "geometry",
+      "y": "metadata",
+      "y1": "geometry",
+      "y2": "geometry"
+    }
+  },
+  "recharts-surface": {
+    "svg": {
+      "class": "metadata",
+      "height": "geometry",
+      "role": "geometry",
+      "style": "metadata",
+      "tabindex": "metadata",
+      "viewBox": "geometry",
+      "width": "geometry"
+    }
+  },
+  "recharts-surface > circle": {
+    "circle": {
+      "cx": "geometry",
+      "cy": "geometry",
+      "fill": "presentation",
+      "r": "geometry",
+      "stroke": "presentation"
+    }
+  },
+  "recharts-surface > clippath": {
+    "clipPath": {
+      "id": "geometry"
+    }
+  },
+  "recharts-surface > defs": {
+    "defs": {}
+  },
+  "recharts-surface > desc": {
+    "desc": {}
+  },
+  "recharts-surface > g": {
+    "g": {}
+  },
+  "recharts-surface > rect": {
+    "rect": {
+      "height": "geometry",
+      "width": "geometry",
+      "x": "geometry",
+      "y": "geometry"
+    }
+  },
+  "recharts-surface > title": {
+    "title": {}
+  },
+  "recharts-text": {
+    "text": {
+      "class": "metadata",
+      "fill": "presentation",
+      "height": "metadata",
+      "offset": "metadata",
+      "orientation": "metadata",
+      "stroke": "presentation",
+      "style": "metadata",
+      "text-anchor": "presentation",
+      "width": "metadata",
+      "x": "geometry",
+      "y": "geometry"
+    }
+  },
+  "recharts-text > tspan": {
+    "tspan": {
+      "dy": "geometry",
+      "x": "geometry"
+    }
+  },
+  "recharts-zIndex-layer_-100": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_-50": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_100": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_1000": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_1100": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_1200": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_200": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_2000": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_300": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_400": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_500": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  },
+  "recharts-zIndex-layer_600": {
+    "g": {
+      "class": "metadata",
+      "tabindex": "metadata"
+    }
+  }
+}
