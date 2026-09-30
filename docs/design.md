@@ -1,7 +1,7 @@
 # DravenViz V1 design
 
 Date: 2026-09-30
-Status: Revision 2, addressing the owner's design review of 2026-09-30 (export normalization, positioning ownership, clean-install sequence, readiness checks, percent-stack labels, datum names, custom-font export, `react-is`, `InvalidSpecError`, embedding identities, visual tolerances, CI browser install, provisional browsers). Draft for owner review. Implements `docs/spec.md` (the product brief). Where this document and the brief differ, the brief wins unless this document names the difference and the owner has approved it.
+Status: Revision 3. Revision 2 addressed the owner's first design review (export normalization, positioning ownership, clean-install sequence, readiness checks, percent-stack labels, datum names, custom-font export, `react-is`, `InvalidSpecError`, embedding identities, visual tolerances, CI browser install, provisional browsers). Revision 3 addresses the second review: copied (not symlinked) staging with an import-resolution report, explicit band scale and plot bounds, effective-style export normalization, the authored-code rule plus runtime offline/CSP checks, and PDF frame and font-size verification. Draft for owner review. Implements `docs/spec.md` (the product brief). Where this document and the brief differ, the brief wins unless this document names the difference and the owner has approved it.
 
 This document freezes the public contract, dependency versions, internal boundaries, fixtures and acceptance mapping for all four delivery slices. Slice plans (`docs/plans/`) implement it; a slice plan that needs a public API change updates this document first and goes back to the owner.
 
@@ -46,6 +46,8 @@ dravenviz/
     build-browser.ts           esbuild IIFE -> dist/dravenviz.browser.js
     fetch-font.ts              one-time: downloads NotoSans-v2.015, verifies, writes assets/fonts
     build-manifest.ts          dist/asset-manifest.json
+    stage-consumer.ts          copies a consumer template into .stage/<name> and installs the tarball (§16.1)
+    vite-resolution-report.ts  Vite plugin recording real import paths of the library and React (§16.1)
     measure-size.ts  measure-latency.ts
   schema/viz-spec-v1.schema.json
   assets/fonts/                NotoSans-Regular.woff2, NotoSans-SemiBold.woff2, noto-sans.css,
@@ -199,9 +201,14 @@ Recharts usage rules (`src/render/recharts`):
 - **Grouping and stacking.** Grouped bars are separate `Bar`s without `stackId`; Recharts places them side by side in the category band. Stacked bars and areas use Recharts `stackId` so they share one band position. They are fed DravenViz-computed contributions: raw values for absolute stacks (`stackOffset="sign"`, so positives stack up and negatives down), and shares (value / total × 100) for percent stacks (`stackOffset="none"`). Recharts' `stackOffset="expand"` is never used, because it would renormalize a stack with a missing member. Unavailable or empty categories feed `null` for every member and draw a DravenViz placeholder instead.
 - **Overlays.** Annotations, reference-line labels, quality markers, placeholders and the focus ring are chart children that call the public hooks `useXAxisScale`, `useYAxisScale` and `usePlotArea`. They never read Recharts DOM, class names or private state.
 - Custom marks and labels use documented extension points only: `shape`, `dot`, `label`, `tick` render props, public hooks and SVG children of the chart.
+- **Scales and plot bounds.** Scale choice and plot bounds are explicit, never left to Recharts' `scale="auto"`:
+  - **Category x axes always use `scale="band"`**, with `padding={{ left: 0, right: 0 }}` and zero band padding, for line-only, area-only, bar and composed charts alike. Category `k` of `n` is centred at `plot.x + (k + 0.5) × plot.width / n`. Lines and areas sit at band centres, and bars occupy the band. Recharts would otherwise pick a *point* scale for line-only charts and a *band* scale when bars are present (`combineRealScaleType`), so the same categories would move between chart types.
+  - Linear and time x axes use `type="number"` and `scale="linear"` with the model's domain (epoch milliseconds for time), so irregular intervals keep their true spacing.
+  - **Plot bounds come from DravenViz layout.** Each Recharts axis gets an explicit size (`YAxis width` = `laid.boxes.axes[id].width`, `XAxis height` = `laid.boxes.axes.x.height`). The chart `margin` is the remaining outer space (padding, title, legend, notes), so Recharts' offset equals `laid.boxes.plot`. No Recharts `Legend`, `Brush` or `label` prop allocates extra space.
+  - Readiness and geometry tests assert that `usePlotArea()` equals `laid.boxes.plot` to within 0.5 units.
 - **Host-style isolation.** CSS rules beat SVG presentation attributes, so a host rule like `text { fill: red }` would restyle a chart drawn only with attributes. In the live DOM, DravenViz therefore sets visual properties (`fill`, `stroke`, `stroke-width`, `stroke-dasharray`, `opacity`, `font-family`, `font-size`, `font-weight`) as inline `style` on every element it draws. For Recharts elements it does the same through the `style` prop wherever Recharts forwards it, which the spike verifies per component. The guarantee: host rules without `!important` (type, class or universal selectors, inherited `font-family`, `zoom`) do not change chart rendering. Host `!important` rules are documented as out of scope, since only shadow DOM could block them and that would complicate print and export. Export normalization (section 10) turns these inline styles into attributes.
 - **Slice 1 spike (Task 1).** A throwaway harness page on Chromium 141 confirms these points in Recharts 3.10.1, with a pass/fail table in `docs/plans/slice-1-spike-results.md`:
-  1. Arbitrary SVG children and hook-based overlays render inside the surface, aligned with the marks to within 0.5 logical units.
+  1. Arbitrary SVG children and hook-based overlays render inside the surface, aligned with the marks to within 0.5 logical units. With the explicit band scale, axis sizes and margins above, a line-only chart's points sit at band centres and `usePlotArea()` equals the layout's plot box.
   2. Grouped bars sit side by side, and `stackId` bars and areas share a band position, with explicit domains and `sign` offsets.
   3. `null` members produce gaps (not zero-height marks) in bars, lines and stacked areas.
   4. With animation disabled, the first commit already has the final geometry.
@@ -738,7 +745,7 @@ Export has three stages: **normalize**, **validate strictly**, then **finalize**
 **1. Normalize** (`render/svg/normalize.ts`). This runs on a deep clone of the live `<svg>`, using the live element's computed style.
 
 1. Drop subtrees that aren't part of the static graphic: elements whose computed `display` is `none`, or with `visibility: hidden`, and elements marked `data-dv-interactive` (focus ring, hover highlight).
-2. *Materialize* styles. For every element, copy these computed properties to presentation attributes when they are not already present as attributes: `fill`, `fill-opacity`, `stroke`, `stroke-width`, `stroke-opacity`, `stroke-dasharray`, `stroke-linecap`, `stroke-linejoin`, `opacity`, `font-family`, `font-size`, `font-weight`, `text-anchor`, `dominant-baseline`. Colors are converted to `#rrggbb` (with separate `*-opacity` when alpha < 1); CSS variables are resolved by the computed style.
+2. *Materialize* styles. For every element, write the **effective computed value** of these properties as the presentation attribute, *overwriting* any existing attribute. The computed value already reflects inline `style` and stylesheet precedence over attributes, so the export looks like the live render: `fill`, `fill-opacity`, `stroke`, `stroke-width`, `stroke-opacity`, `stroke-dasharray`, `stroke-linecap`, `stroke-linejoin`, `opacity`, `font-family`, `font-size`, `font-weight`, `text-anchor`, `dominant-baseline`. Colors are converted to `#rrggbb` (with separate `*-opacity` when alpha < 1); CSS variables are resolved by the computed style. Paint values that reference a paint server (`url("#id")` for gradients and patterns) are kept as local references, `url(#id)`, after checking that the target ID exists inside the same SVG. Any other `url(...)` fails validation. Properties whose computed value is the initial value and which have no attribute are not written, which keeps the output small.
 3. Remove known renderer metadata: `class`, `style`, `tabindex`, `focusable`, `cursor`, `pointer-events`, `data-*` except `data-dv-*`, and any attribute in the Recharts attribute inventory that the slice 1 spike recorded as non-presentational (for example `name`, `orientation`, `type`, `index`, `width`/`height` on `g`). The inventory is a checked-in constant, `render/svg/recharts-metadata.ts`, with a test that fails if a Recharts upgrade emits an attribute that is not classified.
 4. Replace Recharts' `<title>`/`<desc>` children of the root with DravenViz's own.
 
@@ -761,6 +768,7 @@ Export has three stages: **normalize**, **validate strictly**, then **finalize**
 
 Export tests, in the slice 1 spike and then in `test:browser`:
 
+- Attribute-versus-style regression: an element with `fill="blue" style="fill:red"` exports `fill="#ff0000"`; one with `fill="url(#p)"` and a local `<pattern id="p">` keeps the local reference, renamed by the namespacing step; one referencing `url(#missing)` fails.
 - A real `line-weekly-flow` chart goes through all three stages in both font modes. The result contains no `class`/`style` attributes or `recharts` strings, and re-renders identically when loaded as a standalone file in Chromium.
 - A custom-font test uses the OFL font Noto Serif v2.015 (test asset only, in `tests/assets/fonts/`) through `fonts`. It asserts that `font-family` names the custom family, the external `@font-face` URLs use the custom file names under `fontHrefPrefix`, and the embedded bytes' SHA-256 equals the loaded file's.
 - An external-mode relocation test writes the SVG to a temporary directory, copies the files from `SvgExport.fonts` to `<dir>/<fontHrefPrefix>`, opens it in Chromium, and asserts through `document.fonts` that the custom face loaded and that the text widths match the in-page render within 0.5 units.
@@ -789,7 +797,10 @@ Missing cells read "Not measured", never an empty string or 0. React `<DataTable
 
 - Validation is strict (section 5), all text is rendered as text nodes or through React escaping, and export uses an allowlist (section 10).
 - `assetBaseUrl` and font URLs may only be relative or same-origin `http(s)`. Other schemes (`javascript:`, `data:` and so on) and cross-origin URLs give `INVALID_OPTIONS`. In offline mode (`mountCharts`, `renderToSvg`) there are no network requests beyond those URLs.
-- The library contains no `eval`, `Function` or `innerHTML`, enforced by ESLint rules and a grep of `dist/`.
+- **Authored-code rule.** DravenViz source contains no `eval`, `new Function`, `innerHTML` or `dangerouslySetInnerHTML`. This is enforced by ESLint on `src/`, and by a scan of DravenViz's own compiled modules (`dist/core`, `dist/react`, `dist/print`, whose dependencies are external). Bundled third-party code (React, ReactDOM and Recharts inside `dravenviz.browser.js`) is not string-scanned: ReactDOM has an `innerHTML` code path and React's production errors contain `https://react.dev/errors/` URLs.
+- **Runtime checks instead of string scans.** Offline and no-eval behavior of the complete bundle are verified at runtime:
+  - Tests intercept every non-origin request, abort it and fail on any attempt.
+  - Tests serve the examples under a CSP without `unsafe-eval` or remote sources, and fail on any `securitypolicyviolation`.
 - Examples embed chart JSON as a separate `charts.json` file. The HTML helper example shows `<script type="application/json">` encoding that escapes `<`, `>`, `&`, U+2028 and U+2029.
 - The library never calls `console.*` with data. The only logging is `console.warn` for deprecated options.
 
@@ -822,7 +833,9 @@ Verified against `Kryon-Consulting/dravenpdf@7a249e0`:
 3. `uv sync` in `examples/dravenpdf`.
 4. Start `dravenpdf serve` on a free port with a generated `DRAVENPDF_API_KEY` and `DRAVENPDF_CHROMIUM_PATH` set to Chromium 141.
 5. Post the multi-family report and the single-chart comparison pages.
-6. Rasterize them with `pdftoppm` (or DravenPDF `/v1/convert/pdf-to-images` at 150 dpi).
+6. Rasterize them at 150 dpi with `pypdfium2`.
+   - Locate each chart instance's frame from the `/Link` annotation that wraps its SVG (fallback: corner marker tokens), recording page, namespace and rectangle in points and mm.
+   - Measure effective font size from text objects (font size × transform scale), with glyph bounding boxes used only for clipping and overlap checks. The exact procedure is in the slice-1 plan, Task 16.
 7. Run the comparisons.
 8. Write the evidence.
 
@@ -861,7 +874,7 @@ Fixture IDs are stable file names in `fixtures/valid/` (V) or `fixtures/invalid/
 | 9          | V `text-markup-title`; I `invalid-infinite-value`, `invalid-string-number`, `invalid-unknown-field`, `invalid-oversized` (generated at test time), `invalid-bar-domain`, `invalid-percent-negative`, plus one per semantic rule |
 | 10         | V `composed-remediation-days-counts`, `composed-flow-cumulative`                                              |
 | 11         | V `bar-ranking-horizontal`, `bar-stacked-categories`, `bar-compact-percent`                                   |
-| Extra      | V `area-inventory-stacked`, `area-single-gaps`, `line-sparkline`, `bar-grouped`, `perf-line-500x4` (seeded)    |
+| Extra      | V `area-inventory-stacked`, `area-single-gaps`, `line-sparkline`, `bar-grouped`, `line-irregular-numeric`, `line-irregular-time`, `perf-line-500x4` (seeded) |
 | Reports    | `report-slice1` (line fixtures), `report-multi-family-a4` (one or more of every family, with two instances of `line-weekly-flow`) |
 
 Coverage rows from the brief ("Coverage scenarios derived from platform review") map to fixtures below. Each row must reach reviewed browser, SVG and PDF evidence before V1 acceptance (`evidence/verification-matrix.md`).
@@ -911,10 +924,11 @@ pnpm build:docs                       # vite build in .stage/docs -> .stage/docs
 `pnpm stage <name>` runs `scripts/stage-consumer.ts`, which does the following for `docs/site`, `examples/react` or `examples/html`:
 
 1. Recreate `.stage/<name>/`.
-2. Copy the template's `package.json` and `pnpm-lock.yaml`. Source folders (`src/`, `public/`, `index.html`, `vite.config.ts`) are symlinked back to the template so `dev:docs` hot-reloads edits; only sources are linked, never packages.
+2. Copy the template's `package.json`, `pnpm-lock.yaml` and sources (`src/`, `public/`, `index.html`, `vite.config.ts`) into the stage as ordinary files. There are no symlinks. Vite follows real paths (`resolve.preserveSymlinks` defaults to `false`), so a symlinked source would resolve dependencies from the template directory instead of the stage. For development, `stage <name> --watch` keeps copying changed template files into the stage, so HMR still works.
 3. Run `pnpm install --frozen-lockfile --ignore-workspace`. This installs the template's third-party dependencies exactly as locked.
 4. Run `pnpm add --ignore-workspace <abs path to .pack tarball>`. This changes only the staged, uncommitted lockfile. `recharts` and its transitive dependencies are resolved at this point.
-5. Record `pnpm ls --depth Infinity --json` to `.stage/<name>/resolved.json` and fail if `@draven/viz` is not the tarball's version and sha256, or if `react`, `react-dom` and `react-is` differ in major.minor.
+5. Record `pnpm ls --depth Infinity --json` to `.stage/<name>/installed.json`. Fail if `@draven/viz` is not the tarball's version and sha256, or if `react`, `react-dom` and `react-is` differ in major.minor.
+6. Prove what the application actually imports. Staged Vite configs set `resolve.dedupe: ['react', 'react-dom', 'react-is']` and register the `dv-resolution-report` plugin (`scripts/vite-resolution-report.ts`). During `vite build`, it records the resolved real path of every import of `@draven/viz*`, `react`, `react-dom`, `react-is` and `recharts` into `.stage/<name>/resolution.json`. The stage check fails if any of those paths lies outside `.stage/<name>/node_modules/`, for example in the repository root's `node_modules` or the template, or if `react` or `react-is` resolves to more than one real path. `pnpm ls` alone is not evidence.
 
 `dev:docs`, `build:docs`, `preview:docs` and `test:docs` all depend on `stage docs`, which depends on `pack:local`, which depends on `build`. `test:package` does not use pnpm staging: it copies `tests/consumers/{react18,react19,core}` to `os.tmpdir()` outside the repository and installs the tarball there with `npm install` (the ordinary consumer path). It then asserts that there are no symlinks under `node_modules/@draven/viz` and that the dependency versions resolved as expected (section 3). The plain-HTML consumer copies `dist` assets listed in `asset-manifest.json` into a temp directory and is served by a static server.
 
