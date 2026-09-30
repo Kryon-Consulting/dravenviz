@@ -21,7 +21,7 @@
 - Default readiness timeout is 10,000 ms. Font loading, dimension checks and layout are all inside that bound (§9).
 - Print text sizes at 178 mm printed width: title 12–14 pt, labels at least 9 pt, captions at least 8 pt; `effective_pt = size × 504.57 / viewBoxWidth` (§7).
 - Exported SVG contains no `class`, `style` attribute, `foreignObject`, `script`, animation, event attribute or `recharts` string (§10).
-- No `eval`, `new Function` or `innerHTML` anywhere in `src/` or `dist/` (§12).
+- DravenViz-authored code (`src/`, and the compiled `dist/core|react|print`) contains no `eval`, `new Function`, `innerHTML` or `dangerouslySetInnerHTML`. The bundled third-party code in `dravenviz.browser.js` is checked at runtime (blocked external requests, CSP without `unsafe-eval`), not by string scan (§12).
 - Default limits: 16 series, 10,000 Cartesian points, 250 bar categories, 32 slices, 2,500 cells, 2 MiB of JSON (§6).
 - Consumers get the library only from `.pack/draven-viz-0.1.0.tgz` through `pnpm stage` or `npm install` in the OS temp directory. No workspace members, no source aliases (§16.1).
 - Visual baselines are candidates until the owner approves them in `tests/visual/REVIEW.md` (D4).
@@ -34,7 +34,7 @@ These five situations are implied by the spec but not covered by any single task
 1. **A host hidden in a collapsed tab** (`display: none` ancestor) when `mountCharts` runs. Expect `ready` to reject with `ZERO_SIZE`, leave no blank SVG and no mounted root. Owned by Task 12 (`rejects ZERO_SIZE for hidden ancestor`).
 2. **Two `mountCharts` calls on one page reusing the default namespace for the same fixture.** Expect the second call to reject with `INVALID_OPTIONS` (`duplicate-chart-embedding`) and the first to stay intact. Owned by Task 12 (`second batch with same embedding identity is rejected`).
 3. **A font file 404 inside the DravenPDF bundle.** Expect the bootstrap to throw an uncaught error, never set the ready flag, and DravenPDF to answer 422 `render_incomplete`. `test:pdf` asserts that failure, not a PDF. Owned by Task 16 (`missing font fails the PDF render`).
-4. **A React spec change while fonts from the previous render are still loading.** Expect `onReady` exactly once, for the newest `renderId`, and the DOM to show the newest spec. Owned by Task 15 (`stale font completion does not fire onReady`).
+4. **A React spec change while fonts from the previous render are still loading.** Expect `onReady` exactly once, for the newest `renderId`, and the DOM to show the newest spec. Owned by Task 14 (`stale font completion does not fire onReady`).
 5. **The machine timezone differs from the render timezone** (the test process runs with `TZ=America/New_York`, render `timezone: "Asia/Tokyo"`). Expect date-time ticks formatted in Tokyo time, and date-only ticks unchanged from the UTC run. Owned by Task 6 (`machine TZ never leaks`).
 
 ---
@@ -103,6 +103,8 @@ test('1 overlay children render inside surface and align with marks', async ({ p
   const r = await page.evaluate(() => (window as any).probe.overlayAlignment());
   expect(r.overlayInsideSurface).toBe(true);
   expect(r.maxDeltaUnits).toBeLessThanOrEqual(0.5);   // hook-scaled circle vs Line dot centres
+  expect(r.lineOnlyBandCentres).toBe(true);            // explicit scale="band": centre k at (k+0.5)·w/n
+  expect(r.plotAreaMatchesLayoutBox).toBe(true);       // usePlotArea() == margins + explicit axis sizes
 });
 test('2 grouped bars side by side; stackId bars/areas share band', async ({ page }) => {
   await page.goto('/?case=stacks');
@@ -275,7 +277,7 @@ test('generated validator has no runtime ajv import', () => {
 **Files:**
 - Create: `src/core/errors.ts`, `src/core/validate/{index.ts,issues.ts,limits.ts}`, `src/core/validate/semantic/{common.ts,cartesian.ts,donut.ts,heatmap.ts,progress.ts}`, `src/core/index.ts`, `src/core/version.ts`
 - Create: `fixtures/invalid/<rule>.json` plus `<rule>.expected.json` for every rule in §6, and `fixtures/valid/text-markup-title.json`
-- Test: `tests/unit/validate.test.ts`, `tests/unit/core-node-import.test.ts`
+- Test: `tests/unit/validate.test.ts`
 
 **Interfaces:**
 - Consumes: `schemaValidate` (Task 4).
@@ -318,7 +320,7 @@ test('lower limits allowed, raising throws INVALID_OPTIONS', () => {
 });
 ```
 
-`tests/unit/core-node-import.test.ts` runs `node --input-type=module -e "import('@draven/viz')"` against `dist/core` after the build. It asserts that the process exits 0 and that the loaded module list (from `--experimental-loader` tracing) contains no `react` or `recharts`. It is skipped until `dist` exists; `pnpm test` runs `build` first.
+The Node-import check against the compiled `dist/core` is in Task 15, once the complete build exists.
 
 - [ ] **Step 2: Run** `pnpm vitest run tests/unit/validate.test.ts`. Expected: FAIL.
 - [ ] **Step 3: Implement** `validateSpec` in the order from §6 (bytes → schema → semantic → limits). Implement every semantic rule in §6, including the revision-2 additions `static-label-without-name`, `percent-axis-configured`, `percent-axis-shared` and `percent-value-unit-required`, even though their families render in later slices. Issues are capped at 50.
@@ -410,7 +412,7 @@ test('security example override supplies role colors', () => {
 ### Task 8: Slice-1 fixtures
 
 **Files:**
-- Create: `fixtures/valid/{line-weekly-flow,line-thinned-annotation,line-singleton,line-all-equal,line-measured-zero,line-all-missing,perf-line-500x4}.json`, `fixtures/reports/report-slice1.json`, `fixtures/index.ts`, `scripts/gen-fixtures.ts`
+- Create: `fixtures/valid/{line-weekly-flow,line-thinned-annotation,line-singleton,line-all-equal,line-measured-zero,line-all-missing,line-irregular-numeric,line-irregular-time,perf-line-500x4}.json`, `fixtures/reports/report-slice1.json`, `fixtures/index.ts`, `scripts/gen-fixtures.ts`
 - Test: `tests/unit/fixtures.test.ts`
 
 **Interfaces:**
@@ -425,6 +427,8 @@ test('security example override supplies role colors', () => {
   - `line-all-equal`: values `7, 7, 7, 7`, no domain, so `fit` applies.
   - `line-measured-zero`: values `0, 0, 0, 0` with `domain: { policy: "include-zero" }`.
   - `line-all-missing`: values `null ×4`.
+- `line-irregular-numeric`: linear x axis with x = `0, 1, 2, 10, 11` and values `3, 4, 5, 6, 7`.
+- `line-irregular-time`: time axis with date-only x values `2026-07-01, 2026-07-02, 2026-07-09, 2026-08-09`.
 - `line-thinned-annotation`: a time axis with 90 daily date-only points from `2026-07-01` to `2026-09-28`, two series, one of which has 60-character long labels, and an annotation at `2026-08-12` with label `Policy change` and a detail. Monthly ticks do not include 12 Aug.
 - `perf-line-500x4`: 4 series × 125 points (500 in total) on a time axis. Values come from mulberry32 with seed `20260930`, generated by `scripts/gen-fixtures.ts`, and the output is committed.
 - `report-slice1`: `[{fixture:"line-weekly-flow",namespace:"wf-a"},{fixture:"line-weekly-flow",namespace:"wf-b"},{fixture:"line-thinned-annotation",namespace:"ta"},{fixture:"line-singleton",namespace:"sg"},{fixture:"line-measured-zero",namespace:"mz"},{fixture:"line-all-missing",namespace:"am"}]`.
@@ -527,7 +531,7 @@ test('non-line kinds report unsupported in slice 1', () => {
   - `fontScale` = max(1, the minimum pt ÷ effective pt over title, label and caption) when `printWidthMm` is set.
   - A plot area smaller than 80 × 60 throws `DravenVizError("LAYOUT_ERROR")`, with a message naming the element that consumed the space and the minimum size needed.
 
-- [ ] **Step 1: Write the failing tests:** `line-weekly-flow` at 680×320 in print mode has non-overlapping boxes (pairwise intersection area 0), plot ≥ 80×60, and `metrics.effectivePt.label >= 9`. At a width of 400 and `printWidthMm` 178, `fontScale > 1` and `effectivePt.label >= 9`. For `line-thinned-annotation` at 680 wide, some ticks have `visible: false`, the first and last are visible, and the annotation note is present. A 200×120 box throws `LAYOUT_ERROR` whose message contains "minimum". A long title of 180 characters wraps to at most 3 lines with no line wider than the width minus padding.
+- [ ] **Step 1: Write the failing tests:** `line-weekly-flow` at 680×320 in print mode has non-overlapping boxes (pairwise intersection area 0), plot ≥ 80×60, and `metrics.effectivePt.label >= 9`. At a logical width of 1200 and `printWidthMm` 178, a 13-unit label alone would be 13 × 504.57 / 1200 ≈ 5.5 pt, so `fontScale` must be about 1.74 (driven by the caption: 8 / (11 × 0.4205)). Assert `fontScale > 1`, `effectivePt.label >= 9`, `effectivePt.caption >= 8` and `12 <= effectivePt.title <= 14`. The same scaling-up case at a logical width of 680 and `printWidthMm` 100 gives `fontScale > 1`. At a width of 400 and 178 mm, labels are already ≈ 16.4 pt, so `fontScale === 1`: layout never scales text down. For `line-thinned-annotation` at 680 wide, some ticks have `visible: false`, the first and last are visible, and the annotation note is present. A 200×120 box throws `LAYOUT_ERROR` whose message contains "minimum". A long title of 180 characters wraps to at most 3 lines with no line wider than the width minus padding.
 - [ ] **Step 2: Run** them. Expected: FAIL.
 - [ ] **Step 3: Implement** the layout.
 - [ ] **Step 4: Run** them. Expected: PASS.
@@ -615,11 +619,17 @@ test('title markup renders as text', async ({ page }) => { /* text-markup-title:
 ```
 
 `tests/browser/geometry.spec.ts`:
-- For `line-weekly-flow`, every rendered marker centre and every path vertex matches the model's expected pixel position within 0.5 units. The oracle is a linear map from the model's `domain` onto `laid.boxes.plot`, and category `k` sits at `plot.x + (k + 0.5) × plot.width / n`.
+- The Recharts plot area equals the layout's plot box: an overlay probe reading `usePlotArea()` reports `laid.boxes.plot` within 0.5 units, for `line-weekly-flow` with one y axis and for a two-axis variant built in the test.
+- For `line-weekly-flow` (category axis, explicit band scale), every rendered marker centre and every path vertex matches the model's expected pixel position within 0.5 units. The oracle maps y linearly from the model's `domain` onto `laid.boxes.plot`, and category `k` of `n` sits at `plot.x + (k + 0.5) × plot.width / n`.
+- For `line-irregular-numeric` and `line-irregular-time`, the vertex x positions are proportional to their x values: the pixel gap from x = 2 to 10 is 8 times the gap from 0 to 1 (±0.5 units), and the gap from 2026-07-09 to 2026-08-09 is 31/7 times the gap from 2026-07-02 to 2026-07-09 (±0.5).
 - The annotation line x equals the scaled x of `2026-07-20` within 0.5.
 
 - [ ] **Step 2: Run** `pnpm vitest run tests/unit/table.test.ts && pnpm test:browser tests/browser/mount.spec.ts tests/browser/geometry.spec.ts`. Expected: FAIL.
-- [ ] **Step 3: Implement.** The Recharts category axis gets `type="category"`, `dataKey="x"`, `interval={0}`, `padding={{ left: 0, right: 0 }}`, and a custom `tick` that renders the `PlacedTick` lines. The y axis gets `type="number"`, `domain`, `ticks` and `allowDataOverflow={false}`. Recharts' `Tooltip`, `Legend` and `ResponsiveContainer` are not used. `harness.counts()` counts React roots via a registry in `lifecycle.ts`, live `ResizeObserver`s via a wrapped constructor in the harness, and `svg[data-dravenviz-chart]` elements.
+- [ ] **Step 3: Implement** (design §4 scales and plot bounds):
+  - A category x axis gets `type="category"`, **`scale="band"`**, `dataKey="x"`, `interval={0}`, `padding={{ left: 0, right: 0 }}`, `height={laid.boxes.axes.x.height}`, and a custom `tick` that renders the `PlacedTick` lines.
+  - Linear and time x axes get `type="number"`, `scale="linear"`, `domain` (epoch milliseconds for time) and explicit `ticks`.
+  - Each y axis gets `type="number"`, `domain`, `ticks`, `width={laid.boxes.axes[id].width}` and `allowDataOverflow={false}`.
+  - `ComposedChart`'s `margin` is `{ top: plot.y, left: plot.x − Σ left-axis widths, right: width − (plot.x + plot.width) − Σ right-axis widths, bottom: height − (plot.y + plot.height) − x-axis height }`. Recharts' `Tooltip`, `Legend` and `ResponsiveContainer` are not used. `harness.counts()` counts React roots via a registry in `lifecycle.ts`, live `ResizeObserver`s via a wrapped constructor in the harness, and `svg[data-dravenviz-chart]` elements.
 - [ ] **Step 4: Run** them. Expected: PASS.
 - [ ] **Step 5: Commit.** `feat(print): line rendering, batch mountCharts lifecycle and data tables`
 
@@ -661,6 +671,11 @@ test('real chart exports without renderer metadata', async ({ page }) => {
 });
 test('byte-identical repeat export', async ({ page }) => { /* export twice → identical strings */ });
 test('export cleans up on success, failure and timeout', async ({ page }) => { /* counts 0 after each */ });
+test('export uses effective style over attribute', async ({ page }) => {
+  /* harness injects an overlay element with fill="blue" style="fill:red" and a <pattern id="p"> filled shape;
+     exported svg: that element has fill="#ff0000"; pattern reference is url(#x-weekly-flow-N) matching the renamed pattern id;
+     a url(#missing) reference makes export reject EXPORT_FAILED rule svg-dangling-reference */
+});
 test('embedded mode embeds exactly the measured bytes', async ({ page }) => {
   const { svg, fonts } = await h(page).renderToSvgWithAssets('line-weekly-flow', { ...o, fontMode: 'embedded' });
   expect(fonts.map(f => f.sha256)).toEqual(provenanceHashes());
@@ -690,53 +705,17 @@ test('standalone file re-renders identically', async ({ page }) => { /* screensh
 
 ---
 
-### Task 14: Browser bundle, CSS, asset manifest, packing and plain-HTML examples
+### Task 14: React `Chart` adapter and `DataTable` (source-level)
 
 **Files:**
-- Create: `tsup.config.ts`, `scripts/build-browser.ts`, `scripts/build-manifest.ts`, `src/browser/index.ts`, `examples/html/{basic.html,host-isolation.html,charts.json,README.md}`, `THIRD_PARTY_NOTICES.md`, `README.md` (the slice-1 subset), `CHANGELOG.md`
-- Test: `tests/unit/dist.test.ts`, `tests/browser/html-examples.spec.ts`
-
-**Interfaces:**
-- Produces:
-  - `dist/core|react|print/*.js` + `.d.ts`, `dist/dravenviz.browser.js` (an IIFE assigning `window.DravenViz`), `dist/dravenviz.css` and `dist/asset-manifest.json` (§13 shape).
-  - Scripts `build` and `pack:local`, which writes `.pack/draven-viz-0.1.0.tgz` plus `.sha256`.
-- `THIRD_PARTY_NOTICES.md` lists the licenses and versions of the bundled `react`, `react-dom`, `react-is`, `scheduler`, `recharts` and its runtime dependencies, generated from `node_modules/*/package.json` and LICENSE files by `scripts/build-manifest.ts --notices`, plus Noto Sans OFL-1.1.
-
-- [ ] **Step 1: Write the failing tests.**
-
-`dist.test.ts`:
-- `dist/**/*.d.ts` doesn't match `/recharts/`.
-- `dist/dravenviz.browser.js` contains no `eval(` or `new Function(`, and no `http://` or `https://` other than the SVG namespace and license URLs in comments.
-- Every entry in the manifest exists with a matching SHA-256.
-- The `.pack` tarball's file list includes `dist/`, `schema/`, `assets/fonts/`, `README.md`, `CHANGELOG.md` and `THIRD_PARTY_NOTICES.md`, and excludes `docs/`, `spikes/`, `tests/`, `fixtures/` and `examples/`.
-
-`html-examples.spec.ts` serves a temp directory containing only the manifest-copied assets plus `examples/html/*`:
-- `basic.html` reaches `window.__ready === true`, and its inline SVG matches `renderToSvg` geometry.
-- `host-isolation.html` has hostile but non-`!important` CSS (`* { font-family: "Comic Sans MS" } text { fill: red; font-size: 20px } path { stroke-width: 5 } body { zoom: 1.3 }`; see design §4 host-style isolation), loads a local React 18 UMD build (copied from the dev dependency aliases `react18: npm:react@18.3.1` and `react-dom18: npm:react-dom@18.3.1`, `umd/*.production.min.js`, never a CDN), and holds two instances with namespaces `a` and `b`. Both charts must be ready, their computed text `font-family` must start with `Noto Sans`, their text fill must equal the theme text color, the page's `window.React.version` must still be `18.x`, and the two charts must share no IDs.
-- A network log asserts that the page makes no requests outside the served origin.
-
-- [ ] **Step 2: Run** `pnpm build && pnpm pack:local && pnpm vitest run tests/unit/dist.test.ts && pnpm test:browser tests/browser/html-examples.spec.ts`. Expected: FAIL.
-- [ ] **Step 3: Implement.**
-  - The tsup ESM build keeps `react`, `react-dom`, `react-is`, `recharts` and `react/jsx-runtime` external.
-  - The esbuild IIFE bundles everything, with `define: { 'process.env.NODE_ENV': '"production"' }`, `minify: true`, `legalComments: 'linked'` and `globalName: 'DravenViz'`.
-  - The CSS scopes every selector under `.dravenviz-root`, with isolation rules such as `.dravenviz-root svg text { font-family: inherit }`, where the SVG carries explicit presentation attributes.
-- [ ] **Step 4: Run** them. Expected: PASS.
-- [ ] **Step 5: Commit.** `feat(build): ESM entries, standalone browser bundle, manifest and HTML examples`
-
----
-
-### Task 15: React `Chart` adapter and `DataTable`
-
-**Files:**
-- Create: `src/react/{Chart.tsx,DataTable.tsx,interaction.ts,index.ts}`, `examples/react/{package.json,pnpm-lock.yaml,index.html,vite.config.ts,src/main.tsx}`, `scripts/stage-consumer.ts`
-- Test: `tests/browser/react.spec.ts` (harness page `react.html`), `tests/unit/react-ssr-import.test.ts`
+- Create: `src/react/{Chart.tsx,DataTable.tsx,interaction.ts,index.ts}`, `tests/harness/react.html`
+- Test: `tests/browser/react.spec.ts` (harness page `react.html`, importing `src/react` through the Task 11 harness)
 
 **Interfaces:**
 - Consumes: `ChartView`, `loadFonts`, `layoutChart`, `buildModel`, `validateSpec`, `verifyCommitted`, `nextRenderId`.
 - Produces:
   - `Chart(props: ChartProps): JSX.Element` (§9)
   - `DataTable(props: { spec: VizSpec; visuallyHidden?: boolean; locale?: string; timezone?: string }): JSX.Element`
-  - `stage-consumer.ts <docs|react|html>` (§16.1)
 - Semantics:
   - Each change to `spec`, a style option, `width` or `height` (or a measured resize) creates a new `renderId`. An effect runs fonts → layout → commit → `verifyCommitted`, then calls `onReady` only if its `renderId` is still the current one.
   - Errors render `<div role="alert" class="dravenviz-error">` with the code and message, then call `onError`.
@@ -762,12 +741,62 @@ test('100 prop updates and unmount leave no roots or observers', async ({ page }
 test('tooltip DOM never inside svg', async ({ page }) => { /* hover; tooltip exists; svg has no descendant with role tooltip */ });
 ```
 
-`react-ssr-import.test.ts`: in Node without a DOM, `await import('../../dist/react/index.js')` and `renderToString(<Chart spec={…} height={320} />)` do not throw, and the output contains a placeholder `div.dravenviz-root` (final SVG isn't promised under SSR).
-
 - [ ] **Step 2: Run** them. Expected: FAIL.
-- [ ] **Step 3: Implement.** For `examples/react`, `pnpm stage react && pnpm --dir .stage/react build` must succeed, and its `main.tsx` imports only `@draven/viz` and `@draven/viz/react`.
+- [ ] **Step 3: Implement** the adapter. This task doesn't build or pack; the compiled `dist/react` entry, SSR import check and packed React example come in Task 15.
 - [ ] **Step 4: Run** them. Expected: PASS.
 - [ ] **Step 5: Commit.** `feat(react): Chart adapter with render tokens, keyboard and data table`
+
+---
+
+### Task 15: Complete build, browser bundle, asset manifest, packing, staging and examples
+
+**Files:**
+- Create: `tsup.config.ts`, `scripts/build-browser.ts`, `scripts/build-manifest.ts`, `scripts/stage-consumer.ts`, `src/browser/index.ts`, `examples/html/{basic.html,host-isolation.html,charts.json,README.md}`, `examples/react/{package.json,pnpm-lock.yaml,index.html,vite.config.ts,src/main.tsx}`, `THIRD_PARTY_NOTICES.md`, `README.md` (the slice-1 subset), `CHANGELOG.md`
+- Test: `tests/unit/dist.test.ts`, `tests/unit/core-node-import.test.ts`, `tests/unit/react-ssr-import.test.ts`, `tests/browser/html-examples.spec.ts`, `tests/unit/stage.test.ts`
+
+**Prerequisites:** Tasks 5–14. Every source entry (`src/core`, `src/react`, `src/print`, `src/browser`) exists before this task, so the first complete `build` and `pack:local` run here.
+
+**Interfaces:**
+- Produces:
+  - `dist/core|react|print/*.js` + `.d.ts`, `dist/dravenviz.browser.js` (an IIFE assigning `window.DravenViz`), `dist/dravenviz.css` and `dist/asset-manifest.json` (§13 shape).
+  - Scripts `build` and `pack:local`, which writes `.pack/draven-viz-0.1.0.tgz` plus `.sha256`.
+  - `stage-consumer.ts <docs|react|html> [--watch]` (design §16.1): it copies the template's sources into `.stage/<name>` (no symlinks), installs, adds the tarball, and emits the resolution report.
+- `THIRD_PARTY_NOTICES.md` lists the licenses and versions of the bundled `react`, `react-dom`, `react-is`, `scheduler`, `recharts` and its runtime dependencies, generated from `node_modules/*/package.json` and LICENSE files by `scripts/build-manifest.ts --notices`, plus Noto Sans OFL-1.1.
+
+- [ ] **Step 1: Write the failing tests.**
+
+`dist.test.ts`:
+- `dist/**/*.d.ts` doesn't match `/recharts/`.
+- DravenViz's own compiled modules (`dist/core`, `dist/react`, `dist/print`, whose dependencies are external) contain no `eval(`, `new Function(`, `innerHTML` or `dangerouslySetInnerHTML`. The IIFE browser bundle is not string-scanned, because it legitimately contains ReactDOM's `innerHTML` code path and React's production-error URLs. Offline and no-eval behavior are verified at runtime instead (next file).
+- Every entry in the manifest exists with a matching SHA-256.
+- The `.pack` tarball's file list includes `dist/`, `schema/`, `assets/fonts/`, `README.md`, `CHANGELOG.md` and `THIRD_PARTY_NOTICES.md`, and excludes `docs/`, `spikes/`, `tests/`, `fixtures/` and `examples/`.
+
+`html-examples.spec.ts` serves a temp directory containing only the manifest-copied assets plus `examples/html/*`:
+- `basic.html` reaches `window.__ready === true`, and its inline SVG matches `renderToSvg` geometry.
+- `host-isolation.html` has hostile but non-`!important` CSS (`* { font-family: "Comic Sans MS" } text { fill: red; font-size: 20px } path { stroke-width: 5 } body { zoom: 1.3 }`; see design §4 host-style isolation), loads a local React 18 UMD build (copied from the dev dependency aliases `react18: npm:react@18.3.1` and `react-dom18: npm:react-dom@18.3.1`, `umd/*.production.min.js`, never a CDN), and holds two instances with namespaces `a` and `b`. Both charts must be ready, their computed text `font-family` must start with `Noto Sans`, their text fill must equal the theme text color, the page's `window.React.version` must still be `18.x`, and the two charts must share no IDs.
+- Offline and no-eval behavior are proven at runtime:
+  - Every request to a host other than the test origin is intercepted with `page.route`, aborted and recorded, and the test asserts the record is empty.
+  - The pages are served with `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'` (no `unsafe-eval`), and the charts must become ready with zero `securitypolicyviolation` events.
+
+`core-node-import.test.ts` (moved from Task 5): `node --input-type=module -e "import('@draven/viz')"` resolved against `dist`. It asserts exit code 0 and, through the loader trace, that neither `react` nor `recharts` was loaded.
+
+`react-ssr-import.test.ts` (moved from Task 14): in Node without a DOM, `await import('../../dist/react/index.js')` and `renderToString(<Chart spec={…} height={320} />)` do not throw, and the output contains a placeholder `div.dravenviz-root`. Final SVG isn't promised under SSR.
+
+`stage.test.ts`:
+- After `pnpm stage react`, `.stage/react/src` holds regular files, not symlinks.
+- Vite's resolution report, `.stage/react/resolution.json`, is written by the `dv-resolution-report` plugin during `vite build`. Every resolved ID for `@draven/viz*`, `react`, `react-dom`, `react-is` and `recharts` must have a real path under `.stage/react/node_modules/`, never under the repository root's `node_modules` or the template directory.
+- `@draven/viz/package.json` in the stage has the tarball's version and its files match the tarball's SHA-256 listing.
+- Exactly one real path each for `react` and `react-is` appears in the report.
+
+- [ ] **Step 2: Run** `pnpm build && pnpm pack:local && pnpm vitest run tests/unit/dist.test.ts tests/unit/core-node-import.test.ts tests/unit/react-ssr-import.test.ts tests/unit/stage.test.ts && pnpm test:browser tests/browser/html-examples.spec.ts`. Expected: FAIL.
+- [ ] **Step 3: Implement.**
+  - The tsup ESM build keeps `react`, `react-dom`, `react-is`, `recharts` and `react/jsx-runtime` external.
+  - The esbuild IIFE bundles everything, with `define: { 'process.env.NODE_ENV': '"production"' }`, `minify: true`, `legalComments: 'linked'` and `globalName: 'DravenViz'`.
+  - The CSS scopes every selector under `.dravenviz-root` and styles only HTML around the SVG. Chart visuals rely on inline styles (design §4 host-style isolation), not on this stylesheet.
+  - `examples/react`: `pnpm stage react && pnpm --dir .stage/react build` must succeed, and `main.tsx` imports only `@draven/viz` and `@draven/viz/react`. Its `vite.config.ts` sets `resolve.dedupe: ['react', 'react-dom', 'react-is']` and `resolve.preserveSymlinks: false`, and registers the `dv-resolution-report` plugin (shared file `scripts/vite-resolution-report.ts`, copied into each stage).
+  - `stage-consumer.ts --watch` (used by `dev:docs`) watches the template's source folders with `fs.watch` (recursive) and mirrors changes into the stage by copying, so Vite HMR sees ordinary files.
+- [ ] **Step 4: Run** them. Expected: PASS.
+- [ ] **Step 5: Commit.** `feat(build): complete build, browser bundle, manifest, packing, staging and examples`
 
 ---
 
@@ -789,7 +818,13 @@ test('tooltip DOM never inside svg', async ({ page }) => { /* hover; tooltip exi
     5. POST with the §13 options (`paper: A4`, `media: print`, `print_background: true`, `prefer_css_page_size: true`, `wait_until: load`, `wait_for_ready_flag: true`, `fail_on_resource_errors: true`, `fail_on_page_errors: true`, `timeout_ms: 30000`).
     6. Write `evidence/pdf/report-slice1.pdf` and `report-slice1.json` (spec hashes, options, DravenPDF commit `7a249e0`, Chromium version, font hashes).
     7. Rasterize at 150 dpi with `pypdfium2`, which DravenPDF already depends on, into `evidence/pdf/pages/`.
-    8. Crop each chart region into `evidence/pdf/crops/`. A region is found from the PDF text layer (`pypdfium2` char boxes): the rendered chart title text is the anchor for the top-left corner, and the crop is 178 mm × (178 × 320 / 680) mm from the title box's top-left. A title found a number of times other than its expected count (2 for `Items opened and closed`) fails the check.
+    8. Locate each chart instance's **frame** (the box of its SVG, not its title) in PDF page coordinates. The report wraps every chart SVG in `<a class="dv-frame" href="#dvf-<namespace>" style="display:block">`, whose box is exactly the SVG box, with a matching `id` target in the table caption. Chromium writes each internal link as a `/Link` annotation whose `/Rect` is that box in PDF points on the page where it printed.
+       - The driver reads the annotations with `pypdfium2` (`FPDFPage_GetAnnot`, `FPDFAnnot_GetSubtype == FPDF_ANNOT_LINK`, `FPDFAnnot_GetRect`) in page and document order and maps the n-th frame to the n-th report entry.
+       - It fails unless the number of frames equals the number of instances (6 in `report-slice1`) and each frame's rect is 178 mm wide (±0.5 mm) with the aspect ratio 680 : 320 (±0.5 %).
+       - **Fallback,** only if Chromium 141 emits no link annotations (the check records which method ran): corner marker text tokens `DVF<ns>TL` and `DVF<ns>BR` at 1 pt in the background color, absolutely positioned at the frame corners. Their loose char boxes (`get_charbox(loose=True)`) give the rect.
+       - Crop each frame rect from the 150 dpi page render into `evidence/pdf/crops/<namespace>.png`.
+       - `report-slice1.json` records, per instance: `fixture`, `namespace`, `page` (1-based), `rectPt` `[x0, y0, x1, y1]` (PDF user space, bottom-left origin), `rectMm`, `method` (`link-annotation | corner-markers`) and the crop file's SHA-256.
+       - Title searches stay as *text-content* checks only (step 1), never as crop anchors.
     9. Run `tests/pdf/compare.ts` (§16.2 cross-path) against the browser print-theme render of the same fixture at the same physical size.
     10. Stop the server.
   - If the server cannot start, `library_fallback.py` renders the same bundle through `dravenpdf`'s Python bundle API, and the result is marked `path: "library"`.
@@ -812,9 +847,15 @@ window.__DRAVENPDF_READY__ = true;
 
 - [ ] **Step 1: Write the failing checks** in `run_pdf_check.py`:
   - The PDF is A4 (595 × 842 pt ± 1) and has ≥ 1 page.
-  - Its text layer (`pypdfium2` `get_textpage`) contains `Items opened and closed` twice, plus `Partial week`, `Target`, `Not measured` and `Collection paused`.
+  - Its text layer (`pypdfium2` `get_textpage`) contains every chart title the expected number of times. Each instance contributes its SVG title text *and* its data-table caption, so the count is instances × 2: `Items opened and closed` must appear 4 times for the two `line-weekly-flow` instances. The text layer must also contain `Partial week`, `Target`, `Not measured` and `Collection paused`. Every text match must fall inside its instance's frame rect or its table; this checks content, not crop position.
   - The chart crops compare within the calibrated cross-path tolerance.
-  - The rendered label height at 150 dpi implies ≥ 9 pt: the text bounding boxes of tick labels from the text page are ≥ 9 pt.
+  - **Effective font size** comes from PDF text objects, not glyph boxes.
+    - For each text object inside a frame (`page.get_objects(filter=[FPDF_PAGEOBJ_TEXT], max_depth=16)`, which descends into form XObjects), `effective_pt = FPDFTextObj_GetFontSize(obj) × sqrt(|a·d − b·c|)`. Here `[a b c d e f]` is the object's `FPDFPageObj_GetMatrix`, composed with every enclosing form object's matrix. The object's text comes from `FPDFTextObj_GetText`.
+    - Titles must be 12–14 pt. Axis ticks, axis titles, legend, direct labels and annotation labels must be ≥ 9 pt, and notes and captions ≥ 8 pt, each with a −0.05 pt tolerance for float rounding.
+    - Each class must also agree within ±0.15 pt with `ReadyInfo.effectivePt`, which the step-9 browser render of the same fixture reports.
+  - **Bounding boxes** are used only for geometry checks:
+    - Every text object's bounds (`FPDFPageObj_GetBounds`) and every tight char box lie inside its frame rect and inside the page's printable area, so nothing is clipped.
+    - No two distinct label text objects in a frame overlap by more than 0.25 pt² in area.
   - `missing font fails the PDF render`: with `fonts/NotoSans-Regular.woff2` deleted from the bundle, the server responds 422 with code `render_incomplete`, and no PDF is written.
 - [ ] **Step 2: Run** `pnpm test:pdf`. Expected: FAIL, because the bundle doesn't exist yet.
 - [ ] **Step 3: Implement** the example files and the driver.
@@ -869,7 +910,7 @@ test('sample PDF link present with hash and labelled when edited', async ({ page
 - [ ] **Step 4: Run** `pnpm test:docs`. Expected: PASS. Save screenshots of Start and Playground to `evidence/screenshots/`.
 - [ ] **Step 5: Commit.** `feat(docs): documentation shell with Start here and playground on packed build`
 
-**Milestone — proof path complete.** One fixture now renders through React, plain HTML, a normalized standalone SVG, a real DravenPDF PDF and the docs playground, all from the packed tarball. Stop and report to the owner, with the evidence paths, before Task 18.
+**Milestone — proof path complete** (only if Task 16 reported `pass`; an `UNVERIFIED` PDF means the milestone isn't reached, and the report says so). One fixture now renders through React, plain HTML, a normalized standalone SVG, a real DravenPDF PDF and the docs playground, all from the packed tarball. Stop and report to the owner, with the evidence paths, before Task 18.
 
 ---
 
@@ -889,7 +930,7 @@ test('sample PDF link present with hash and labelled when edited', async ({ page
   - `react-is` major.minor equals `react`'s, and there is one copy each of `react` and `react-is` (`npm ls react react-is --all --json`). Recharts resolves that same `react-is` (its `require.resolve` from inside `recharts` matches the top-level path).
   - The React consumers build with Vite and run a Playwright smoke test (chart ready, `onReady` called).
   - The core consumer runs `node index.mjs`: it validates `min-line`, prints the rule and path of an invalid spec, and the Node loader trace shows neither `react` nor `recharts`. `publint` and `attw --pack` pass.
-  - The plain-HTML check reuses Task 14's temp-directory test against the extracted tarball.
+  - The plain-HTML check reuses Task 15's temp-directory test against the extracted tarball.
 
 - [ ] **Step 1: Write the driver's assertions** as listed.
 - [ ] **Step 2: Run** `pnpm test:package`. Expected: FAIL until the consumers exist.
@@ -938,7 +979,7 @@ test('sample PDF link present with hash and labelled when edited', async ({ page
 - [ ] **Step 1: Write** `tests/unit/perf-report.test.ts`: the JSON files validate against a small schema with the required fields, `samples.length === 30` per scenario, and P1 p95 ≤ 250 ms. A miss fails the test with an explicit message, which must lead to investigation and not to a threshold change.
 - [ ] **Step 2: Run** `pnpm measure && pnpm vitest run tests/unit/perf-report.test.ts`. Expected: FAIL until the scripts exist.
 - [ ] **Step 3: Implement** both scripts. Then set the budgets in design §18 to the measured value + 20 %, rounded up (bundle gzip rounded to 10 KB, latency to 10 ms), with the basis written beside each budget.
-- [ ] **Step 4: Run** again. Expected: PASS, or a recorded investigation in `evidence/perf/README.md` if P1 misses.
+- [ ] **Step 4: Run** again. Expected: PASS. If P1 misses, the test stays failing. Record the investigation in `evidence/perf/README.md` and ask the owner. Only an owner-accepted entry in `evidence/perf/EXCEPTIONS.md` (read by the test, with an expiry) turns the failure into a documented exception.
 - [ ] **Step 5: Commit.** `perf: slice-1 size and latency measurements with budgets`
 
 ---
@@ -971,6 +1012,7 @@ test('sample PDF link present with hash and labelled when edited', async ({ page
 
 - The Task 1 spike passed, or its fallbacks were applied and approved by the owner.
 - The proof-path milestone (after Task 17) was reported with evidence.
-- All scripts in Task 21 Step 4 have actual recorded outcomes. PDF shows `pass` or explicitly `unverified`; visual shows `approved` or `pending-review`, and slice 1 is not complete until it is approved.
-- P1 p95 ≤ 250 ms, or an investigation is recorded; budgets are written into design §18.
+- All scripts in Task 21 Step 4 have actual recorded outcomes; nothing is reported as passing without a run. Visual references must be `approved` (`pending-review` keeps the slice open).
+- P1 p95 ≤ 250 ms. A miss satisfies this criterion only through an **owner-accepted exception** recorded in `evidence/perf/EXCEPTIONS.md` (the measured value, the investigation, the cause, the accepted limit and its expiry, and the owner's approval in the PR). A recorded investigation alone doesn't count. Budgets are written into design §18.
+- The PDF proof is complete only when `test:pdf` reports `pass`. `UNVERIFIED` (exit 3) or `fail` leaves the proof path and slice 1 **incomplete**. It is reported honestly, and the slice isn't closed until a real PDF passes in the documented environment.
 - The slice-2 plan is written next, against design §21, reusing the interfaces produced here.
