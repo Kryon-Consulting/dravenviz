@@ -1,7 +1,7 @@
 # DravenViz V1 design
 
 Date: 2026-09-30
-Status: Revision 3. Revision 2 addressed the owner's first design review (export normalization, positioning ownership, clean-install sequence, readiness checks, percent-stack labels, datum names, custom-font export, `react-is`, `InvalidSpecError`, embedding identities, visual tolerances, CI browser install, provisional browsers). Revision 3 addresses the second review: copied (not symlinked) staging with an import-resolution report, explicit band scale and plot bounds, effective-style export normalization, the authored-code rule plus runtime offline/CSP checks, and PDF frame and font-size verification. Draft for owner review. Implements `docs/spec.md` (the product brief). Where this document and the brief differ, the brief wins unless this document names the difference and the owner has approved it.
+Status: Revision 4. Revision 4 addresses the third review: authoritative domains with `allowDataOverflow` and clip indicators, full style materialization with inheritance-safe pruning, estimated/monotone rendering, and the PDF frame probe and label-region checks. Revision 3. Revision 2 addressed the owner's first design review (export normalization, positioning ownership, clean-install sequence, readiness checks, percent-stack labels, datum names, custom-font export, `react-is`, `InvalidSpecError`, embedding identities, visual tolerances, CI browser install, provisional browsers). Revision 3 addresses the second review: copied (not symlinked) staging with an import-resolution report, explicit band scale and plot bounds, effective-style export normalization, the authored-code rule plus runtime offline/CSP checks, and PDF frame and font-size verification. Draft for owner review. Implements `docs/spec.md` (the product brief). Where this document and the brief differ, the brief wins unless this document names the difference and the owner has approved it.
 
 This document freezes the public contract, dependency versions, internal boundaries, fixtures and acceptance mapping for all four delivery slices. Slice plans (`docs/plans/`) implement it; a slice plan that needs a public API change updates this document first and goes back to the owner.
 
@@ -197,7 +197,11 @@ Recharts usage rules (`src/render/recharts`):
 
 - All Cartesian specs render through `ComposedChart` (`layout="vertical"` for horizontal bars); donut through `PieChart` with `startAngle=90`, `endAngle=-270`.
 - `isAnimationActive={false}` on every mark. No `ResponsiveContainer`, `Tooltip` or `Legend` from Recharts.
-- Axes receive `type="number"`, explicit `domain=[min,max]`, `ticks=[...]`, `allowDataOverflow` only when the model selected an indicated clipping mode, `scale="linear"`. Category axes receive the category key list and `interval={0}` with DravenViz-provided tick renderers.
+- Numeric axes receive `type="number"`, explicit `domain=[min,max]`, `ticks=[...]`, `scale="linear"` and **always `allowDataOverflow={true}`**. With `allowDataOverflow={false}`, Recharts extends a fixed domain to fit the data, which would silently undo `overflow: "clip-indicated"`. DravenViz's domain is therefore authoritative in every case:
+  - Under `overflow: "error"` (the default), validation guarantees no value falls outside it.
+  - Under `fit` and `include-zero`, the model's domain already contains the data.
+  - Under `clip-indicated`, Recharts clips marks to the plot area (its clip path), and DravenViz draws the indicators.
+  - Readiness verification compares `useYAxisDomain(id)` and `useXAxisDomain()` with the model's domain and fails with `RENDER_FAILED` (`domain-mismatch`) on any difference. Category axes receive the category key list and `interval={0}` with DravenViz-provided tick renderers.
 - **Grouping and stacking.** Grouped bars are separate `Bar`s without `stackId`; Recharts places them side by side in the category band. Stacked bars and areas use Recharts `stackId` so they share one band position. They are fed DravenViz-computed contributions: raw values for absolute stacks (`stackOffset="sign"`, so positives stack up and negatives down), and shares (value / total × 100) for percent stacks (`stackOffset="none"`). Recharts' `stackOffset="expand"` is never used, because it would renormalize a stack with a missing member. Unavailable or empty categories feed `null` for every member and draw a DravenViz placeholder instead.
 - **Overlays.** Annotations, reference-line labels, quality markers, placeholders and the focus ring are chart children that call the public hooks `useXAxisScale`, `useYAxisScale` and `usePlotArea`. They never read Recharts DOM, class names or private state.
 - Custom marks and labels use documented extension points only: `shape`, `dot`, `label`, `tick` render props, public hooks and SVG children of the chart.
@@ -394,6 +398,13 @@ Cartesian semantics (normative for the model and tests):
 - **Stacked areas with a missing member.** If any member of an area stack is null at an x position, every member of that stack has a gap there: the layers above would otherwise have no defined baseline. The data table marks the position "Unavailable (missing member)".
 - **Quality markers.** `partial` = hollow marker, `lagging` = marker with outer ring, `estimated` = dashed segment into and out of the point. Each quality present is listed in the legend with its meaning; tables show the quality word.
 - **Allowed combinations.** `renderHint` is valid on line/area points only; `size` on scatter only; `renderHint: "marker-only"` with `value: null` is an error (`marker-without-value`).
+- **Clipped lines and areas (`overflow: "clip-indicated"`).** The axis domain stays exactly as declared.
+  - Line and area segments are clipped at the plot edge.
+  - Every point outside the domain gets a clip indicator: a small chevron on the plot edge at the point's x, pointing up for values above the maximum and down for values below the minimum.
+  - Out-of-domain points get no normal marker; their true values appear in tooltips and the data table (state `clipped`).
+  - One note per axis and side is added, for example "2 values above 100 are clipped at the top edge (max 130)".
+  - The model carries `overflow` on each y axis and `clipped: { pointId; side: "above" | "below" }[]` on each series. The manifest carries `series:<id>:clip-indicator` groups.
+- **Estimated styling.** Line pieces adjacent to an `estimated` point (from the previous point to the next point) are dashed. The curve is drawn once per segment, as two identical paths clipped to complementary x ranges (a solid path outside the estimated ranges and a dashed path inside them). This keeps monotone interpolation continuous; separate sub-lines would re-start the curve at each break.
 - **Bars.** Axes carrying bars resolve to include zero. A `fixed` domain excluding zero or any bar value is `bar-domain-excludes-data` unless `overflow: "clip-indicated"`, which draws a break marker at the clipped end and adds a note. Negative bars grow from zero.
 - **Grouping and stacking.** Bars without `stackId` in the same category are grouped in series order. Series sharing `stackId` stack in series order.
   - Absolute stacks: positive values stack up from zero, negatives stack down from zero. Null members leave a gap in the stack and mark the category total as partial in labels and tables.
@@ -745,9 +756,15 @@ Export has three stages: **normalize**, **validate strictly**, then **finalize**
 **1. Normalize** (`render/svg/normalize.ts`). This runs on a deep clone of the live `<svg>`, using the live element's computed style.
 
 1. Drop subtrees that aren't part of the static graphic: elements whose computed `display` is `none`, or with `visibility: hidden`, and elements marked `data-dv-interactive` (focus ring, hover highlight).
-2. *Materialize* styles. For every element, write the **effective computed value** of these properties as the presentation attribute, *overwriting* any existing attribute. The computed value already reflects inline `style` and stylesheet precedence over attributes, so the export looks like the live render: `fill`, `fill-opacity`, `stroke`, `stroke-width`, `stroke-opacity`, `stroke-dasharray`, `stroke-linecap`, `stroke-linejoin`, `opacity`, `font-family`, `font-size`, `font-weight`, `text-anchor`, `dominant-baseline`. Colors are converted to `#rrggbb` (with separate `*-opacity` when alpha < 1); CSS variables are resolved by the computed style. Paint values that reference a paint server (`url("#id")` for gradients and patterns) are kept as local references, `url(#id)`, after checking that the target ID exists inside the same SVG. Any other `url(...)` fails validation. Properties whose computed value is the initial value and which have no attribute are not written, which keeps the output small.
-3. Remove known renderer metadata: `class`, `style`, `tabindex`, `focusable`, `cursor`, `pointer-events`, `data-*` except `data-dv-*`, and any attribute in the Recharts attribute inventory that the slice 1 spike recorded as non-presentational (for example `name`, `orientation`, `type`, `index`, `width`/`height` on `g`). The inventory is a checked-in constant, `render/svg/recharts-metadata.ts`, with a test that fails if a Recharts upgrade emits an attribute that is not classified.
-4. Replace Recharts' `<title>`/`<desc>` children of the root with DravenViz's own.
+2. *Materialize* styles. For every element, write the **effective computed value** of these properties as the presentation attribute, *overwriting* any existing attribute. The computed value already reflects inline `style` and stylesheet precedence over attributes, so the export looks like the live render: `fill`, `fill-opacity`, `stroke`, `stroke-width`, `stroke-opacity`, `stroke-dasharray`, `stroke-linecap`, `stroke-linejoin`, `opacity`, `font-family`, `font-size`, `font-weight`, `text-anchor`, `dominant-baseline`. Colors are converted to `#rrggbb` (with separate `*-opacity` when alpha < 1); CSS variables are resolved by the computed style. Paint values that reference a paint server (`url("#id")` for gradients and patterns) are kept as local references, `url(#id)`, after checking that the target ID exists inside the same SVG. Any other `url(...)` fails validation.
+   - **Every** listed property is written on **every** element, including values equal to the property's initial value. A child's `fill: black` must survive under a `<g fill="red">`, because `fill` is inherited in SVG.
+3. *Optional pruning, after materialization.* An attribute may be removed only when the export tree's own inheritance provably yields the same value:
+   - An **inherited** property (`fill`, `stroke*`, `font-*`, `text-anchor`, `dominant-baseline`) is removed from a child only if the parent's *final exported* attribute has the identical value.
+   - A **non-inherited** property (`opacity`) is removed only if it equals the initial value.
+   - Pruning runs top-down over the export tree, never the live DOM. Ancestors outside the exported `<svg>` never count, because the standalone file has no such ancestors.
+4. The root `<svg>` always carries every inherited property explicitly, so nothing depends on a host page or viewer default.
+5. Remove known renderer metadata: `class`, `style`, `tabindex`, `focusable`, `cursor`, `pointer-events`, `data-*` except `data-dv-*`, and any attribute in the Recharts attribute inventory that the slice 1 spike recorded as non-presentational (for example `name`, `orientation`, `type`, `index`, `width`/`height` on `g`). The inventory is a checked-in constant, `render/svg/recharts-metadata.ts`, with a test that fails if a Recharts upgrade emits an attribute that is not classified.
+6. Replace Recharts' `<title>`/`<desc>` children of the root with DravenViz's own.
 
 **2. Validate strictly** against an allowlist:
 
@@ -768,6 +785,8 @@ Export has three stages: **normalize**, **validate strictly**, then **finalize**
 
 Export tests, in the slice 1 spike and then in `test:browser`:
 
+- Inheritance regression: `<g fill="red"><rect style="fill:black"/></g>` exports the rect with `fill="#000000"`, and pruning keeps it because the parent's value differs. `<g fill="red"><rect fill="red"/></g>` may prune the child.
+- Computed-style equivalence: the exported SVG is loaded standalone in Chromium, and for every element, `getComputedStyle` of each listed property equals the live element's value.
 - Attribute-versus-style regression: an element with `fill="blue" style="fill:red"` exports `fill="#ff0000"`; one with `fill="url(#p)"` and a local `<pattern id="p">` keeps the local reference, renamed by the namespacing step; one referencing `url(#missing)` fails.
 - A real `line-weekly-flow` chart goes through all three stages in both font modes. The result contains no `class`/`style` attributes or `recharts` strings, and re-renders identically when loaded as a standalone file in Chromium.
 - A custom-font test uses the OFL font Noto Serif v2.015 (test asset only, in `tests/assets/fonts/`) through `fonts`. It asserts that `font-family` names the custom family, the external `@font-face` URLs use the custom file names under `fontHrefPrefix`, and the embedded bytes' SHA-256 equals the loaded file's.
@@ -780,7 +799,7 @@ interface DataTable {
   caption: string;                     // title + unit summary
   columns: { key: string; label: string; unit?: string; align: "start" | "end" }[];
   rows: { id: string; header: string; cells: { text: string; value: number | string | null;
-          state: "measured" | "missing" | "partial" | "lagging" | "estimated" | "unavailable" | "empty" }[] }[];
+          state: "measured" | "missing" | "partial" | "lagging" | "estimated" | "clipped" | "unavailable" | "empty" }[] }[];
   notes: string[];                     // annotation details, clipping, bubble disclosure, transformations
 }
 function toDataTable(spec: VizSpec, options?: { locale?: string; timezone?: string }): DataTable;
@@ -834,8 +853,8 @@ Verified against `Kryon-Consulting/dravenpdf@7a249e0`:
 4. Start `dravenpdf serve` on a free port with a generated `DRAVENPDF_API_KEY` and `DRAVENPDF_CHROMIUM_PATH` set to Chromium 141.
 5. Post the multi-family report and the single-chart comparison pages.
 6. Rasterize them at 150 dpi with `pypdfium2`.
-   - Locate each chart instance's frame from the `/Link` annotation that wraps its SVG (fallback: corner marker tokens), recording page, namespace and rectangle in points and mm.
-   - Measure effective font size from text objects (font size × transform scale), with glyph bounding boxes used only for clipping and overlap checks. The exact procedure is in the slice-1 plan, Task 16.
+   - Locate each chart instance's frame using the procedure proven by the slice-1 PDF probe (plan Task 16, Part A). The candidates are link annotations whose destinations identify the instance, and calibrated corner markers. Record page, namespace and rectangle in points and mm.
+   - Group text objects into logical labels with roles (title, tick, axis title, legend, annotation, reference, note, caption) from the browser render's label manifest. Measure effective font size per label from its text objects (font size × transform scale). Check clipping and overlap using transformed quadrilaterals (`FPDFPageObj_GetRotatedBounds`), so rotated labels are judged by their real regions. Instrumentation markers are excluded. The exact procedure is in the slice-1 plan, Task 16.
 7. Run the comparisons.
 8. Write the evidence.
 
@@ -849,7 +868,7 @@ If Python 3.12, uv or Chromium is missing, it prints `UNVERIFIED: <reason>` and 
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `#/`           | Start here: environment matrix, install, first React chart, plain HTML chart, Python-to-DravenPDF quickstart, what needs a DOM   |
 | `#/gallery`    | Grid of every fixture tagged `gallery`, grouped by family and mode. The detail view (`#/gallery/<fixtureId>`) shows the live chart, JSON, React/HTML/Python snippets, data table, SVG download and links to PDF evidence with hash and options |
-| `#/playground` | Fixture selector, CodeMirror JSON editor, Validate and Render, Reset, theme, width/height, locale, timezone, font mode; errors listed by path; last good preview labelled "Showing last valid render"; print preview at explicit mm width; SVG and JSON download; copy options |
+| `#/playground` | Fixture selector, CodeMirror JSON editor, Validate and Render, Reset, theme, width/height, locale, timezone, font mode (downloads default to a portable single SVG with embedded fonts; "external fonts" downloads a zip with `chart.svg`, `fonts/`, licenses and a README); errors listed by path; last good preview labelled "Showing last valid render"; print preview at explicit mm width; SVG and JSON download; copy options |
 | `#/api`        | Generated from the schema (field tables) plus hand-written API pages; schema download                                           |
 | `#/styling`    | Theme tokens, overrides, roles, fonts, embedding modes, label policies, printed font sizing, grayscale examples                 |
 | `#/export`     | SVG preview/download, sample PDF preview/download (from `evidence/pdf/`), bundle and readiness explanation, asset copy, Python recipe |
@@ -874,7 +893,7 @@ Fixture IDs are stable file names in `fixtures/valid/` (V) or `fixtures/invalid/
 | 9          | V `text-markup-title`; I `invalid-infinite-value`, `invalid-string-number`, `invalid-unknown-field`, `invalid-oversized` (generated at test time), `invalid-bar-domain`, `invalid-percent-negative`, plus one per semantic rule |
 | 10         | V `composed-remediation-days-counts`, `composed-flow-cumulative`                                              |
 | 11         | V `bar-ranking-horizontal`, `bar-stacked-categories`, `bar-compact-percent`                                   |
-| Extra      | V `area-inventory-stacked`, `area-single-gaps`, `line-sparkline`, `bar-grouped`, `line-irregular-numeric`, `line-irregular-time`, `perf-line-500x4` (seeded) |
+| Extra      | V `area-inventory-stacked`, `area-single-gaps`, `line-sparkline`, `bar-grouped`, `line-irregular-numeric`, `line-irregular-time`, `line-fixed-domain-clipped`, `line-estimated-monotone`, `line-category-labels-wrap`, `line-category-labels-rotate`, `line-category-labels-thin`, `perf-line-500x4` (seeded) |
 | Reports    | `report-slice1` (line fixtures), `report-multi-family-a4` (one or more of every family, with two instances of `line-weekly-flow`) |
 
 Coverage rows from the brief ("Coverage scenarios derived from platform review") map to fixtures below. Each row must reach reviewed browser, SVG and PDF evidence before V1 acceptance (`evidence/verification-matrix.md`).
