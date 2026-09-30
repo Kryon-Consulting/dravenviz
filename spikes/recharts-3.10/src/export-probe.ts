@@ -1,24 +1,31 @@
 // First cut of design section 10 normalize + strict validate, plus the attribute inventory.
 // Reads the live DOM for measurement only; product code never does this.
 
-export type Classification = 'presentation' | 'geometry' | 'metadata';
+export type Classification = 'presentation' | 'geometry' | 'metadata' | 'unclassified';
 export type Inventory = Record<string, Record<string, Record<string, Classification>>>;
 
 const PRESENTATION = [
   'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap',
   'stroke-linejoin', 'opacity', 'font-family', 'font-size', 'font-weight', 'text-anchor', 'dominant-baseline',
 ];
-const GEOMETRY = new Set([
-  'd', 'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2', 'points', 'transform', 'viewBox', 'dx', 'dy',
-  'width', 'height', 'offset', 'id', 'clip-path', 'xmlns', 'role',
-]);
 const PRESENTATION_SET = new Set(PRESENTATION);
 // Metadata the normalizer removes (design section 10 step 5). Extended only from the observed inventory.
 const METADATA_ALWAYS = new Set(['class', 'style', 'tabindex', 'focusable', 'cursor', 'pointer-events']);
-const METADATA_EXTRA = new Set(['name', 'orientation', 'type', 'index', 'k', 'radius', 'angle']);
+// Tag-specific metadata observed in the inventory (renderer bookkeeping with no drawing effect). An attribute that is in
+// neither this table, METADATA_ALWAYS, presentation, nor GEOMETRY_BY_TAG is 'unclassified' and is NOT stripped, so the
+// strict allowlist (and the inventory test) flags it.
+const METADATA_BY_TAG: Record<string, string[]> = {
+  svg: [],
+  g: [],
+  path: ['width', 'height', 'x', 'y', 'k', 'name', 'radius'],
+  circle: ['width', 'height'],
+  line: ['x', 'y', 'width', 'height', 'angle', 'orientation'],
+  text: ['width', 'height', 'offset', 'orientation'],
+};
 
 // Geometry attributes that are meaningful per element; the same name elsewhere (for example width/height on g,
 // circle, line, text, or x/y on path) is renderer metadata that does not affect drawing.
+const tagKey = (tag: string) => (tag.toLowerCase() === 'clippath' ? 'clipPath' : tag.toLowerCase());
 const GEOMETRY_BY_TAG: Record<string, string[]> = {
   svg: ['width', 'height', 'viewBox', 'xmlns', 'role'],
   g: ['transform', 'clip-path', 'id'],
@@ -33,11 +40,15 @@ const GEOMETRY_BY_TAG: Record<string, string[]> = {
 };
 export function classify(tag: string, attr: string): Classification {
   if (PRESENTATION_SET.has(attr)) return 'presentation';
-  if ((GEOMETRY_BY_TAG[tag.toLowerCase() === 'clippath' ? 'clipPath' : tag.toLowerCase()] ?? []).includes(attr)) return 'geometry';
-  return 'metadata';
+  if (attr.startsWith('aria-') || attr.startsWith('data-dv-')) return 'geometry'; // allowed pass-through
+  if ((GEOMETRY_BY_TAG[tagKey(tag)] ?? []).includes(attr)) return 'geometry';
+  if (METADATA_ALWAYS.has(attr) || attr.startsWith('data-')) return 'metadata';
+  if ((METADATA_BY_TAG[tagKey(tag)] ?? []).includes(attr)) return 'metadata';
+  return 'unclassified';
 }
 
-const HARNESS_MARKERS = /^data-(overlay|tick-render|dot-render)/;
+// Elements authored by the spike harness (overlays, render-prop ticks/dots) are not Recharts output.
+const isHarness = (el: Element) => Array.from(el.attributes).some((a) => a.name.startsWith('data-spike-'));
 
 function componentKey(el: Element): string {
   const own = Array.from(el.classList).find((c) => c.startsWith('recharts-'));
@@ -55,11 +66,11 @@ export function collectInventory(roots: Element[]): Inventory {
   const inv: Inventory = {};
   for (const root of roots) {
     for (const el of [root, ...Array.from(root.querySelectorAll('*'))]) {
+      if (isHarness(el)) continue;
       const tag = el.tagName;
       const key = componentKey(el);
       const t = ((inv[key] ??= {})[tag] ??= {});
       for (const a of Array.from(el.attributes)) {
-        if (HARNESS_MARKERS.test(a.name)) continue; // attributes written by the spike's own overlay/render props
         t[a.name] = classify(tag, a.name);
       }
     }
@@ -71,7 +82,7 @@ const ALLOWED_ELEMENTS = new Set('svg g path rect circle ellipse line polyline p
 function attributeAllowed(tag: string, name: string): boolean {
   if (PRESENTATION_SET.has(name)) return true;
   if (name.startsWith('aria-') || name.startsWith('data-dv-')) return true;
-  return GEOMETRY.has(name);
+  return (GEOMETRY_BY_TAG[tagKey(tag)] ?? []).includes(name);
 }
 
 function toHex(c: string): { color: string; opacity?: string } {
@@ -106,7 +117,7 @@ function walk(el: Element, fn: (e: Element) => void) {
   Array.from(el.children).forEach((c) => walk(c, fn));
 }
 
-export function exportProbe(liveSvg: SVGSVGElement) {
+export function exportProbe(liveSvg: SVGSVGElement, opts: { inject?: boolean } = {}) {
   const clone = liveSvg.cloneNode(true) as SVGSVGElement;
   // Stage 1: normalize
   materialize(liveSvg, clone); // (display:none / data-dv-interactive dropping omitted: none present in the spike chart)
@@ -117,10 +128,7 @@ export function exportProbe(liveSvg: SVGSVGElement) {
     for (const a of Array.from(e.attributes)) {
       const n = a.name;
       const drop =
-        METADATA_ALWAYS.has(n) ||
-        (n.startsWith('data-') && !n.startsWith('data-dv-')) ||
-        METADATA_EXTRA.has(n) ||
-        (classify(tag, n) === 'metadata' && !n.startsWith('aria-') && !n.startsWith('data-dv-'));
+        classify(tag, n) === 'metadata';
       if (drop) {
         e.removeAttribute(n);
         removed[`${tag}@${n}`] = (removed[`${tag}@${n}`] ?? 0) + 1;
@@ -138,6 +146,12 @@ export function exportProbe(liveSvg: SVGSVGElement) {
       if (v !== a.value) e.setAttribute(a.name, v);
     }
   });
+  if (opts.inject) {
+    // Negative control: attributes that no classification knows must reach the validator and be reported.
+    const target = clone.querySelector('path') as Element;
+    target.setAttribute('onclick', 'x');
+    target.setAttribute('foo', '1');
+  }
   // Stage 2: strict allowlist validation
   const disallowedAfterNormalize: string[] = [];
   walk(clone, (e) => {

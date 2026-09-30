@@ -59,14 +59,14 @@ function Overlay({ data, field }: { data: Row[]; field: 'a' | 'b' }) {
   const ys = useYAxisScale();
   if (!xs || !ys) return null;
   return (
-    <g data-overlay="1">
+    <g data-spike-overlay="1">
       {data.map((d) => {
         const v = d[field];
         if (v == null) return null;
         const cx = xs(d.k, { position: 'middle' });
         const cy = ys(v);
         if (cx == null || cy == null) return null;
-        return <circle key={d.k} data-overlay-dot={d.k} cx={cx} cy={cy} r={3} fill="none" stroke="#f0f" />;
+        return <circle key={d.k} data-spike-overlay-dot={d.k} cx={cx} cy={cy} r={3} fill="none" stroke="#f0f" />;
       })}
     </g>
   );
@@ -128,16 +128,19 @@ function OverlayCase() {
       {yAxisNum([0, 30], [0, 10, 20, 30])}
       <Line dataKey="a" isAnimationActive={false} stroke="#2a6" dot={{ r: 4, fill: '#2a6' }} />
       <Overlay data={LINE_DATA} field="a" />
+      <rect data-spike-plain="1" x={70} y={30} width={10} height={10} fill="none" stroke="#f0f" />
       <Capture name="overlay" />
     </Chart>
   );
 }
 function overlayAlignment() {
   const svg = svgOf('c');
-  const overlay = svg.querySelector('[data-overlay]');
+  const overlay = svg.querySelector('[data-spike-overlay]');
   const overlayInsideSurface = !!overlay && svg.contains(overlay);
+  const plain = svg.querySelector('rect[data-spike-plain]');
+  const plainChildInsideSurface = !!plain && svg.contains(plain) && plain.getAttribute('x') === '70';
   const dots = q(svg, '.recharts-line-dots circle');
-  const ov = q(svg, 'circle[data-overlay-dot]');
+  const ov = q(svg, 'circle[data-spike-overlay-dot]');
   // Recharts dot centres vs hook-scaled overlay circles
   let maxDeltaUnits = Infinity;
   if (dots.length === ov.length && dots.length > 0) {
@@ -159,6 +162,7 @@ function overlayAlignment() {
   const plotDeltas = ['x', 'y', 'width', 'height'].map((key) => Math.abs(p[key] - (EXPECTED_PLOT as any)[key]));
   return {
     overlayInsideSurface,
+    plainChildInsideSurface,
     maxDeltaUnits,
     dotCount: dots.length,
     overlayCount: ov.length,
@@ -244,9 +248,12 @@ function stacks() {
   const areaPaths = q(svgOf('areas'), '.recharts-area-area').map((p) => p.getAttribute('d') ?? '');
   const sums = AREA.map((r) => (r.a as number) + (r.b as number));
   let topDelta = Infinity;
+  let areaXDelta = Infinity;
+  const ap = w.hooks.areas.plot;
   if (areaPaths.length === 2) {
     const pts = pathPoints(areaPaths[1]).slice(0, AREA.length);
     topDelta = Math.max(...pts.map((p, i) => Math.abs(p[1] - ays(sums[i]))));
+    areaXDelta = Math.max(...pts.map((p, i) => Math.abs(p[0] - (ap.x + ((i + 0.5) * ap.width) / AREA.length))));
   }
   return {
     groupedDistinctX,
@@ -256,6 +263,8 @@ function stacks() {
     positivesStackOnA,
     areaStackTopEqualsSum: topDelta <= 0.5,
     areaTopDelta: topDelta,
+    areaXAtBandCentres: areaXDelta <= 0.5,
+    areaXDelta,
     groupedRects: g,
     stackedRects: s,
   };
@@ -347,11 +356,13 @@ async function firstCommitStable() {
   }
   await new Promise((r) => setTimeout(r, 500));
   const pathAfter500ms = geom(host);
-  const empty = JSON.stringify([[], [], [], []]);
+  const parts = JSON.parse(pathAfterCommit) as unknown[][];
+  const eachGeometryNonEmpty = parts.length === 4 && parts.every((a) => a.length > 0);
   return {
     pathAfterCommit,
     pathAfter500ms,
-    committedNonEmpty: afterCommit !== empty,
+    eachGeometryNonEmpty,
+    geometryCounts: parts.map((a) => a.length),
     framesEqualFinal: frames.every((f) => f === pathAfter500ms),
   };
 }
@@ -373,9 +384,9 @@ function HostCssCase() {
         <ReferenceLine y={15} style={{ stroke: '#333333', strokeWidth: 2 }} />
       </Chart>
       <Chart id="c2" data={LINE_DATA}>
-        {xAxisBand({ tick: (p: any) => <text x={p.x} y={p.y + 10} textAnchor="middle" data-tick-render="1" style={TICK_STYLE}>{p.payload.value}</text> })}
-        {yAxisNum([0, 30], [0, 10, 20, 30], { tick: (p: any) => <text x={p.x} y={p.y} textAnchor="end" data-tick-render="1" style={TICK_STYLE}>{p.payload.value}</text> })}
-        <Line dataKey="a" stroke="#2a6" isAnimationActive={false} dot={(p: any) => <circle key={p.index} cx={p.cx} cy={p.cy} r={4} data-dot-render="1" style={{ fill: '#ab12cd', stroke: '#ab12cd', strokeWidth: 2 }} />} />
+        {xAxisBand({ tick: (p: any) => <text x={p.x} y={p.y + 10} textAnchor="middle" data-spike-tick-render="1" style={TICK_STYLE}>{p.payload.value}</text> })}
+        {yAxisNum([0, 30], [0, 10, 20, 30], { tick: (p: any) => <text x={p.x} y={p.y} textAnchor="end" data-spike-tick-render="1" style={TICK_STYLE}>{p.payload.value}</text> })}
+        <Line dataKey="a" stroke="#2a6" isAnimationActive={false} dot={(p: any) => <circle key={p.index} cx={p.cx} cy={p.cy} r={4} data-spike-dot-render="1" style={{ fill: '#ab12cd', stroke: '#ab12cd', strokeWidth: 2 }} />} />
       </Chart>
     </>
   );
@@ -384,16 +395,17 @@ function hostCss() {
   const cs = (e: Element) => getComputedStyle(e);
   const near = (a: string, b: string) => a === b;
   const svg = svgOf('c');
-  const rows: { name: string; forwards: boolean; survives: boolean; detail: string }[] = [];
+  const rows: { name: string; forwards: boolean; survives: boolean; detail: string; props: Record<string, boolean> }[] = [];
   const check = (name: string, els: Element[], props: Record<string, string>) => {
     if (!els.length) {
-      rows.push({ name, forwards: false, survives: false, detail: 'element not found' });
+      rows.push({ name, forwards: false, survives: false, detail: 'element not found', props: {} });
       return;
     }
     const keys = Object.keys(props);
-    const forwards = els.every((e) => keys.every((k) => (e.getAttribute('style') ?? '').toLowerCase().includes(k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()))));
-    const survives = els.every((e) => keys.every((k) => near(cs(e).getPropertyValue(k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())), props[k])));
-    rows.push({ name, forwards, survives, detail: els[0].outerHTML.slice(0, 160) });
+    const css = (k: string) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+    const forwards = els.every((e) => keys.every((k) => (e.getAttribute('style') ?? '').toLowerCase().includes(css(k))));
+    const perProp = Object.fromEntries(keys.map((k) => [k, els.every((e) => near(cs(e).getPropertyValue(css(k)), props[k]))]));
+    rows.push({ name, forwards, survives: keys.every((k) => perProp[k]), detail: els[0].outerHTML.slice(0, 160), props: perProp });
   };
   check('Line', q(svg, 'path.recharts-line-curve'), { strokeWidth: '2px', stroke: 'rgb(18, 52, 86)' });
   check('Line.dot', q(svg, '.recharts-line-dots circle'), { fill: 'rgb(171, 18, 205)', strokeWidth: '2px' });
@@ -406,9 +418,9 @@ function hostCss() {
   check('XAxis.tickLine', q(svg, '.recharts-xAxis .recharts-cartesian-axis-tick-line'), { strokeWidth: '2px' });
   check('ReferenceLine', q(svg, '.recharts-reference-line-line'), { strokeWidth: '2px' });
   const svg2 = svgOf('c2');
-  check('XAxis.tick(render prop)', q(svg2, '[data-tick-render][text-anchor="middle"]'), { fill: 'rgb(10, 11, 12)', fontFamily: 'monospace' });
-  check('YAxis.tick(render prop)', q(svg2, '[data-tick-render][text-anchor="end"]'), { fill: 'rgb(10, 11, 12)', fontFamily: 'monospace' });
-  check('Line.dot(render prop)', q(svg2, '[data-dot-render]'), { fill: 'rgb(171, 18, 205)', strokeWidth: '2px' });
+  check('XAxis.tick(render prop)', q(svg2, '[data-spike-tick-render][text-anchor="middle"]'), { fill: 'rgb(10, 11, 12)', fontFamily: 'monospace' });
+  check('YAxis.tick(render prop)', q(svg2, '[data-spike-tick-render][text-anchor="end"]'), { fill: 'rgb(10, 11, 12)', fontFamily: 'monospace' });
+  check('Line.dot(render prop)', q(svg2, '[data-spike-dot-render]'), { fill: 'rgb(171, 18, 205)', strokeWidth: '2px' });
   // Negative control: an unstyled Line path in chart c2 must be hit by the host rule (path{stroke-width:5}).
   const controlEl = svg2.querySelector('path.recharts-line-curve')!;
   const hostCssBites = cs(controlEl).getPropertyValue('stroke-width') === '5px';
@@ -422,9 +434,9 @@ function hostCss() {
     hostCssBites,
     componentsForwardingStyle,
     nonForwarding,
-    textFillsUnchanged: textRows.every((r) => r.survives),
-    lineStrokeWidthsUnchanged: lineRows.every((r) => r.survives),
-    fontFamilyUnchanged: textRows.every((r) => r.survives),
+    textFillsUnchanged: textRows.every((r) => r.props.fill === true),
+    lineStrokeWidthsUnchanged: lineRows.every((r) => r.props.strokeWidth === true),
+    fontFamilyUnchanged: textRows.every((r) => r.props.fontFamily === true),
   };
 }
 
@@ -467,7 +479,7 @@ w.probe = {
   nulls,
   firstCommitStable,
   hostCss,
-  exportProbe: () => exportProbe(svgOf('c')),
+  exportProbe: (inject = false) => exportProbe(svgOf('c'), { inject }),
   inventory: () => collectInventory(Array.from(document.querySelectorAll('svg.recharts-surface'))),
 };
 if (name !== 'noanim') {

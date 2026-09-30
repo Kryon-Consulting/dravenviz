@@ -1,24 +1,25 @@
 {
   "1": {
-    "overlayInsideSurface": true,
-    "maxDeltaUnits": 0,
     "dotCount": 4,
-    "overlayCount": 4,
+    "expectedPlot": {
+      "height": 240,
+      "width": 510,
+      "x": 60,
+      "y": 20
+    },
     "lineOnlyBandCentres": true,
     "maxBandCentreDelta": 0,
-    "plotAreaMatchesLayoutBox": true,
+    "maxDeltaUnits": 0,
+    "overlayCount": 4,
+    "overlayInsideSurface": true,
+    "plainChildInsideSurface": true,
     "plotArea": {
-      "x": 60,
-      "y": 20,
+      "height": 240,
       "width": 510,
-      "height": 240
-    },
-    "expectedPlot": {
       "x": 60,
-      "y": 20,
-      "width": 510,
-      "height": 240
+      "y": 20
     },
+    "plotAreaMatchesLayoutBox": true,
     "plotDeltas": [
       0,
       0,
@@ -37,19 +38,11 @@
     ]
   },
   "2": {
-    "groupedDistinctX": true,
-    "stackedSameX": true,
-    "signOffsetNegativeBelowZero": true,
-    "negativeTopMinusZeroLine": [
-      0,
-      0
-    ],
-    "positivesStackOnA": [
-      0,
-      0
-    ],
     "areaStackTopEqualsSum": true,
     "areaTopDelta": 0,
+    "areaXAtBandCentres": true,
+    "areaXDelta": 0,
+    "groupedDistinctX": true,
     "groupedRects": [
       [
         {
@@ -112,6 +105,15 @@
         }
       ]
     ],
+    "negativeTopMinusZeroLine": [
+      0,
+      0
+    ],
+    "positivesStackOnA": [
+      0,
+      0
+    ],
+    "signOffsetNegativeBelowZero": true,
     "stackedRects": [
       [
         {
@@ -173,68 +175,43 @@
           "rawH": -24
         }
       ]
-    ]
+    ],
+    "stackedSameX": true
   },
   "3": {
-    "lineSegments": 2,
-    "linePath": "M123.75,164ZM378.75,116L506.25,100",
-    "barForNull": "absent",
-    "barCount": 3,
-    "zeroHeight": 0,
-    "stackedAreaBreak": true,
-    "areaFillMoves": [
+    "areaCurveMoves": [
       2,
       2
     ],
-    "areaCurveMoves": [
+    "areaFillMoves": [
       2,
       2
     ],
     "areaFillPaths": [
       "M123.75,164L123.75,260ZM378.75,116L506.25,100L506.25,260L378.75,260Z",
       "M123.75,132L123.75,164ZM378.75,68L506.25,60L506.25,100L378.75,116Z"
-    ]
+    ],
+    "barCount": 3,
+    "barForNull": "absent",
+    "linePath": "M123.75,164ZM378.75,116L506.25,100",
+    "lineSegments": 2,
+    "stackedAreaBreak": true,
+    "zeroHeight": 0
   },
   "4": {
-    "pathAfterCommit": 346,
+    "eachGeometryNonEmpty": true,
+    "framesEqualFinal": true,
+    "geometryCounts": [
+      1,
+      1,
+      4,
+      4
+    ],
     "pathAfter500ms": 346,
-    "committedNonEmpty": true,
-    "framesEqualFinal": true
+    "pathAfterCommit": 346
   },
   "5": {
     "disallowedAfterNormalize": [],
-    "removedMetadata": {
-      "svg@tabindex": 1,
-      "svg@class": 1,
-      "svg@style": 1,
-      "g@tabindex": 12,
-      "g@class": 56,
-      "line@x": 14,
-      "line@y": 15,
-      "line@width": 14,
-      "line@height": 14,
-      "g@data-overlay": 1,
-      "circle@data-overlay-dot": 4,
-      "path@height": 7,
-      "path@width": 7,
-      "path@class": 7,
-      "path@name": 4,
-      "path@k": 4,
-      "path@x": 4,
-      "path@y": 4,
-      "path@radius": 4,
-      "line@class": 11,
-      "line@angle": 10,
-      "line@orientation": 10,
-      "circle@height": 4,
-      "circle@width": 4,
-      "circle@class": 4,
-      "text@height": 8,
-      "text@orientation": 8,
-      "text@width": 8,
-      "text@class": 9,
-      "text@offset": 1
-    },
     "rawIds": [
       "recharts1-clip",
       "clipPath-recharts-area-_r_0_",
@@ -244,90 +221,41 @@
       "clipPath-recharts-line-_r_2_",
       "recharts-line-_r_2_"
     ],
+    "removedMetadata": {
+      "circle@class": 4,
+      "circle@data-spike-overlay-dot": 4,
+      "circle@height": 4,
+      "circle@width": 4,
+      "g@class": 56,
+      "g@data-spike-overlay": 1,
+      "g@tabindex": 12,
+      "line@angle": 10,
+      "line@class": 11,
+      "line@height": 14,
+      "line@orientation": 10,
+      "line@width": 14,
+      "line@x": 14,
+      "line@y": 15,
+      "path@class": 7,
+      "path@height": 7,
+      "path@k": 4,
+      "path@name": 4,
+      "path@radius": 4,
+      "path@width": 7,
+      "path@x": 4,
+      "path@y": 4,
+      "svg@class": 1,
+      "svg@style": 1,
+      "svg@tabindex": 1,
+      "text@class": 9,
+      "text@height": 8,
+      "text@offset": 1,
+      "text@orientation": 8,
+      "text@width": 8
+    },
     "svgLength": 37592
   },
   "6": {
-    "rows": [
-      {
-        "name": "Line",
-        "forwards": true,
-        "survives": true,
-        "detail": "<path stroke=\"#2a6\" stroke-width=\"2\" fill=\"none\" id=\"recharts-line-_r_0_\" height=\"240\" width=\"510\" class=\"recharts-curve recharts-line-curve\" clip-path=\"url(#cl"
-      },
-      {
-        "name": "Line.dot",
-        "forwards": true,
-        "survives": true,
-        "detail": "<circle r=\"4\" stroke=\"#2a6\" stroke-width=\"2\" fill=\"#fff\" height=\"240\" width=\"510\" cx=\"123.75\" cy=\"164\" class=\"recharts-dot recharts-line-dot\" style=\"fill: rgb(1"
-      },
-      {
-        "name": "Bar",
-        "forwards": true,
-        "survives": true,
-        "detail": "<path name=\"undefined\" k=\"A\" x=\"60\" y=\"164\" width=\"128\" height=\"96\" radius=\"0\" class=\"recharts-rectangle\" d=\"M 60,164 h 128 v 96 h -128 Z\" style=\"fill: rgb(51, "
-      },
-      {
-        "name": "Area",
-        "forwards": true,
-        "survives": true,
-        "detail": "<path stroke-width=\"1\" fill=\"#3182bd\" fill-opacity=\"0.6\" height=\"240\" width=\"510\" id=\"recharts-area-_r_2_\" stroke=\"none\" class=\"recharts-curve recharts-area-are"
-      },
-      {
-        "name": "Area.curve",
-        "forwards": true,
-        "survives": true,
-        "detail": "<path stroke-width=\"1\" fill=\"none\" fill-opacity=\"0.6\" height=\"240\" width=\"510\" class=\"recharts-curve recharts-area-curve\" stroke=\"#3182bd\" d=\"M123.75,164L251.25"
-      },
-      {
-        "name": "XAxis.tick",
-        "forwards": true,
-        "survives": true,
-        "detail": "<text height=\"30\" orientation=\"bottom\" width=\"510\" stroke=\"none\" x=\"123.75\" y=\"268\" class=\"recharts-text recharts-cartesian-axis-tick-value\" text-anchor=\"middle"
-      },
-      {
-        "name": "YAxis.tick",
-        "forwards": true,
-        "survives": true,
-        "detail": "<text width=\"50\" orientation=\"left\" height=\"240\" stroke=\"none\" x=\"52\" y=\"260\" class=\"recharts-text recharts-cartesian-axis-tick-value\" text-anchor=\"end\" fill=\"#"
-      },
-      {
-        "name": "XAxis.axisLine",
-        "forwards": true,
-        "survives": true,
-        "detail": "<line height=\"30\" angle=\"0\" orientation=\"bottom\" x=\"60\" y=\"260\" width=\"510\" class=\"recharts-cartesian-axis-line\" stroke=\"#666\" fill=\"none\" x1=\"60\" y1=\"260\" x2=\""
-      },
-      {
-        "name": "XAxis.tickLine",
-        "forwards": true,
-        "survives": true,
-        "detail": "<line height=\"30\" angle=\"0\" orientation=\"bottom\" x=\"60\" y=\"260\" width=\"510\" class=\"recharts-cartesian-axis-tick-line\" stroke=\"#666\" fill=\"none\" x1=\"123.75\" y1=\""
-      },
-      {
-        "name": "ReferenceLine",
-        "forwards": true,
-        "survives": true,
-        "detail": "<line y=\"15\" fill=\"none\" stroke=\"#ccc\" fill-opacity=\"1\" stroke-width=\"1\" x1=\"60\" y1=\"140\" x2=\"570\" y2=\"140\" class=\"recharts-reference-line-line\" style=\"stroke: "
-      },
-      {
-        "name": "XAxis.tick(render prop)",
-        "forwards": true,
-        "survives": true,
-        "detail": "<text x=\"123.75\" y=\"278\" text-anchor=\"middle\" data-tick-render=\"1\" style=\"fill: rgb(10, 11, 12); font-family: monospace; font-size: 11px;\">A</text>"
-      },
-      {
-        "name": "YAxis.tick(render prop)",
-        "forwards": true,
-        "survives": true,
-        "detail": "<text x=\"52\" y=\"260\" text-anchor=\"end\" data-tick-render=\"1\" style=\"fill: rgb(10, 11, 12); font-family: monospace; font-size: 11px;\">0</text>"
-      },
-      {
-        "name": "Line.dot(render prop)",
-        "forwards": true,
-        "survives": true,
-        "detail": "<circle cx=\"123.75\" cy=\"164\" r=\"4\" data-dot-render=\"1\" style=\"fill: rgb(171, 18, 205); stroke: rgb(171, 18, 205); stroke-width: 2;\"></circle>"
-      }
-    ],
-    "hostCssBites": true,
     "componentsForwardingStyle": [
       "Line",
       "Line.dot",
@@ -343,9 +271,144 @@
       "YAxis.tick(render prop)",
       "Line.dot(render prop)"
     ],
-    "nonForwarding": [],
-    "textFillsUnchanged": true,
+    "fontFamilyUnchanged": true,
+    "hostCssBites": true,
     "lineStrokeWidthsUnchanged": true,
-    "fontFamilyUnchanged": true
+    "nonForwarding": [],
+    "rows": [
+      {
+        "name": "Line",
+        "forwards": true,
+        "survives": true,
+        "detail": "<path stroke=\"#2a6\" stroke-width=\"2\" fill=\"none\" id=\"recharts-line-_r_0_\" height=\"240\" width=\"510\" class=\"recharts-curve recharts-line-curve\" clip-path=\"url(#cl",
+        "props": {
+          "strokeWidth": true,
+          "stroke": true
+        }
+      },
+      {
+        "name": "Line.dot",
+        "forwards": true,
+        "survives": true,
+        "detail": "<circle r=\"4\" stroke=\"#2a6\" stroke-width=\"2\" fill=\"#fff\" height=\"240\" width=\"510\" cx=\"123.75\" cy=\"164\" class=\"recharts-dot recharts-line-dot\" style=\"fill: rgb(1",
+        "props": {
+          "fill": true,
+          "strokeWidth": true
+        }
+      },
+      {
+        "name": "Bar",
+        "forwards": true,
+        "survives": true,
+        "detail": "<path name=\"undefined\" k=\"A\" x=\"60\" y=\"164\" width=\"128\" height=\"96\" radius=\"0\" class=\"recharts-rectangle\" d=\"M 60,164 h 128 v 96 h -128 Z\" style=\"fill: rgb(51, ",
+        "props": {
+          "fill": true,
+          "strokeWidth": true
+        }
+      },
+      {
+        "name": "Area",
+        "forwards": true,
+        "survives": true,
+        "detail": "<path stroke-width=\"1\" fill=\"#3182bd\" fill-opacity=\"0.6\" height=\"240\" width=\"510\" id=\"recharts-area-_r_2_\" stroke=\"none\" class=\"recharts-curve recharts-area-are",
+        "props": {
+          "fill": true
+        }
+      },
+      {
+        "name": "Area.curve",
+        "forwards": true,
+        "survives": true,
+        "detail": "<path stroke-width=\"1\" fill=\"none\" fill-opacity=\"0.6\" height=\"240\" width=\"510\" class=\"recharts-curve recharts-area-curve\" stroke=\"#3182bd\" d=\"M123.75,164L251.25",
+        "props": {
+          "strokeWidth": true
+        }
+      },
+      {
+        "name": "XAxis.tick",
+        "forwards": true,
+        "survives": true,
+        "detail": "<text height=\"30\" orientation=\"bottom\" width=\"510\" stroke=\"none\" x=\"123.75\" y=\"268\" class=\"recharts-text recharts-cartesian-axis-tick-value\" text-anchor=\"middle",
+        "props": {
+          "fill": true,
+          "fontFamily": true
+        }
+      },
+      {
+        "name": "YAxis.tick",
+        "forwards": true,
+        "survives": true,
+        "detail": "<text width=\"50\" orientation=\"left\" height=\"240\" stroke=\"none\" x=\"52\" y=\"260\" class=\"recharts-text recharts-cartesian-axis-tick-value\" text-anchor=\"end\" fill=\"#",
+        "props": {
+          "fill": true,
+          "fontFamily": true
+        }
+      },
+      {
+        "name": "XAxis.axisLine",
+        "forwards": true,
+        "survives": true,
+        "detail": "<line height=\"30\" angle=\"0\" orientation=\"bottom\" x=\"60\" y=\"260\" width=\"510\" class=\"recharts-cartesian-axis-line\" stroke=\"#666\" fill=\"none\" x1=\"60\" y1=\"260\" x2=\"",
+        "props": {
+          "strokeWidth": true
+        }
+      },
+      {
+        "name": "XAxis.tickLine",
+        "forwards": true,
+        "survives": true,
+        "detail": "<line height=\"30\" angle=\"0\" orientation=\"bottom\" x=\"60\" y=\"260\" width=\"510\" class=\"recharts-cartesian-axis-tick-line\" stroke=\"#666\" fill=\"none\" x1=\"123.75\" y1=\"",
+        "props": {
+          "strokeWidth": true
+        }
+      },
+      {
+        "name": "ReferenceLine",
+        "forwards": true,
+        "survives": true,
+        "detail": "<line y=\"15\" fill=\"none\" stroke=\"#ccc\" fill-opacity=\"1\" stroke-width=\"1\" x1=\"60\" y1=\"140\" x2=\"570\" y2=\"140\" class=\"recharts-reference-line-line\" style=\"stroke: ",
+        "props": {
+          "strokeWidth": true
+        }
+      },
+      {
+        "name": "XAxis.tick(render prop)",
+        "forwards": true,
+        "survives": true,
+        "detail": "<text x=\"123.75\" y=\"278\" text-anchor=\"middle\" data-spike-tick-render=\"1\" style=\"fill: rgb(10, 11, 12); font-family: monospace; font-size: 11px;\">A</text>",
+        "props": {
+          "fill": true,
+          "fontFamily": true
+        }
+      },
+      {
+        "name": "YAxis.tick(render prop)",
+        "forwards": true,
+        "survives": true,
+        "detail": "<text x=\"52\" y=\"260\" text-anchor=\"end\" data-spike-tick-render=\"1\" style=\"fill: rgb(10, 11, 12); font-family: monospace; font-size: 11px;\">0</text>",
+        "props": {
+          "fill": true,
+          "fontFamily": true
+        }
+      },
+      {
+        "name": "Line.dot(render prop)",
+        "forwards": true,
+        "survives": true,
+        "detail": "<circle cx=\"123.75\" cy=\"164\" r=\"4\" data-spike-dot-render=\"1\" style=\"fill: rgb(171, 18, 205); stroke: rgb(171, 18, 205); stroke-width: 2;\"></circle>",
+        "props": {
+          "fill": true,
+          "strokeWidth": true
+        }
+      }
+    ],
+    "textFillsUnchanged": true
+  },
+  "5b": {
+    "disallowedAfterNormalize": [
+      "attr:path@onclick",
+      "event:path@onclick",
+      "attr:path@foo"
+    ]
   }
 }

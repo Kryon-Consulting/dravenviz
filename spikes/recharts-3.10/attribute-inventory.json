@@ -110,14 +110,6 @@
       "id": "geometry"
     }
   },
-  "recharts-layer > circle": {
-    "circle": {
-      "cx": "geometry",
-      "cy": "geometry",
-      "r": "geometry",
-      "style": "metadata"
-    }
-  },
   "recharts-layer > clippath": {
     "clipPath": {
       "id": "geometry"
@@ -130,14 +122,6 @@
     "rect": {
       "height": "geometry",
       "width": "geometry",
-      "x": "geometry",
-      "y": "geometry"
-    }
-  },
-  "recharts-layer > text": {
-    "text": {
-      "style": "metadata",
-      "text-anchor": "presentation",
       "x": "geometry",
       "y": "geometry"
     }
@@ -184,15 +168,6 @@
       "width": "geometry"
     }
   },
-  "recharts-surface > circle": {
-    "circle": {
-      "cx": "geometry",
-      "cy": "geometry",
-      "fill": "presentation",
-      "r": "geometry",
-      "stroke": "presentation"
-    }
-  },
   "recharts-surface > clippath": {
     "clipPath": {
       "id": "geometry"
@@ -203,9 +178,6 @@
   },
   "recharts-surface > desc": {
     "desc": {}
-  },
-  "recharts-surface > g": {
-    "g": {}
   },
   "recharts-surface > rect": {
     "rect": {
