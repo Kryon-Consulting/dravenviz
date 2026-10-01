@@ -101,8 +101,11 @@ const canonicalFamily = (v: string): string =>
     .map((s) => s.trim().replace(/^["']|["']$/g, ''))
     .join(',');
 /** A plain run of identifiers needs no quotes; anything else is quoted. */
-const familyList = (family: string): string =>
-  `${/^[A-Za-z][A-Za-z0-9_-]*(?: [A-Za-z][A-Za-z0-9_-]*)*$/.test(family) ? family : cssString(family)}, sans-serif`;
+const familyName = (family: string): string =>
+  /^[A-Za-z][A-Za-z0-9_-]*(?: [A-Za-z][A-Za-z0-9_-]*)*$/.test(family) ? family : cssString(family);
+/** Internal (collision-proof) family first, then the declared family, then sans-serif. */
+const familyList = (fonts: ResolvedFontSet): string =>
+  `${familyName(fonts.cssFamily)}, ${familyName(fonts.family)}, sans-serif`;
 
 function fontStyles(
   doc: Document,
@@ -118,7 +121,7 @@ function fontStyles(
         : href;
     const style = doc.createElementNS(SVG_NS, 'style');
     style.textContent =
-      `@font-face{font-family:${cssString(ctx.fonts.family)};font-style:normal;font-weight:${face.weight};` +
+      `@font-face{font-family:${cssString(ctx.fonts.cssFamily)};font-style:normal;font-weight:${face.weight};` +
       `src:url(${cssString(src)}) format(${cssString(face.format)});}`;
     if (ctx.fontMode === 'embedded') style.setAttribute('data-dv-font-sha256', face.sha256);
     elements.push(style);
@@ -170,7 +173,7 @@ export function finalizeSvg(el: SVGSVGElement, ctx: FinalizeContext): SvgExport 
   const width = Number.isFinite(vw) ? vw : Number(el.getAttribute('width'));
   const height = Number.isFinite(vh) ? vh : Number(el.getAttribute('height'));
 
-  const family = familyList(ctx.fonts.family);
+  const family = familyList(ctx.fonts);
   const wanted = canonicalFamily(family);
   for (const node of el.querySelectorAll('[font-family]')) {
     if (canonicalFamily(node.getAttribute('font-family') ?? '') === wanted) {

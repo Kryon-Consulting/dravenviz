@@ -16,6 +16,7 @@ interface Outcome {
   message?: string | undefined;
   path?: string | undefined;
   family?: string;
+  cssFamily?: string;
   faces?: {
     weight: number;
     url: string;
@@ -43,6 +44,7 @@ async function load(
         return {
           ok: true,
           family: set.family,
+          cssFamily: set.cssFamily,
           faces: set.faces.map((f) => ({
             weight: f.weight,
             url: f.url,
@@ -74,6 +76,8 @@ async function faces(page: Page, family: string): Promise<{ weight: string; stat
   }, family);
 }
 
+/** Internal family of the Noto Serif test files: hash of both files' SHA-256 values. */
+const SERIF_CSS = 'DravenViz Noto Serif 7cdd41dc0c04dce1';
 const serif = [
   { family: 'Noto Serif', weight: 400, url: '/test-fonts/NotoSerif-Regular.woff2' },
   { family: 'Noto Serif', weight: 600, url: '/test-fonts/NotoSerif-SemiBold.woff2' },
@@ -104,7 +108,7 @@ test('default fonts load, match PROVENANCE.md hashes and register with document.
   expect(regular!.fileName).toBe('NotoSans-Regular.woff2');
   expect(regular!.byteLength).toBe(regular!.bytes);
   // check() is vacuous in Chromium, so assert by enumerating the registered faces.
-  expect(await faces(page, 'Noto Sans')).toEqual([
+  expect(await faces(page, 'DravenViz Noto Sans')).toEqual([
     { weight: '400', status: 'loaded' },
     { weight: '600', status: 'loaded' },
   ]);
@@ -132,7 +136,8 @@ test('caller fonts load from /test-fonts/ under their own family', async ({ page
   const out = await load(page, serif);
   expect(out.ok).toBe(true);
   expect(out.family).toBe('Noto Serif');
-  expect(await faces(page, 'Noto Serif')).toEqual([
+  expect(out.cssFamily).toBe(SERIF_CSS);
+  expect(await faces(page, SERIF_CSS)).toEqual([
     { weight: '400', status: 'loaded' },
     { weight: '600', status: 'loaded' },
   ]);
@@ -282,12 +287,12 @@ test('verification fails when the registered faces are gone (negative control)',
     document.fonts.forEach((f) => doomed.push(f));
     doomed.forEach((f) => document.fonts.delete(f));
   });
-  expect(await faces(page, 'Noto Serif')).toEqual([]);
+  expect(await faces(page, SERIF_CSS)).toEqual([]);
   const again = await load(page, serif);
   expect(again.code).toBe('FONT_LOAD_FAILED');
   // The stale entries were evicted, so a retry registers fresh faces.
   expect((await load(page, serif)).ok).toBe(true);
-  expect(await faces(page, 'Noto Serif')).toHaveLength(2);
+  expect(await faces(page, SERIF_CSS)).toHaveLength(2);
 });
 
 test('abort then a fresh call (StrictMode mount, dispose, mount) resolves for the new caller', async ({
@@ -386,5 +391,21 @@ test('aborting a caller of an already-resolved entry does not evict the cached f
   ).toBe(true);
   expect((await load(page, serif)).ok).toBe(true);
   expect(requests).toHaveLength(2);
-  expect(await faces(page, 'Noto Serif')).toHaveLength(2);
+  expect(await faces(page, SERIF_CSS)).toHaveLength(2);
+});
+
+test('a host @font-face with the same family name does not break loading', async ({ page }) => {
+  await page.addStyleTag({
+    content:
+      '@font-face{font-family:"Noto Sans";font-weight:400;src:url(/test-fonts/NotoSerif-Regular.woff2)}' +
+      '@font-face{font-family:"Noto Sans";font-weight:600;src:url(/test-fonts/NotoSerif-SemiBold.woff2)}',
+  });
+  const defaults = await page.evaluate(() => window.__h.defaultFontAssets());
+  const out = await load(page, defaults);
+  expect(out.message ?? '').toBe('');
+  expect(out.ok).toBe(true);
+  expect(out.faces!.map((f) => f.sha256)).toEqual([
+    hashOf('NotoSans-Regular.woff2'),
+    hashOf('NotoSans-SemiBold.woff2'),
+  ]);
 });

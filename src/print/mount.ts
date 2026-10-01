@@ -1,6 +1,7 @@
 import { DravenVizError, InvalidSpecError, validateSpec, type VizSpec } from '../core/index';
 import { DUPLICATE_CHART_EMBEDDING } from '../core/validate/index';
 import { loadFonts } from '../render/fonts/load';
+import { fontStack } from '../render/fonts/registry';
 import { createCanvasMeasurer } from '../render/layout/canvas-measure';
 import { layoutChart } from '../render/layout/index';
 import type { LaidOutChart } from '../render/layout/types';
@@ -170,7 +171,7 @@ export function mountBatch(
           );
         }
       });
-      const measure = createCanvasMeasurer(fonts.family);
+      const measure = createCanvasMeasurer(fontStack(fonts));
       const modelCtx = {
         theme: resolved.theme,
         locale: resolved.locale,
@@ -200,7 +201,7 @@ export function mountBatch(
             theme: resolved.theme,
             namespace: resolved.namespaces[i] as string,
             renderId: nextRenderId(),
-            fontFamily: fonts.family,
+            fontFamily: fontStack(fonts),
             measure,
           }),
         );

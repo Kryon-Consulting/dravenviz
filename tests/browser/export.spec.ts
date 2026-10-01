@@ -375,7 +375,10 @@ test('custom font drives family, hrefs and embedded bytes', async ({ page }) => 
     fonts: fontsOpt,
     fontHrefPrefix: 'assets/f/',
   });
-  expect(ext.svg).toMatch(/font-family="Test Serif, sans-serif"/);
+  expect(ext.svg).toContain(
+    'font-family="&quot;DravenViz Test Serif 7cdd41dc0c04dce1&quot;, Test Serif, sans-serif"',
+  );
+  expect(ext.svg).toContain('@font-face{font-family:"DravenViz Test Serif 7cdd41dc0c04dce1"');
   expect(ext.svg).toMatch(/url\("assets\/f\/NotoSerif-Regular.woff2"\)/);
   expect(ext.svg).not.toMatch(/NotoSans/);
   const emb = await h(page).renderToSvgWithAssets('line-weekly-flow', {
@@ -412,14 +415,19 @@ test('relocated external SVG loads its custom font', async ({ page, browser }) =
     await document.fonts.ready;
     return {
       statuses: faces.map((f) => `${f.family}|${f.weight}|${f.status}`),
-      check: document.fonts.check('13px "Test Serif"'),
+      check: document.fonts.check('13px "DravenViz Test Serif 7cdd41dc0c04dce1"'),
       widths: Array.from(document.querySelectorAll('text')).map((t) =>
         (t as unknown as SVGTextContentElement).getComputedTextLength(),
       ),
     };
   });
   await other.close();
-  expect(file.statuses.sort()).toEqual(['Test Serif|400|loaded', 'Test Serif|600|loaded'].sort());
+  expect(file.statuses.sort()).toEqual(
+    [
+      'DravenViz Test Serif 7cdd41dc0c04dce1|400|loaded',
+      'DravenViz Test Serif 7cdd41dc0c04dce1|600|loaded',
+    ].sort(),
+  );
   expect(file.check).toBe(true);
   expect(file.widths).toHaveLength(inPage.length);
   file.widths.forEach((w, i) => expect(Math.abs(w - inPage[i]!)).toBeLessThanOrEqual(0.5));

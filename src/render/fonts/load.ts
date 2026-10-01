@@ -121,13 +121,11 @@ function hex(buf: ArrayBuffer): string {
   return out;
 }
 
-async function loadOne(
-  family: string,
+async function fetchOne(
   weight: 400 | 600,
   url: string,
   format: FontFormat,
   signal: AbortSignal,
-  onFace: (face: FontFace) => void,
 ): Promise<ResolvedFace> {
   const fileName = fileNameOf(url);
   const fail = (reason: string, cause?: unknown): DravenVizError =>
@@ -135,55 +133,35 @@ async function loadOne(
       path: url,
       ...(cause === undefined ? {} : { cause }),
     });
-  let face: FontFace | undefined;
+  let response: Response;
   try {
-    let response: Response;
-    try {
-      // Redirects are refused: a same-origin URL must not bounce to another origin (design section 12).
-      response = await fetch(url, { signal, redirect: 'error' });
-    } catch (e) {
-      if (signal.aborted) throw disposed();
-      throw fail('network error or redirect', e);
-    }
-    if (!response.ok) throw fail(`HTTP ${response.status}`);
-    let buffer: ArrayBuffer;
-    try {
-      buffer = await response.arrayBuffer();
-    } catch (e) {
-      if (signal.aborted) throw disposed();
-      throw fail('the response body could not be read', e);
-    }
-    if (signal.aborted) throw disposed();
-    const sha256 = hex(await crypto.subtle.digest('SHA-256', buffer));
-    if (signal.aborted) throw disposed();
-    try {
-      face = new FontFace(family, buffer, { weight: String(weight) });
-      document.fonts.add(face);
-      onFace(face);
-      await face.load();
-    } catch (e) {
-      throw fail('the font data could not be decoded', e);
-    }
-    if (signal.aborted) throw disposed();
-    return { weight, url, fileName, format, sha256, bytes: buffer.byteLength, buffer };
+    // Redirects are refused: a same-origin URL must not bounce to another origin (design section 12).
+    response = await fetch(url, { signal, redirect: 'error' });
   } catch (e) {
-    if (face !== undefined) document.fonts.delete(face);
-    throw e;
+    if (signal.aborted) throw disposed();
+    throw fail('network error or redirect', e);
   }
+  if (!response.ok) throw fail(`HTTP ${response.status}`);
+  let buffer: ArrayBuffer;
+  try {
+    buffer = await response.arrayBuffer();
+  } catch (e) {
+    if (signal.aborted) throw disposed();
+    throw fail('the response body could not be read', e);
+  }
+  if (signal.aborted) throw disposed();
+  const sha256 = hex(await crypto.subtle.digest('SHA-256', buffer));
+  if (signal.aborted) throw disposed();
+  return { weight, url, fileName, format, sha256, bytes: buffer.byteLength, buffer };
 }
 
-function acquire(
-  family: string,
-  weight: 400 | 600,
-  url: string,
-  format: FontFormat,
-): RegistryEntry {
+function acquire(weight: 400 | 600, url: string, format: FontFormat): RegistryEntry {
   const existing = entries.get(url);
   if (existing !== undefined && !existing.controller.signal.aborted) {
-    if (existing.family !== family || existing.weight !== weight) {
+    if (existing.weight !== weight) {
       throw new DravenVizError(
         'INVALID_OPTIONS',
-        `Font ${url} is already registered under a different family or weight.`,
+        `Font ${url} is already registered under a different weight.`,
       );
     }
     return existing;
@@ -191,13 +169,10 @@ function acquire(
   const controller = new AbortController();
   const entry: RegistryEntry = {
     url,
-    family,
     weight,
     controller,
     waiters: 0,
-    promise: loadOne(family, weight, url, format, controller.signal, (f) => {
-      entry.face = f;
-    }).then(
+    promise: fetchOne(weight, url, format, controller.signal).then(
       (face) => {
         entry.settled = true;
         recordResolved(face);
@@ -250,14 +225,49 @@ function wait(entry: RegistryEntry, signal: AbortSignal): Promise<ResolvedFace> 
   });
 }
 
+/** SHA-256 of the bundled Noto Sans files (assets/fonts/PROVENANCE.md). */
+const BUNDLED_SHA256 = {
+  400: '23a8c28d5ffb5e4f4545de7655fb34bdab36872938a712ec9d874c5ad9a2d02e',
+  600: '6e31729e067bc35e3ec767012a52e6b389866317f1d0a1d8311bedfd8e57eb27',
+} as const;
+
 /**
- * `document.fonts.check()` passes vacuously in Chromium when no matching face exists, so the
- * face itself is verified: it must be loaded and present in `document.fonts` under the expected
- * family and weight. `check()` stays as an extra guard.
+ * The collision-proof family the faces are registered under. The bundled fonts are
+ * "DravenViz Noto Sans"; caller fonts are "DravenViz <family> <hash>" with a hash of the two
+ * files' SHA-256 values, so it is deterministic and different bytes never share a name.
  */
-function isRegistered(entry: RegistryEntry, family: string, weight: 400 | 600): boolean {
-  const face = entry.face;
-  if (face === undefined || face.status !== 'loaded') return false;
+export function internalFamily(family: string, faces: readonly ResolvedFace[]): string {
+  const sha = (w: number): string => faces.find((f) => f.weight === w)?.sha256 ?? '';
+  if (
+    family === DEFAULT_FONT_FAMILY &&
+    sha(400) === BUNDLED_SHA256[400] &&
+    sha(600) === BUNDLED_SHA256[600]
+  ) {
+    return `DravenViz ${DEFAULT_FONT_FAMILY}`;
+  }
+  return `DravenViz ${family} ${sha(400).slice(0, 8)}${sha(600).slice(0, 8)}`;
+}
+
+interface Registered {
+  face: FontFace;
+  promise: Promise<void>;
+}
+/** Faces this module added to `document.fonts`, by `<internal family>|<weight>`. */
+const registered = new Map<string, Registered>();
+
+/** Test-only: forget the registered faces (with `__resetFontRegistry`). */
+export function __resetRegisteredFaces(): void {
+  registered.clear();
+}
+
+/**
+ * `document.fonts.check()` passes vacuously in Chromium when no matching face exists (and fails
+ * when an unrelated unloaded face shares the name), so the face itself is verified: it must be
+ * loaded and present in `document.fonts` under the expected family and weight. `check()` stays as
+ * an extra guard; the internal family is unique to DravenViz, so a host face cannot affect it.
+ */
+function isRegistered(face: FontFace, family: string, weight: 400 | 600): boolean {
+  if (face.status !== 'loaded') return false;
   let present = false;
   document.fonts.forEach((f) => {
     if (f === face) present = true;
@@ -272,11 +282,36 @@ function isRegistered(entry: RegistryEntry, family: string, weight: 400 | 600): 
   return document.fonts.check(`${weight} ${CHECK_SIZE_PX}px "${family}"`);
 }
 
+function register(css: string, raw: ResolvedFace): Registered {
+  const key = `${css}|${raw.weight}`;
+  const existing = registered.get(key);
+  if (existing !== undefined) return existing;
+  const face = new FontFace(css, raw.buffer, { weight: String(raw.weight) });
+  document.fonts.add(face);
+  const promise = face.load().then(
+    () => undefined,
+    (e: unknown) => {
+      document.fonts.delete(face);
+      if (registered.get(key)?.face === face) registered.delete(key);
+      if (entries.get(raw.url)?.settled) forgetFont(raw.url);
+      throw new DravenVizError(
+        'FONT_LOAD_FAILED',
+        `Could not load font ${raw.url}: the font data could not be decoded.`,
+        { path: raw.url, cause: e },
+      );
+    },
+  );
+  promise.catch(() => undefined);
+  const entry = { face, promise };
+  registered.set(key, entry);
+  return entry;
+}
+
 /**
- * Loads, hashes and registers the fonts (design section 9, step 2). Rejects with
- * `INVALID_OPTIONS` before any fetch, `FONT_LOAD_FAILED` for network, status, decode or
- * font-registration verification failures, and `DISPOSED` when `signal` aborts. A URL already loaded
- * is served from the page registry with no second request.
+ * Loads, hashes and registers the fonts (design section 9, step 2). Faces are registered under
+ * the internal `cssFamily`. Rejects with `INVALID_OPTIONS` before any fetch, `FONT_LOAD_FAILED`
+ * for network, status, decode or registration verification failures, and `DISPOSED` when `signal`
+ * aborts. A URL already loaded is served from the page registry with no second request.
  */
 export async function loadFonts(
   assets: FontAsset[],
@@ -284,25 +319,37 @@ export async function loadFonts(
 ): Promise<ResolvedFontSet> {
   const { family, items } = validate(assets);
   if (signal.aborted) throw disposed();
-  const acquired = items.map((i) => ({
-    i,
-    entry: acquire(family, i.asset.weight, i.url, i.format),
-  }));
-  // If one weight fails, the sibling weights that did load stay registered: they are valid,
-  // cached by URL and reused by the retry, so there is nothing to clean up for them.
-  const faces = await Promise.all(acquired.map(({ entry }) => wait(entry, signal)));
+  const acquired = items.map((i) => acquire(i.asset.weight, i.url, i.format));
+  // If one weight fails, the sibling weights that did load stay cached by URL for the retry.
+  const faces = (await Promise.all(acquired.map((entry) => wait(entry, signal)))).sort(
+    (a, b) => a.weight - b.weight,
+  );
+  const css = internalFamily(family, faces);
+  const regs = faces.map((raw) => ({ raw, reg: register(css, raw) }));
+  await Promise.all(
+    regs.map(({ reg }) =>
+      Promise.race([
+        reg.promise,
+        new Promise<never>((_, reject) => {
+          if (signal.aborted) reject(disposed());
+          signal.addEventListener('abort', () => reject(disposed()), { once: true });
+        }),
+      ]),
+    ),
+  );
   // Evict every unverified face (not just the first) so a retry starts clean.
   let failed: string | undefined;
   let failedUrl: string | undefined;
-  for (const { i, entry } of acquired) {
-    if (isRegistered(entry, family, i.asset.weight)) continue;
-    if (entry.face !== undefined) document.fonts.delete(entry.face);
-    if (entries.get(i.url) === entry) forgetFont(i.url);
-    failed ??= `Font ${i.url} loaded but "${family}" ${i.asset.weight} is not registered with the page.`;
-    failedUrl ??= i.url;
+  for (const { raw, reg } of regs) {
+    if (isRegistered(reg.face, css, raw.weight)) continue;
+    document.fonts.delete(reg.face);
+    registered.delete(`${css}|${raw.weight}`);
+    forgetFont(raw.url);
+    failed ??= `Font ${raw.url} loaded but "${family}" ${raw.weight} is not registered with the page.`;
+    failedUrl ??= raw.url;
   }
   if (failed !== undefined) {
     throw new DravenVizError('FONT_LOAD_FAILED', failed, { path: failedUrl as string });
   }
-  return { family, faces: faces.sort((a, b) => a.weight - b.weight) };
+  return { family, cssFamily: css, faces };
 }

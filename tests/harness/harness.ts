@@ -5,6 +5,7 @@ import {
   __resetFontRegistry,
   assertSameOriginOrRelative,
   fontRegistry,
+  fontStack,
 } from '../../src/render/fonts/registry';
 import { __testHooks, liveRootCount } from '../../src/print/lifecycle';
 import { renderToSvgWithAssets, type ExportOptions } from '../../src/print/export';
@@ -145,7 +146,7 @@ export const harness = {
     return layoutChart(
       model,
       { width, height, theme, mode: 'static', printWidthMm: 178 },
-      createCanvasMeasurer(fonts.family),
+      createCanvasMeasurer(fontStack(fonts)),
     );
   },
   verifyCommitted,

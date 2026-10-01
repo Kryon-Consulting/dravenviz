@@ -86,6 +86,15 @@ function rootStyle(family: string, theme: Theme, fontScale: number): CSSProperti
     textAnchor: 'start',
     dominantBaseline: 'auto',
     letterSpacing: 'normal',
+    // Neutral values for every other text property a host rule could use to move or reshape text.
+    alignmentBaseline: 'auto' as CSSProperties['alignmentBaseline'],
+    baselineShift: 0,
+    writingMode: 'horizontal-tb',
+    fontVariant: 'normal',
+    fontFeatureSettings: 'normal',
+    textTransform: 'none',
+    wordSpacing: 'normal',
+    fontKerning: 'auto',
     fontStyle: 'normal',
   };
 }

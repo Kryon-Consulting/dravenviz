@@ -28,18 +28,21 @@ export interface ResolvedFace {
 }
 
 export interface ResolvedFontSet {
-  /** Family name used in SVG `font-family`. */
+  /** The declared family name, for display and the manifest. */
   family: string;
+  /**
+   * The collision-proof internal family the faces are registered under ("DravenViz Noto Sans" for
+   * the bundled fonts). Rendering, canvas measurement and export use it, so a host page's own
+   * `@font-face` of the declared name can never supply the glyphs.
+   */
+  cssFamily: string;
   faces: ResolvedFace[];
 }
 
 /** Internal registry entry. `waiters` counts callers still interested in the load. */
 export interface RegistryEntry {
   url: string;
-  family: string;
   weight: 400 | 600;
-  /** The `FontFace` added to `document.fonts`, set once created. */
-  face?: FontFace;
   /** True once the load resolved; a settled entry is never cancelled or evicted by an abort. */
   settled?: boolean;
   promise: Promise<ResolvedFace>;
@@ -111,4 +114,15 @@ export function assertSameOriginOrRelative(url: string): string {
     );
   }
   return parsed.href;
+}
+
+const q = (name: string): string => `"${name.replace(/[\\"]/g, '\\$&')}"`;
+
+/**
+ * The CSS `font-family` list charts render and measure with: the internal family first (so a
+ * host's own face of the declared name is never used while ours is loaded), then the declared
+ * family, then `sans-serif`.
+ */
+export function fontStack(fonts: ResolvedFontSet): string {
+  return `${q(fonts.cssFamily)}, ${q(fonts.family)}, sans-serif`;
 }
