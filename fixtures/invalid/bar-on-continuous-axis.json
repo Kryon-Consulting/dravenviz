@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "min-line",
+  "kind": "cartesian",
+  "title": "Daily total",
+  "xAxis": {
+    "id": "day",
+    "scale": "time"
+  },
+  "yAxes": [
+    {
+      "id": "v",
+      "label": "Total",
+      "unit": "count"
+    }
+  ],
+  "series": [
+    {
+      "id": "t",
+      "label": "Total",
+      "mark": "bar",
+      "yAxisId": "v",
+      "points": [
+        {
+          "id": "a",
+          "x": "2026-07-01",
+          "value": 3
+        },
+        {
+          "id": "b",
+          "x": "2026-07-02",
+          "value": null
+        },
+        {
+          "id": "c",
+          "x": "2026-07-03",
+          "value": 5
+        }
+      ]
+    }
+  ]
+}

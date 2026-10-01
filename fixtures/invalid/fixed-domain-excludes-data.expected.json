@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "fixed-domain-excludes-data",
+  "path": "/yAxes/0/domain"
+}

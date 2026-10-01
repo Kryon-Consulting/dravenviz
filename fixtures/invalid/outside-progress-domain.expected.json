@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "outside-progress-domain",
+  "path": "/items/0/value"
+}

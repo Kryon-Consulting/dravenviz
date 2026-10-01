@@ -292,8 +292,27 @@ describe('first error is the real error (discriminated unions)', () => {
     expect(first(withTitle('a\nb'))).toMatchObject({ keyword: 'pattern', instancePath: '/title' });
   });
 
-  test('unknown kind is reported on kind', () => {
-    expect(first({ ...line(), kind: 'pie' })).toMatchObject({ instancePath: '' });
+  test('unknown kind is a discriminator mapping error carrying the tag value', () => {
+    expect(first({ ...line(), kind: 'pie' })).toMatchObject({
+      keyword: 'discriminator',
+      instancePath: '',
+      params: { error: 'mapping', tag: 'kind', tagValue: 'pie' },
+    });
+  });
+
+  test('missing kind is a discriminator tag error', () => {
+    const s: Record<string, unknown> = line();
+    delete s.kind;
+    const e = first(s);
+    expect(e).toMatchObject({ keyword: 'discriminator', params: { error: 'tag', tag: 'kind' } });
+    expect(e?.params.tagValue).toBeUndefined();
+  });
+
+  test('non-string kind is a discriminator tag error carrying the value', () => {
+    expect(first({ ...line(), kind: 42 })).toMatchObject({
+      keyword: 'discriminator',
+      params: { error: 'tag', tag: 'kind', tagValue: 42 },
+    });
   });
 
   test('time axis with an invalid domain reports under /xAxis/domain', () => {

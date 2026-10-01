@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "min-area",
+  "kind": "cartesian",
+  "title": "Inventory",
+  "xAxis": {
+    "id": "m",
+    "scale": "category",
+    "categories": ["jan", "feb"]
+  },
+  "yAxes": [
+    {
+      "id": "n"
+    }
+  ],
+  "stacking": {
+    "mode": "percent"
+  },
+  "series": [
+    {
+      "id": "a",
+      "label": "Servers",
+      "mark": "area",
+      "yAxisId": "n",
+      "stackId": "s",
+      "points": [
+        {
+          "id": "a1",
+          "x": "jan",
+          "value": 10
+        },
+        {
+          "id": "a2",
+          "x": "feb",
+          "value": 12
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "label": "Laptops",
+      "mark": "area",
+      "yAxisId": "n",
+      "stackId": "s",
+      "points": [
+        {
+          "id": "b1",
+          "x": "jan",
+          "value": 5
+        },
+        {
+          "id": "b2",
+          "x": "feb",
+          "value": 6
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "min-scatter",
+  "kind": "cartesian",
+  "title": "Speed vs risk",
+  "xAxis": {
+    "id": "days",
+    "scale": "linear",
+    "label": "Days to fix",
+    "unit": "days"
+  },
+  "yAxes": [
+    {
+      "id": "risk",
+      "label": "Risk score",
+      "unit": "score",
+      "domain": {
+        "policy": "fixed",
+        "min": 0,
+        "max": 10
+      }
+    }
+  ],
+  "bubble": {
+    "mode": "area",
+    "domain": [0, 100],
+    "range": [2, 18]
+  },
+  "series": [
+    {
+      "id": "svc",
+      "label": "Services",
+      "mark": "scatter",
+      "yAxisId": "risk",
+      "points": [
+        {
+          "id": "a",
+          "x": 4,
+          "value": 12,
+          "size": 40,
+          "datumLabel": "Payments API",
+          "staticLabel": true
+        },
+        {
+          "id": "b",
+          "x": 12,
+          "value": 3,
+          "size": 0,
+          "datumLabel": "Batch jobs"
+        }
+      ]
+    }
+  ]
+}

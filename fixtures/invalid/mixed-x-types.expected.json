@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "mixed-x-types",
+  "path": "/series/0/points/1/x"
+}

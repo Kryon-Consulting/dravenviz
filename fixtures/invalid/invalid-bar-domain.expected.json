@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "bar-domain-excludes-data",
+  "path": "/yAxes/0/domain"
+}
