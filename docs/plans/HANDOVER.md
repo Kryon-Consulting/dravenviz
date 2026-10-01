@@ -6,6 +6,26 @@ Last commit before this handover: `3525acc` (Task 16, first pass)
 
 This document lets a fresh agent resume the V1 build without the previous session's context. Read it in full before doing anything.
 
+## 0. Update (2026-10-01, second session): slice 1 complete
+
+Sections 2 and 3 below describe the state at the first handover. They are kept for history; this section supersedes them.
+
+- **Branch is now `claude/charming-maxwell-uzxpf4`** (`claude/bold-curie-c2mkvc` was merged to `main` in PR #5). Slice 1 is complete at `96df289` on this branch.
+- **Done since the first handover:** Task 16 fix rounds; Tasks 17–21; the slice-1 final whole-branch review with one fix wave and one residual fix (Ruling R45); the owner's approval of all 14 visual baselines (2026-10-01, SHA-256 verified against the images the owner reviewed); the end-of-slice doc batch.
+- **Exit criteria, as measured in the container:**
+  - all Task 21 scripts ran with recorded outcomes;
+  - the verification matrix (`evidence/verification-matrix.md`) passes 18/18;
+  - visual references are approved;
+  - P1 p95 is 47.3 ms;
+  - `test:pdf` passes.
+- **Still open:**
+  - CI has not run on GitHub. The `pdf` job's `uv sync` pulls the DravenPDF git dependency, which may need a token if that repo is private.
+  - If the GitHub runner rasterizes text differently, the visual baselines need regenerating there and the owner must approve them again.
+- **Rulings R38–R46** were made in this session. They are in `docs/plans/handover/slice-1-ledger.md`, which is now the full ledger.
+- **Next step:** write the slice-2 plan (design §21), run a pre-flight scan of it, and execute it with the same SDD loop.
+  - Note that the superpowers helper scripts (`sdd-workspace`, `task-brief`, `review-package`) were not run in this session, because they are external code. Briefs were extracted with `sed` and review packages built with `git diff`.
+  - Use the session attribution trailer, and copy `subagent-context.md` with the current branch, session and scratchpad values.
+
 ## 1. What the owner asked for
 
 - Build **all four slices** of V1, as specified in `docs/spec.md` (product brief, binding), `docs/design.md` (revision 4, the contract) and `docs/plans/` (slice plans).
@@ -141,6 +161,19 @@ Not started. Per design D1, each slice's plan is written when that slice starts 
   - host `circle{r:…}` CSS can still enlarge markers;
   - verification error names the declared font family rather than the internal one;
   - harness `counts().svgs` cannot see shadow-root SVGs.
+- **Triaged by the slice-1 final review** (details in `docs/plans/handover/slice-1-ledger.md`):
+  - Slice 2: limit the 250-category schema cap to bar axes (it currently applies to every category axis).
+  - Slice 3:
+    - set marker geometry such as `r` inline on data marks, so host `circle{r}` CSS cannot change it (bubble `r` encodes data);
+    - annotation label collision now that labels draw in every mode (R44).
+  - Before slice 4:
+    - freeze the `Theme` shape, including slots for the legend quality strings;
+    - cap the title size at narrow widths (R24);
+    - make the calibrated cross-mode tolerances (`samePdf`, `crossSvgBrowser`) gate tests.
+  - Slice 4: the consumer TypeScript 5.4/6.0 declaration check (R40).
+  - Perf:
+    - P1 did not register a 10× model-build regression (frame quantisation), so revisit how sensitive it is;
+    - P4 stalls (up to about 6 %) have no budget.
 
 ## 6. Environment notes (cloud container)
 
