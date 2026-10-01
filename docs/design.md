@@ -737,6 +737,7 @@ interface ChartProps {
   onDatumActivate?: (e: DatumEvent) => void;
   onReady?: (info: ReadyInfo) => void;
   onError?: (error: DravenVizError) => void;
+  timeoutMs?: number;                   // default 10000; readiness bound, validated like the print option
   className?: string;
 }
 interface DatumEvent { chartId: string; seriesId?: string; datumId: string; datumLabel?: string;
@@ -744,6 +745,7 @@ interface DatumEvent { chartId: string; seriesId?: string; datumId: string; datu
 ```
 
 - Every spec, option or size change starts a new `renderId`. Font or layout completions carrying an older `renderId` are discarded, so `onReady` fires once per `renderId` and only for the latest one.
+- Readiness is bounded by `timeoutMs` (default 10,000 ms), covering fonts, layout, commit and verification. On expiry the render is aborted and `onError` fires once with `TIMEOUT`; `onReady` never fires for that render. A render reports at most one error, whichever of the pipeline, the render guard or the timer finds it first.
 - Width `"100%"` uses one `ResizeObserver`, debounced to animation frames and disconnected on unmount.
 - Errors render an inline error panel (role `alert`, code and message, no data dump) and call `onError`. They never throw into the host tree.
 - Keyboard: the chart root has `tabIndex=0`. Arrow keys move across data in series then point order (Left/Right within a series, Up/Down across series). Enter or Space activates. The focused datum gets a visible SVG focus ring and is announced in a polite live region (series label, `datumLabel` or category label, value with unit, quality).

@@ -398,3 +398,61 @@ test('a numeric width in a display:none host gives ZERO_SIZE and no onReady; re-
   await ready(page);
   expect((await page.evaluate(() => window.__r.readyCalls))[0]!.height).toBe(321);
 });
+
+test('a hung font request reports TIMEOUT once and never calls onReady', async ({ page }) => {
+  await page.route(/\/fonts\/NotoSans-/, () => {
+    // Never answered: the font request hangs.
+  });
+  await page.evaluate(() =>
+    window.__r.render({
+      fixture: 'line-weekly-flow',
+      theme: 'light',
+      width: 600,
+      height: 320,
+      timeoutMs: 400,
+    }),
+  );
+  await page.waitForFunction(() => window.__r.errorCalls.length > 0);
+  await page.waitForTimeout(800);
+  const out = await page.evaluate(() => ({
+    errors: window.__r.errorCalls.map((e) => e.code),
+    ready: window.__r.readyCalls.length,
+  }));
+  expect(out).toEqual({ errors: ['TIMEOUT'], ready: 0 });
+  await expect(page.locator('[role="alert"].dravenviz-error')).toContainText('TIMEOUT');
+});
+
+test('a render that finishes inside timeoutMs is ready and never times out', async ({ page }) => {
+  await page.evaluate(() =>
+    window.__r.render({
+      fixture: 'line-weekly-flow',
+      theme: 'light',
+      width: 600,
+      height: 320,
+      timeoutMs: 5000,
+    }),
+  );
+  await ready(page);
+  await page.waitForTimeout(300);
+  const out = await page.evaluate(() => ({
+    errors: window.__r.errorCalls.length,
+    ready: window.__r.readyCalls.length,
+  }));
+  expect(out).toEqual({ errors: 0, ready: 1 });
+});
+
+test('an invalid timeoutMs is INVALID_OPTIONS with its path', async ({ page }) => {
+  await page.evaluate(() =>
+    window.__r.render({
+      fixture: 'line-weekly-flow',
+      theme: 'light',
+      width: 600,
+      height: 320,
+      timeoutMs: -5,
+    }),
+  );
+  await page.waitForFunction(() => window.__r.errorCalls.length > 0);
+  expect(await page.evaluate(() => window.__r.errorCalls.map((e) => e.code))).toEqual([
+    'INVALID_OPTIONS',
+  ]);
+});
