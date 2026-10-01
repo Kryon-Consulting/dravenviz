@@ -56,7 +56,8 @@
     "build:docs": "pnpm pack:local && pnpm stage docs",
     "preview:docs": "tsx scripts/docs-cli.ts preview",
     "test:docs": "tsx scripts/docs-cli.ts test",
-    "measure": "sh -c 'echo \"not implemented until Task 20\" >&2; exit 1'",
+    "measure": "pnpm pack:local && tsx scripts/measure-size.ts && tsx scripts/measure-latency.ts",
+    "test:perf": "vitest run --project perf-report",
     "stage": "tsx scripts/stage-consumer.ts",
     "notices": "tsx scripts/build-manifest.ts --notices",
     "test:dist": "pnpm pack:local && vitest run --project dist"

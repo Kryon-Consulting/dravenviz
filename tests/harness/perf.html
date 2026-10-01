@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DravenViz perf page</title>
+    <link rel="stylesheet" href="dravenviz.css" />
+  </head>
+  <body>
+    <!--
+      Served by scripts/measure-latency.ts from a temp directory that holds only what a consumer
+      copies from the packed tarball (dist/asset-manifest.json files) plus this page and the
+      fixture as perf-spec.json. Never loaded by the Vite harness.
+
+      Without a query string the page is the warmed page (P1, size exports): window.__perf drives
+      mounts. With ?fresh it mounts the fixture once on load and reports window.__freshMs, the
+      time from navigation start to readiness (P2); fonts are fetched by the mount itself.
+    -->
+    <div id="host" style="width: 680px; height: 320px"></div>
+    <script src="dravenviz.browser.js"></script>
+    <script>
+      (function () {
+        var OPTIONS = { width: 680, height: 320, theme: 'print', namespaces: ['perf'] };
+        var host = document.getElementById('host');
+
+        async function mountOnce(spec) {
+          var t0 = performance.now();
+          var handle = window.DravenViz.mountCharts([host], [spec], OPTIONS);
+          await handle.ready;
+          var ms = performance.now() - t0;
+          // Guard: a measured mount must have produced the chart (outside the timed region).
+          if (!host.querySelector('svg[data-dravenviz-chart]'))
+            throw new Error('mount produced no chart');
+          handle.dispose();
+          host.replaceChildren();
+          return ms;
+        }
+
+        window.__perf = {
+          mountOnce: mountOnce,
+          exportSvg: function (spec, fontMode) {
+            return window.DravenViz.renderToSvg(spec, {
+              width: 680,
+              height: 320,
+              theme: 'print',
+              namespace: 's',
+              fontMode: fontMode,
+            });
+          },
+        };
+
+        if (location.search.indexOf('fresh') >= 0) {
+          fetch('perf-spec.json')
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (spec) {
+              var handle = window.DravenViz.mountCharts([host], [spec], OPTIONS);
+              return handle.ready;
+            })
+            .then(function () {
+              window.__freshMs = performance.now(); // since navigation start
+            })
+            .catch(function (e) {
+              window.__freshError = String(e && e.message ? e.message : e);
+            });
+        }
+      })();
+    </script>
+  </body>
+</html>

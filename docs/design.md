@@ -997,11 +997,33 @@ Scenarios (at least 30 measured samples after 5 warm-up runs, reporting p50/p95)
 | ID  | Scenario                                                                                   | Target                 |
 | --- | ------------------------------------------------------------------------------------------ | ---------------------- |
 | P1  | Warmed `mountCharts` readiness, `perf-line-500x4` at 680×320, fonts preloaded, same page    | p95 ≤ 250 ms (brief)   |
-| P2  | Fresh page load to readiness with font loading, same fixture                               | Budget after slice 1   |
+| P2  | Fresh page load to readiness with font loading, same fixture                               | Budget below (slice 1) |
 | P3  | `report-multi-family-a4` readiness in a warmed page                                          | Budget after slice 3   |
-| P4  | DravenPDF HTTP end-to-end for `report-slice1` and later `report-multi-family-a4`, concurrency 1 | Budget after slice 1 / 4 |
+| P4  | DravenPDF HTTP end-to-end for `report-slice1` and later `report-multi-family-a4`, concurrency 1 | Budget below (slice 1); slice 4 adds the A4 report |
 
 Sizes are measured from the packed tarball: browser bundle raw and gzip, ESM entry sizes, font bytes, SVG bytes per reference fixture, PDF bytes and page count. After slice 1, section 18 gets a budgets table: the measured value + 20 %, rounded up, with the basis stated. A regression over budget blocks performance acceptance until it is investigated and the resolution recorded.
+
+### 18.1 Slice-1 budgets
+
+Measured by `pnpm measure` (raw numbers, machine and method in `evidence/perf/`), then budget = measured + 20 %, rounded up: bundle and ESM sizes to 10 KiB (1 KiB for single files under 100 KiB), latency to 10 ms. `pnpm test:perf` checks the evidence files and the P1 target; the budgets below are what a later measurement is compared with by hand.
+
+| Item | Measured (slice 1) | Budget | Basis |
+| ---- | ------------------ | ------ | ----- |
+| Browser bundle, raw | 822,332 B | 993,280 B (970 KiB) | 822,332 x 1.2 = 986,798, rounded up to 10 KiB |
+| Browser bundle, gzip level 9 | 219,540 B | 266,240 B (260 KiB) | 219,540 x 1.2 = 263,448, rounded up to 10 KiB |
+| ESM entry `./react` | 17,310 B | 21,504 B (21 KiB) | 17,310 x 1.2 = 20,772, rounded up to 1 KiB |
+| ESM entry `./print` | 35,350 B | 43,008 B (42 KiB) | 35,350 x 1.2 = 42,420, rounded up to 1 KiB |
+| ESM entries (`.`, `./react`, `./print`) plus shared chunks, total | 523,978 B | 634,880 B (620 KiB) | 523,978 x 1.2 = 628,774, rounded up to 10 KiB |
+| Font files (2 woff2 + css), total | 309,627 B | 371,712 B (363 KiB) | 309,627 x 1.2 = 371,553, rounded up to 1 KiB |
+| SVG export, external fonts, largest fixture (`perf-line-500x4`) | 13,225 B | 16,384 B (16 KiB) | 13,225 x 1.2 = 15,870, rounded up to 1 KiB |
+| SVG export, embedded fonts, largest fixture (`perf-line-500x4`) | 425,700 B | 510,976 B (499 KiB) | 425,700 x 1.2 = 510,840, rounded up to 1 KiB |
+| PDF `report-slice1` | 84,748 B, 6 pages | 102,400 B (100 KiB), 6 pages | 84,748 x 1.2 = 101,698, rounded up to 10 KiB; the page count is an exact expectation |
+| P1 warmed readiness, p95 | 47.3 ms (p50 31.6 ms) | 60 ms regression budget; the 250 ms target stays the acceptance limit | 47.3 x 1.2 = 56.8, rounded up to 10 ms |
+| P2 fresh load, p95 | 355.1 ms (p50 322.3 ms) | 430 ms | 355.1 x 1.2 = 426.1, rounded up to 10 ms |
+| P4 PDF over HTTP, p95 | 2,237.9 ms (p50 2,069.4 ms) | 2,690 ms | 2,237.9 x 1.2 = 2,685.5, rounded up to 10 ms |
+| P3 | slice 3 | slice 3 | `report-multi-family-a4` does not exist before slice 3 |
+
+P4 counts stalled renders separately (a stall is an HTTP 504 after the 30 s budget, about 1 render in 10 in the development sandbox): the p50/p95 are over the 30 successful renders and the stall count and rate are reported beside them (`evidence/perf/README.md`). Latency budgets are machine-bound; compare only against a run on comparable hardware.
 
 ## 19. Support matrix
 

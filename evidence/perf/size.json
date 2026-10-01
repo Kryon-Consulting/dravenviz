@@ -1,0 +1,134 @@
+{
+  "measuredFrom": ".pack/draven-viz-0.1.0.tgz (extracted)",
+  "tarballBytes": 640165,
+  "bundle": {
+    "file": "dist/dravenviz.browser.js",
+    "rawBytes": 822332,
+    "gzipBytes": 219540
+  },
+  "esm": {
+    ".": 234,
+    "./react": 17310,
+    "./print": 35350
+  },
+  "esmSharedChunks": {
+    "dist/chunk-CWYFILQO.js": 372519,
+    "dist/chunk-YWSFPU7B.js": 98565
+  },
+  "fonts": [
+    {
+      "file": "fonts/NotoSans-Regular.woff2",
+      "bytes": 150912,
+      "sha256": "23a8c28d5ffb5e4f4545de7655fb34bdab36872938a712ec9d874c5ad9a2d02e"
+    },
+    {
+      "file": "fonts/NotoSans-SemiBold.woff2",
+      "bytes": 158320,
+      "sha256": "6e31729e067bc35e3ec767012a52e6b389866317f1d0a1d8311bedfd8e57eb27"
+    },
+    {
+      "file": "fonts/noto-sans.css",
+      "bytes": 395,
+      "sha256": "818c7f95ed8f553eb142ddf38638b85691d39696c1b5bc062cf5f0a8ebde7a67"
+    }
+  ],
+  "svg": [
+    {
+      "fixture": "min-line",
+      "external": 3726,
+      "embedded": 416201
+    },
+    {
+      "fixture": "text-markup-title",
+      "external": 3849,
+      "embedded": 416324
+    },
+    {
+      "fixture": "line-weekly-flow",
+      "external": 6933,
+      "embedded": 419408
+    },
+    {
+      "fixture": "line-thinned-annotation",
+      "external": 7922,
+      "embedded": 420397
+    },
+    {
+      "fixture": "line-singleton",
+      "external": 3733,
+      "embedded": 416208
+    },
+    {
+      "fixture": "line-all-equal",
+      "external": 3923,
+      "embedded": 416398
+    },
+    {
+      "fixture": "line-measured-zero",
+      "external": 4215,
+      "embedded": 416690
+    },
+    {
+      "fixture": "line-all-missing",
+      "external": 4092,
+      "embedded": 416567
+    },
+    {
+      "fixture": "line-irregular-numeric",
+      "external": 4093,
+      "embedded": 416568
+    },
+    {
+      "fixture": "line-irregular-time",
+      "external": 3888,
+      "embedded": 416363
+    },
+    {
+      "fixture": "line-fixed-domain-clipped",
+      "external": 5226,
+      "embedded": 417701
+    },
+    {
+      "fixture": "line-estimated-monotone",
+      "external": 6733,
+      "embedded": 419208
+    },
+    {
+      "fixture": "line-category-labels-wrap",
+      "external": 5023,
+      "embedded": 417498
+    },
+    {
+      "fixture": "line-category-labels-rotate",
+      "external": 6340,
+      "embedded": 418815
+    },
+    {
+      "fixture": "line-category-labels-thin",
+      "external": 7514,
+      "embedded": 419989
+    },
+    {
+      "fixture": "perf-line-500x4",
+      "external": 13225,
+      "embedded": 425700
+    }
+  ],
+  "pdf": {
+    "fixture": "report-slice1",
+    "bytes": 84748,
+    "pages": 6
+  },
+  "machine": {
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "cores": 4,
+    "ramBytes": 16876515328,
+    "os": "Ubuntu 24.04.4 LTS (kernel 6.18.44-fc-v50)",
+    "node": "v22.22.0",
+    "chromium": "141.0.7390.37",
+    "recharts": "3.10.1",
+    "react": "19.3.0",
+    "reactDom": "19.3.0",
+    "fontDir": "assets/fonts"
+  }
+}
