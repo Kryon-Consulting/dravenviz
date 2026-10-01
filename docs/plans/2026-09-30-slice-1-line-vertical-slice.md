@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 6.0, pnpm 10.33.0, Node 22.22, React 19.3.0 (with react-is 19.3.0), Recharts 3.10.1, Ajv 8 (standalone), tsup, esbuild, Vitest 5, Playwright 1.56.1 (Chromium 141.0.7390.37, revision 1194), Vite 8, CodeMirror 6. The PDF side uses Python 3.12, uv, DravenPDF `7a249e0` and Noto Sans v2.015.
 
-**Spec:** `docs/spec.md` (product brief) and `docs/design.md` (revision 2, the contract). Section references below (§n) point to `docs/design.md`.
+**Spec:** `docs/spec.md` (product brief) and `docs/design.md` (revision 4, the contract). Section references below (§n) point to `docs/design.md`.
 
 ## Global Constraints
 
@@ -33,7 +33,7 @@ These five situations are implied by the spec but not covered by any single task
 
 1. **A host hidden in a collapsed tab** (`display: none` ancestor) when `mountCharts` runs. Expect `ready` to reject with `ZERO_SIZE`, leave no blank SVG and no mounted root. Owned by Task 12 (`rejects ZERO_SIZE for hidden ancestor`).
 2. **Two `mountCharts` calls on one page reusing the default namespace for the same fixture.** Expect the second call to reject with `INVALID_OPTIONS` (`duplicate-chart-embedding`) and the first to stay intact. Owned by Task 12 (`second batch with same embedding identity is rejected`).
-3. **A font file 404 inside the DravenPDF bundle.** Expect the bootstrap to throw an uncaught error, never set the ready flag, and DravenPDF to answer 422 `render_incomplete`. `test:pdf` asserts that failure, not a PDF. Owned by Task 16 (`missing font fails the PDF render`).
+3. **A font file 404 inside the DravenPDF bundle.** Expect the bootstrap to throw an uncaught error, never set the ready flag, and DravenPDF to answer `504 render_timeout` (it checks page errors only after the ready wait, so the failure costs the full timeout; ruling R36). `test:pdf` asserts that failure, not a PDF. Owned by Task 16 (`missing font fails the PDF render`).
 4. **A React spec change while fonts from the previous render are still loading.** Expect `onReady` exactly once, for the newest `renderId`, and the DOM to show the newest spec. Owned by Task 14 (`stale font completion does not fire onReady`).
 5. **The machine timezone differs from the render timezone** (the test process runs with `TZ=America/New_York`, render `timezone: "Asia/Tokyo"`). Expect date-time ticks formatted in Tokyo time, and date-only ticks unchanged from the UTC run. Owned by Task 6 (`machine TZ never leaks`).
 
@@ -163,7 +163,7 @@ test('5 real chart survives normalize + strict allowlist', async ({ page }) => {
   - `packageManager: "pnpm@10.33.0"`.
   - The `exports` map exactly as in §3.
   - Dev dependencies pinned exactly: `recharts@3.10.1` (a runtime dependency), `react@19.3.0`, `react-dom@19.3.0`, `react-is@19.3.0`, `typescript@6.0.3`, `@playwright/test@1.56.1`, `vitest@5.0.3`, `ajv@8.20.0`, `json-schema-to-typescript@16.0.0`, `tsup@8.5.1`, `esbuild` (tsup's), `pixelmatch`, `pngjs`, `publint`, `@arethetypeswrong/cli`.
-  - `playwright.config.ts` sets `use.launchOptions.executablePath` from `PW_CHROMIUM_PATH` when that is set; otherwise it uses the Playwright-managed revision 1194.
+  - `playwright.config.ts` sets `use.launchOptions.executablePath` from `PW_CHROMIUM_PATH` when that is set; otherwise it uses the Playwright-managed revision 1194 (the `visual` project defaults to the full Chromium at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` when present, because its pixel baselines are rendered there).
 
 - [ ] **Step 1: Write the failing test** `tests/unit/boundaries.test.ts`:
 
@@ -200,7 +200,7 @@ test('no eval / Function / innerHTML in src', () => {
   - The same data for Noto Serif, for the custom-font tests.
 - Decision: the source is `https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSans-v2.015/NotoSans-v2.015.zip`, whose zip SHA-256 is `0c34df072a3fa7efbb7cbf34950e1f971a4447cffe365d3a359e2d4089b958f5` (verified 2026-09-30). The release ships no WOFF2, so the script takes the static unhinted instances `NotoSans/unhinted/ttf/NotoSans-Regular.ttf` and `NotoSans/unhinted/ttf/NotoSans-SemiBold.ttf` and compresses them to WOFF2 with `wawoff2` (a dev dependency). Both the TTF and WOFF2 hashes are recorded.
 - Advance widths come from the TTF `hmtx` table, read with `fontkit` (a dev dependency).
-- Noto Serif for tests comes from tag `NotoSerif-v2.015` (tag commit `1eee5de7230d240118f8ad8d1e5fe4c91acae943`) using the same procedure. Its zip hash is recorded on first fetch.
+- Noto Serif for tests comes from tag `NotoSerif-v2.015` (tag object `1eee5de7230d240118f8ad8d1e5fe4c91acae943`, which points to commit `c4a321e123e4d4ff315f57f4e0adf294fe3a95be`; ruling R10) using the same procedure. Its zip hash is recorded on first fetch.
 - The script runs once and its outputs are committed; CI never downloads fonts.
 
 - [ ] **Step 1: Write the failing test:**
@@ -921,7 +921,7 @@ window.__DRAVENPDF_READY__ = true;
     - Each text object's region is its transformed quadrilateral (`FPDFPageObj_GetRotatedBounds`), and a label's region is the set of its objects' quads.
     - *Clipping:* every quad vertex of every label lies inside its frame rect and the page's printable area.
     - *Overlap:* for every pair of distinct labels in a frame, the intersection area of their quads, computed by convex polygon clipping (Sutherland–Hodgman), is ≤ 0.25 pt². Rotated tick labels whose axis-aligned boxes overlap therefore pass as long as their real regions don't.
-  - `missing font fails the PDF render`: with `fonts/NotoSans-Regular.woff2` deleted from the bundle, the server responds 422 with code `render_incomplete`, and no PDF is written.
+  - `missing font fails the PDF render`: with `fonts/NotoSans-Regular.woff2` deleted from the bundle, the server responds 504 with code `render_timeout` (ruling R36), and no PDF is written.
 - [ ] **Step 2: Run** `pnpm test:pdf`. Expected: FAIL, because the bundle doesn't exist yet.
 - [ ] **Step 3: Implement** the example files and the driver.
 - [ ] **Step 4: Run** `pnpm test:pdf`. Expected: `PASS` with the evidence paths printed, or `UNVERIFIED` with exit code 3 if a prerequisite is missing. Never a silent pass.

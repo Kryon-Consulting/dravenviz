@@ -210,7 +210,7 @@ Recharts usage rules (`src/render/recharts`):
   - Linear and time x axes use `type="number"` and `scale="linear"` with the model's domain (epoch milliseconds for time), so irregular intervals keep their true spacing.
   - **Plot bounds come from DravenViz layout.** Each Recharts axis gets an explicit size (`YAxis width` = `laid.boxes.axes[id].width`, `XAxis height` = `laid.boxes.axes.x.height`). The chart `margin` is the remaining outer space (padding, title, legend, notes), so Recharts' offset equals `laid.boxes.plot`. No Recharts `Legend`, `Brush` or `label` prop allocates extra space.
   - Readiness and geometry tests assert that `usePlotArea()` equals `laid.boxes.plot` to within 0.5 units.
-- **Host-style isolation.** CSS rules beat SVG presentation attributes, so a host rule like `text { fill: red }` would restyle a chart drawn only with attributes. In the live DOM, DravenViz therefore sets visual properties (`fill`, `stroke`, `stroke-width`, `stroke-dasharray`, `opacity`, `font-family`, `font-size`, `font-weight`) as inline `style` on every element it draws. For Recharts elements it does the same through the `style` prop wherever Recharts forwards it, which the spike verifies per component. The guarantee: host rules without `!important` (type, class or universal selectors, inherited `font-family`, `zoom`) do not change chart rendering. Host `!important` rules are documented as out of scope, since only shadow DOM could block them and that would complicate print and export. Export normalization (section 10) turns these inline styles into attributes.
+- **Host-style isolation.** CSS rules beat SVG presentation attributes, so a host rule like `text { fill: red }` would restyle a chart drawn only with attributes. In the live DOM, DravenViz therefore sets visual properties (`fill`, `stroke`, `stroke-width`, `stroke-dasharray`, `opacity`, `font-family`, `font-size`, `font-weight`) as inline `style` on every element it draws. For Recharts elements it does the same through the `style` prop wherever Recharts forwards it, which the spike verifies per component. The guarantee: host rules without `!important` (type, class or universal selectors, inherited `font-family`, `zoom`) do not change chart rendering. Host `!important` rules are documented as out of scope for live charts, since only shadow DOM could block them. The offscreen export mount does use a shadow root (section 10), because export bytes must not depend on the host page. Export normalization (section 10) turns these inline styles into attributes.
 - **Slice 1 spike (Task 1).** A throwaway harness page on Chromium 141 confirms these points in Recharts 3.10.1, with a pass/fail table in `docs/plans/slice-1-spike-results.md`:
   1. Arbitrary SVG children and hook-based overlays render inside the surface, aligned with the marks to within 0.5 logical units. With the explicit band scale, axis sizes and margins above, a line-only chart's points sit at band centres and `usePlotArea()` equals the layout's plot box.
   2. Grouped bars sit side by side, and `stackId` bars and areas share a band position, with explicit domains and `sign` offsets.
@@ -413,6 +413,8 @@ Cartesian semantics (normative for the model and tests):
 - **Domains.** `fit` pads to nice numbers; a flat series (all values equal, or a single point) gets a symmetric ±1 unit (or ±10 % of |value|) extent; empty data gets `[0, 1]` and the empty state.
 - **Two y axes.** Each series, reference line and annotation marker binds to a named axis. The two axes never merge units. Each axis title shows its unit.
 - **Labels.** Value labels use `displayValue` if present, else the axis format. `labels.values: "totals"` labels stack totals and ungrouped bars. `staticLabel: true` on a scatter point requires a `datumLabel` (`static-label-without-name`), so a selected label never shows a machine ID.
+- **Which labels are drawn.** Annotation `label`s and reference-line labels are on-chart text and are drawn in every mode; `staticLabels` (and `staticLabel`) govern point labels only (section 8, Ruling R44).
+- **Time labels outside the axis.** Axis ticks stay compact, but point labels, data-table row headers, tooltips and keyboard announcements use the full date (year, month, day), so two dates a year apart never read the same. An instant also shows hour and minute and the render timezone (the table column header names it, for example "Date (Asia/Tokyo)").
 - **Percent stack values vs shares.** Geometry always uses shares, and labels, tooltips and tables say explicitly which number they show. For members `10` and `30`:
   - Segments span `[0, 25]` and `[25, 100]` on the 0–100 % axis (shares 25 % and 75 %).
   - Segment labels read `25%` and `75%` (`share`), or `10 items (25%)` (`value-and-share`).
@@ -596,6 +598,19 @@ Failures throw `InvalidSpecError`, keeping the brief's contract: a machine-reada
 
 Semantic rules (each has a unit test with a fixture under `fixtures/invalid/`): `duplicate-id`, `unknown-axis`, `unknown-role`, `x-not-in-categories`, `point-order`, `labels-length`, `horizontal-requires-bars`, `bar-on-continuous-axis`, `stack-mixed-marks`, `stack-mixed-axes`, `negative-in-percent-stack`, `bar-domain-excludes-data`, `fixed-domain-excludes-data`, `tick-outside-domain`, `empty-tick-values`, `invalid-domain`, `marker-without-value`, `render-hint-on-bar`, `size-without-bubble`, `invalid-time`, `time-without-offset`, `mixed-x-types`, `negative-slice`, `missing-cell`, `duplicate-cell`, `value-outside-scale`, `scale-colors-length`, `outside-progress-domain`, `too-many-axes`, `non-finite-number`, `preset-incompatible`, `currency-required`, `static-label-without-name`, `percent-axis-configured`, `percent-axis-shared`, `percent-value-unit-required`, `duplicate-chart-embedding` (options).
 
+Further semantic rules the validator emits (all `INVALID_SPEC`):
+
+- `stacking-without-stack`: `stacking` is set but no series has a `stackId`.
+- `unknown-cell-ref`: a heatmap cell names a row or column id that is not declared.
+- `too-many-items`: a progress ring has more than 6 items (use `variant: "bar"`).
+- `invalid-currency`: `currency` is not an ISO 4217 code.
+- `invalid-format`: `minimumFractionDigits` is greater than `maximumFractionDigits`.
+- `reference-value-type`: a reference line on a value axis has a non-number `value`.
+
+Input and schema rules (all `INVALID_SPEC`): `not-json` (circular references, BigInt or a throwing `toJSON`; checked before the size check), `schema` (fallback when Ajv gives no detail) and the Ajv keyword rules `schema-required`, `schema-additionalProperties`, `schema-propertyNames`, `schema-discriminator`, `schema-type`, `schema-enum`, `schema-const`, `schema-pattern`, `schema-minItems`, `schema-maxItems`.
+
+Limit rules (all `LIMIT_EXCEEDED`; an error made only of these has that code): `json-bytes`, `series-count`, `cartesian-points`, `bar-categories`, `donut-slices`, `heatmap-cells`, `reference-line-count`, `annotation-count`, `progress-items`. `not-implemented-in-slice` is reserved for chart kinds the build does not render yet (`INVALID_SPEC`).
+
 Default limits (`DEFAULT_LIMITS`): series 16, total Cartesian points 10,000, category positions for bar axes 250, donut slices 32, heatmap cells 2,500, serialized JSON 2 MiB, annotations 16, reference lines 16, progress items 20. Lowering is allowed per call; raising throws `INVALID_OPTIONS`.
 
 ## 7. Themes
@@ -701,20 +716,21 @@ Mapping rules:
 - **Embedding identity** is the pair (namespace, chartId). Every SVG ID is `<namespace>_<chartId>-<n>`. The `_` cannot occur in a namespace (`^[a-z][a-z0-9-]{0,31}$`), so the first `_` ends the namespace and namespace `a` with chart `b-c` never collides with namespace `a-b` with chart `c`. The root carries `data-dravenviz-ns` and `data-dravenviz-chart`.
 - The same spec can be mounted more than once (for example two instances of `line-weekly-flow`) as long as each instance has a distinct namespace, through `namespaces[i]` or separate calls with different `namespace` values. The spec and its `id` are never modified.
 - A pair that repeats within a batch, or that already exists in the document, is rejected with `INVALID_OPTIONS` (`duplicate-chart-embedding`) before anything mounts.
-- React `<Chart>` defaults `namespace` to a sanitized `useId()` value, so instances are distinct without configuration and the value is stable across SSR and hydration.
+- React `<Chart>` defaults `namespace` to `"dv-"` plus a short stable hash of the case-preserved `useId()` value, so instances are distinct without configuration, always match the namespace pattern, and are stable across SSR and hydration. Before committing, `<Chart>` checks the document for an existing (namespace, chartId) pair owned by another instance. A collision is never silent: the chart shows its error panel and calls `onError` with `INVALID_OPTIONS` (`duplicate-chart-embedding`), advising the `namespace` prop or React's `identifierPrefix` (needed for several React roots on one page). The state clears on the next prop change.
 - Report fixtures list entries as `{ "fixture": "line-weekly-flow", "namespace": "wf-a" }`, and the report loader passes those namespaces through.
 
 Readiness sequence for `mountCharts`:
 
-1. Validate options, then the whole batch. Any failure rejects `ready` with `INVALID_SPEC` or `LIMIT_EXCEEDED` (carrying `chartId` and `path`) before anything touches the DOM.
-2. Load and verify fonts. Each font URL is fetched once as an `ArrayBuffer`, hashed with SHA-256, and registered with `new FontFace(family, buffer, { weight })`. `document.fonts.check()` must then succeed for each family and weight. The buffers are kept in a per-page font registry keyed by URL, so export embeds exactly the bytes used for measurement. Failures give `FONT_LOAD_FAILED` or `ASSET_LOAD_FAILED` with the URL.
-3. Check the dimensions. `width` and `height` must be positive and finite (`INVALID_OPTIONS`), and the host element must be connected and rendered (`getClientRects().length > 0`, not `display: none`), else `ZERO_SIZE`. React's `"100%"` width also requires a measured width of 1 or more.
+1. Validate options (including `locale` and `timezone`, which are checked up front on every chart kind: an unsupported locale or an unknown IANA zone gives `INVALID_OPTIONS`, never a later layout failure), then the whole batch. Any failure rejects `ready` with `INVALID_SPEC` or `LIMIT_EXCEEDED` (carrying `chartId` and `path`) before anything touches the DOM.
+2. Load and verify fonts. Each font URL is fetched once as an `ArrayBuffer`, hashed with SHA-256, and registered with `new FontFace(family, buffer, { weight })`. Verification is the face itself: its `status` is `'loaded'` and it is present in `document.fonts` with the matching family and weight. `document.fonts.check()` is kept only as an extra guard, because Chromium returns true for absent families and weights. Faces are registered under a collision-proof internal family (`"DravenViz Noto Sans"` for the default fonts; caller fonts get a unique deterministic `"DravenViz <family> <short-hash>"`), and live charts and exports list that name first, then the declared family, then `sans-serif`, so a host page's own `@font-face` rules cannot replace them. Hashing uses WebCrypto, which needs a secure context (HTTPS or localhost): elsewhere the load fails early with `FONT_LOAD_FAILED` naming that requirement. A `file://` font URL is rejected with `INVALID_OPTIONS` (scheme not allowed). The buffers are kept in a per-page font registry keyed by URL, so export embeds exactly the bytes used for measurement. Failures give `FONT_LOAD_FAILED` or `ASSET_LOAD_FAILED` with the URL.
+3. Check the dimensions. `width` and `height` must be positive and finite (`INVALID_OPTIONS`), and the host element must be connected and rendered (`getClientRects().length > 0`, not `display: none`), else `ZERO_SIZE`. With `fit: "width"` the host must also be at least 1 px wide (`ZERO_SIZE`), since the chart scales to it. React's `"100%"` width also requires a measured width of 1 or more.
 4. Build the model and layout (`LAYOUT_ERROR`), then render (`RENDER_FAILED` wraps any exception).
 5. After React commits, wait for two animation frames, then verify the committed SVG against the model's expected-mark manifest:
    - The root carries `data-dv-render-id` equal to the current `renderId` (so stale commits never satisfy readiness), and its `viewBox` equals `0 0 width height`.
    - For every series and state the manifest expects, the corresponding `data-dv-mark` group exists with the expected element count: line segments, isolated-point markers, bars (including zero-height bars for measured zeros), placeholders for unavailable or empty categories, and the empty-state group for charts with no measured data.
    - Every numeric geometry attribute (`x`, `y`, `width`, `height`, `cx`, `cy`, `r`, and the numbers in `d` and `points`) is finite. There is no `NaN`.
-   - Zero-area bounding boxes are not failures: a flat line has a zero-height box and a measured-zero bar has zero height. Only a *missing* expected mark or a non-finite coordinate fails.
+   - The committed root `<svg>` has a non-zero rendered size in both dimensions (`getBoundingClientRect()`), else `RENDER_FAILED` (rule `zero-rendered-size`). This catches host CSS such as `svg { display: none }` or `svg { width: 0 }` in print and React alike.
+   - Zero-area bounding boxes inside the chart are not failures: a flat line has a zero-height box and a measured-zero bar has zero height. Only a *missing* expected mark or a non-finite coordinate fails.
 6. Resolve.
 
 Readiness fixtures that must resolve successfully: `line-measured-zero` (every value 0), `line-all-equal` (a flat line), `line-singleton` (one point, drawn as an isolated marker) and `line-all-missing` (every value null, so empty state with "No measured data"). `bar-all-zero` and `cartesian-empty-series` are added in slice 2.
@@ -767,7 +783,7 @@ Export has three stages: **normalize**, **validate strictly**, then **finalize**
    - An **inherited** property (`fill`, `stroke*`, `font-*`, `text-anchor`, `dominant-baseline`) is removed from a child only if the parent's *final exported* attribute has the identical value.
    - A **non-inherited** property (`opacity`) is removed only if it equals the initial value.
    - Pruning runs top-down over the export tree, never the live DOM. Ancestors outside the exported `<svg>` never count, because the standalone file has no such ancestors.
-4. The root `<svg>` always carries every inherited property explicitly, so nothing depends on a host page or viewer default.
+4. The root `<svg>` always carries every inherited property explicitly, so nothing depends on a host page or viewer default. *Addition (R31, export isolation):* the values come from the resolved theme and font, never from computed host values, and `dominant-baseline` is set inline on DravenViz text (live and export), so a host rule cannot change it. `renderToSvg` also mounts the chart inside a shadow root whose host has `all: initial`, so no page stylesheet rule (`svg { fill: blue }`, `* { opacity: .5 }`, `g { stroke: green }`) can match it and inherited properties start from initial values. Exported bytes are identical under hostile host CSS and on a clean page (tested). `dominant-baseline` is pruned only when it is `auto` under an `auto` parent, because its inheritance differs between specifications.
 5. Remove known renderer metadata: `class`, `style`, `tabindex`, `focusable`, `cursor`, `pointer-events`, `data-*` except `data-dv-*`, and any attribute in the Recharts attribute inventory that the slice 1 spike recorded as non-presentational (for example `name`, `orientation`, `type`, `index`, `width`/`height` on `g`). The inventory is a checked-in constant, `render/svg/recharts-metadata.ts`, with a test that fails if a Recharts upgrade emits an attribute that is not classified.
 6. Replace Recharts' `<title>`/`<desc>` children of the root with DravenViz's own.
 
@@ -837,6 +853,7 @@ Verified against `Kryon-Consulting/dravenpdf@7a249e0`:
 - `RenderOptions` accepts `paper`, `media`, `print_background`, `prefer_css_page_size`, `wait_until`, `wait_for_ready_flag`, `fail_on_resource_errors`, `fail_on_page_errors` and `timeout_ms` (≤ `DRAVENPDF_RENDER_TIMEOUT_MS`, default 30000). Unknown fields are rejected.
 - `wait_for_ready_flag` waits for `window.__DRAVENPDF_READY__ === true`, then waits for images and `document.fonts.ready`.
 - The response headers `X-DravenPdf-Resource-Errors` and `X-DravenPdf-Page-Errors` are asserted to be `0`.
+- A missing font (a 404 inside the bundle) makes the bootstrap throw and never set the ready flag. DravenPDF checks page errors only after the ready wait, so the answer is `504 render_timeout`, not `422 render_incomplete`, and it costs the full render timeout. `test:pdf` asserts that failure and that no PDF is written. (`422 render_incomplete` is what a missing stylesheet gives.)
 
 `examples/dravenpdf/` contents:
 
@@ -976,7 +993,7 @@ CI (`.github/workflows/ci.yml`) has these jobs:
 - `install` (frozen lockfile)
 - `lint + typecheck + drift`
 - `unit`
-- `browser` (`pnpm exec playwright install --with-deps chromium` using the pinned `@playwright/test` 1.56.1, which installs revision 1194; locally the preinstalled `/opt/pw-browsers` copy is used)
+- `browser` (`pnpm exec playwright install --with-deps chromium` using the pinned `@playwright/test` 1.56.1, which installs revision 1194; locally the preinstalled `/opt/pw-browsers` copy is used). Two steps: `pnpm exec playwright test --project=browser` is the gating step, so every browser regression fails there whatever the visual state; `--project=visual` runs as a separate step (it fails with `pending owner review` for any candidate the owner has not approved, D4, Ruling R41). `pnpm test:browser` locally runs both. The `visual` project always launches the full Chromium 141 the baselines were rendered with (`PW_CHROMIUM_PATH`, else the preinstalled copy), never the headless shell, whose text rasterization differs
 - `package`
 - `docs`
 - `pdf`, which runs uv with Python 3.12 and Chromium. It is marked required, and `UNVERIFIED` fails the job rather than passing it.
@@ -1007,25 +1024,25 @@ Sizes are measured from the packed tarball: browser bundle raw and gzip, ESM ent
 
 ### 18.1 Slice-1 budgets
 
-Measured by `pnpm measure` (raw numbers, machine and method in `evidence/perf/`), then budget = measured + 20 %, rounded up: bundle and ESM sizes to 10 KiB (1 KiB for single files under 100 KiB), latency to 10 ms. `pnpm test:perf` checks the evidence files and the P1 target; the budgets below are what a later measurement is compared with by hand.
+Measured by `pnpm measure` (raw numbers, machine and method in `evidence/perf/`), then budget = measured + 20 %, rounded up: sizes to 10 KiB (1 KiB for a single file under 100 KiB), latency to 10 ms. Budgets are stated in KiB of 1,024 bytes. `pnpm test:perf` checks the evidence files and the P1 target; the budgets below are what a later measurement is compared with by hand.
 
 | Item | Measured (slice 1) | Budget | Basis |
 | ---- | ------------------ | ------ | ----- |
-| Browser bundle, raw | 822,332 B | 993,280 B (970 KiB) | 822,332 x 1.2 = 986,798, rounded up to 10 KiB |
-| Browser bundle, gzip level 9 | 219,540 B | 266,240 B (260 KiB) | 219,540 x 1.2 = 263,448, rounded up to 10 KiB |
-| ESM entry `./react` | 17,310 B | 21,504 B (21 KiB) | 17,310 x 1.2 = 20,772, rounded up to 1 KiB |
-| ESM entry `./print` | 35,350 B | 43,008 B (42 KiB) | 35,350 x 1.2 = 42,420, rounded up to 1 KiB |
-| ESM entries (`.`, `./react`, `./print`) plus shared chunks, total | 523,978 B | 634,880 B (620 KiB) | 523,978 x 1.2 = 628,774, rounded up to 10 KiB |
-| Font files (2 woff2 + css), total | 309,627 B | 371,712 B (363 KiB) | 309,627 x 1.2 = 371,553, rounded up to 1 KiB |
+| Browser bundle, raw | 824,174 B | 993,280 B (970 KiB) | 824,174 x 1.2 = 989,009, rounded up to 10 KiB |
+| Browser bundle, gzip level 9 | 220,005 B | 266,240 B (260 KiB) | 220,005 x 1.2 = 264,006, rounded up to 10 KiB |
+| ESM entry `./react` | 18,614 B | 22,528 B (22 KiB) | 18,614 x 1.2 = 22,337, rounded up to 1 KiB |
+| ESM entry `./print` | 34,725 B | 41,984 B (41 KiB) | 34,725 x 1.2 = 41,670, rounded up to 1 KiB |
+| ESM entries (`.`, `./react`, `./print`) plus shared chunks, total | 528,340 B | 634,880 B (620 KiB) | 528,340 x 1.2 = 634,008, rounded up to 10 KiB |
+| Font files (2 woff2 + css), total | 309,627 B | 389,120 B (380 KiB) | 309,627 x 1.2 = 371,553, rounded up to 10 KiB (a total, not a single file) |
 | SVG export, external fonts, largest fixture (`perf-line-500x4`) | 13,225 B | 16,384 B (16 KiB) | 13,225 x 1.2 = 15,870, rounded up to 1 KiB |
-| SVG export, embedded fonts, largest fixture (`perf-line-500x4`) | 425,700 B | 510,976 B (499 KiB) | 425,700 x 1.2 = 510,840, rounded up to 1 KiB |
-| PDF `report-slice1` | 84,748 B, 6 pages | 102,400 B (100 KiB), 6 pages | 84,748 x 1.2 = 101,698, rounded up to 10 KiB; the page count is an exact expectation |
-| P1 warmed readiness, p95 | 47.3 ms (p50 31.6 ms) | 60 ms regression budget; the 250 ms target stays the acceptance limit | 47.3 x 1.2 = 56.8, rounded up to 10 ms |
-| P2 fresh load, p95 | 355.1 ms (p50 322.3 ms) | 430 ms | 355.1 x 1.2 = 426.1, rounded up to 10 ms |
-| P4 PDF over HTTP, p95 | 2,237.9 ms (p50 2,069.4 ms) | 2,690 ms | 2,237.9 x 1.2 = 2,685.5, rounded up to 10 ms |
+| SVG export, embedded fonts, largest fixture (`perf-line-500x4`) | 425,700 B | 512,000 B (500 KiB) | 425,700 x 1.2 = 510,840, rounded up to 10 KiB (a single file over 100 KiB) |
+| PDF `report-slice1` | 75,970 B, 6 pages | 92,160 B (90 KiB), 6 pages | 75,970 x 1.2 = 91,164, rounded up to 1 KiB (a single file under 100 KiB); the page count is an exact expectation |
+| P1 warmed readiness, p95 | 47.3 ms (p50 31.5 ms) | 60 ms regression budget; the 250 ms target stays the acceptance limit | 47.3 x 1.2 = 56.8, rounded up to 10 ms |
+| P2 fresh load, p95 | 380.1 ms (p50 333.7 ms) | 460 ms | 380.1 x 1.2 = 456.1, rounded up to 10 ms |
+| P4 PDF over HTTP, p95 | 2,306.6 ms (p50 2,077.3 ms) | 2,770 ms | 2,306.6 x 1.2 = 2,767.9, rounded up to 10 ms |
 | P3 | slice 3 | slice 3 | `report-multi-family-a4` does not exist before slice 3 |
 
-P4 counts stalled renders separately (a stall is an HTTP 504 after the 30 s budget, about 1 render in 10 in the development sandbox): the p50/p95 are over the 30 successful renders and the stall count and rate are reported beside them (`evidence/perf/README.md`). Latency budgets are machine-bound; compare only against a run on comparable hardware.
+P4 counts stalled renders separately (a stall is an HTTP 504 after the 30 s budget, 2 stalls in 32 attempts, 6.3 %, in the development sandbox): the p50/p95 are over the 30 successful renders and the stall count and rate are reported beside them (`evidence/perf/README.md`). Latency budgets are machine-bound; compare only against a run on comparable hardware.
 
 ## 19. Support matrix
 
