@@ -62,6 +62,18 @@ async function load(
   );
 }
 
+/** The faces registered in `document.fonts` for a family, sorted by weight. */
+async function faces(page: Page, family: string): Promise<{ weight: string; status: string }[]> {
+  return page.evaluate((fam) => {
+    const out: { weight: string; status: string }[] = [];
+    document.fonts.forEach((f) => {
+      if (f.family.replace(/^["']|["']$/g, '') === fam)
+        out.push({ weight: f.weight, status: f.status });
+    });
+    return out.sort((a, b) => a.weight.localeCompare(b.weight));
+  }, family);
+}
+
 const serif = [
   { family: 'Noto Serif', weight: 400, url: '/test-fonts/NotoSerif-Regular.woff2' },
   { family: 'Noto Serif', weight: 600, url: '/test-fonts/NotoSerif-SemiBold.woff2' },
@@ -91,12 +103,15 @@ test('default fonts load, match PROVENANCE.md hashes and register with document.
   expect(regular!.format).toBe('woff2');
   expect(regular!.fileName).toBe('NotoSans-Regular.woff2');
   expect(regular!.byteLength).toBe(regular!.bytes);
-  const checks = await page.evaluate(() => [
-    document.fonts.check('13px "Noto Sans"'),
-    document.fonts.check('600 13px "Noto Sans"'),
-    window.__h.fontRegistry.get('fonts/NotoSans-Regular.woff2')?.sha256,
+  // check() is vacuous in Chromium, so assert by enumerating the registered faces.
+  expect(await faces(page, 'Noto Sans')).toEqual([
+    { weight: '400', status: 'loaded' },
+    { weight: '600', status: 'loaded' },
   ]);
-  expect(checks).toEqual([true, true, hashOf('NotoSans-Regular.woff2')]);
+  expect(await faces(page, 'Totally Absent Family')).toEqual([]);
+  expect(
+    await page.evaluate(() => window.__h.fontRegistry.get('fonts/NotoSans-Regular.woff2')?.sha256),
+  ).toBe(hashOf('NotoSans-Regular.woff2'));
 });
 
 test('assetBaseUrl resolves the default fonts', async ({ page }) => {
@@ -117,18 +132,23 @@ test('caller fonts load from /test-fonts/ under their own family', async ({ page
   const out = await load(page, serif);
   expect(out.ok).toBe(true);
   expect(out.family).toBe('Noto Serif');
-  expect(await page.evaluate(() => document.fonts.check('13px "Noto Serif"'))).toBe(true);
+  expect(await faces(page, 'Noto Serif')).toEqual([
+    { weight: '400', status: 'loaded' },
+    { weight: '600', status: 'loaded' },
+  ]);
 });
 
 test('a 404 rejects with FONT_LOAD_FAILED naming the URL', async ({ page }) => {
   const url = '/fonts/missing-regular.woff2';
   const out = await load(page, [
     { family: 'Nope', weight: 400, url },
-    { family: 'Nope', weight: 600, url: '/fonts/missing-semibold.woff2' },
+    { family: 'Nope', weight: 600, url: '/fonts/NotoSans-SemiBold.woff2' },
   ]);
   expect(out.ok).toBe(false);
   expect(out.code).toBe('FONT_LOAD_FAILED');
-  expect(`${out.path ?? ''} ${out.message ?? ''}`).toContain('/fonts/missing-');
+  const absolute = new URL(url, page.url()).href;
+  expect(out.path).toBe(absolute);
+  expect(out.message).toContain(absolute);
 });
 
 test('corrupt font data rejects with FONT_LOAD_FAILED and a retry is possible', async ({
@@ -256,4 +276,92 @@ test('mount, exportSvg and counts are stubs until Task 12/13', async ({ page }) 
     }),
   );
   expect(msgs).toEqual(Array(3).fill('not implemented until Task 12/13'));
+});
+
+test('verification fails when the registered faces are gone (negative control)', async ({
+  page,
+}) => {
+  expect((await load(page, serif)).ok).toBe(true);
+  // Remove the faces behind the loader's back; check() would still say true.
+  await page.evaluate(() => {
+    const doomed: FontFace[] = [];
+    document.fonts.forEach((f) => doomed.push(f));
+    doomed.forEach((f) => document.fonts.delete(f));
+  });
+  expect(await faces(page, 'Noto Serif')).toEqual([]);
+  const again = await load(page, serif);
+  expect(again.code).toBe('FONT_LOAD_FAILED');
+  // The stale entries were evicted, so a retry registers fresh faces.
+  expect((await load(page, serif)).ok).toBe(true);
+  expect(await faces(page, 'Noto Serif')).toHaveLength(2);
+});
+
+test('abort then a fresh call (StrictMode mount, dispose, mount) resolves for the new caller', async ({
+  page,
+}) => {
+  const result = await page.evaluate(async (assets) => {
+    const a = new AbortController();
+    const first = window.__h.loadFonts(assets as never, a.signal).then(
+      () => 'ok',
+      (e: { code?: string }) => e.code,
+    );
+    a.abort();
+    const second = await window.__h.loadFonts(assets as never, new AbortController().signal).then(
+      () => 'ok',
+      (e: { code?: string }) => e.code,
+    );
+    return [await first, second];
+  }, serif);
+  expect(result).toEqual(['DISPOSED', 'ok']);
+});
+
+test('one URL for both weights is INVALID_OPTIONS, and a URL cannot change weight', async ({
+  page,
+}) => {
+  const same = await load(page, [
+    { family: 'Noto Serif', weight: 400, url: '/test-fonts/NotoSerif-Regular.woff2' },
+    { family: 'Noto Serif', weight: 600, url: '/test-fonts/NotoSerif-Regular.woff2' },
+  ]);
+  expect(same.code).toBe('INVALID_OPTIONS');
+  expect((await load(page, serif)).ok).toBe(true);
+  const swapped = await load(page, [
+    { family: 'Noto Serif', weight: 600, url: '/test-fonts/NotoSerif-Regular.woff2' },
+    { family: 'Noto Serif', weight: 400, url: '/test-fonts/NotoSerif-SemiBold.woff2' },
+  ]);
+  expect(swapped.code).toBe('INVALID_OPTIONS');
+});
+
+test('a redirect is not followed and rejects with FONT_LOAD_FAILED', async ({ page }) => {
+  await page.route('**/redir/font.woff2', (route) =>
+    route.fulfill({ status: 302, headers: { location: '/fonts/NotoSans-Regular.woff2' } }),
+  );
+  const out = await load(page, [
+    { family: 'Noto Sans', weight: 400, url: '/redir/font.woff2' },
+    { family: 'Noto Sans', weight: 600, url: '/fonts/NotoSans-SemiBold.woff2' },
+  ]);
+  expect(out.code).toBe('FONT_LOAD_FAILED');
+  expect(out.path).toBe(new URL('/redir/font.woff2', page.url()).href);
+});
+
+test('URLs with credentials are rejected before any fetch, without echoing them', async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on('request', (r) => requests.push(r.url()));
+  const out = await load(page, [
+    {
+      family: 'X',
+      weight: 400,
+      url: 'http://user:s3cret@127.0.0.1:4179/fonts/NotoSans-Regular.woff2',
+    },
+    { family: 'X', weight: 600, url: '/fonts/NotoSans-SemiBold.woff2' },
+  ]);
+  expect(out.code).toBe('INVALID_OPTIONS');
+  expect(out.message).not.toContain('s3cret');
+  expect(requests.filter((u) => u.includes('woff2'))).toEqual([]);
+});
+
+test('the harness refuses traversal in font names', async ({ page }) => {
+  const res = await page.request.get('/fonts/..%2Fpackage.json');
+  expect(res.status()).toBe(400);
 });

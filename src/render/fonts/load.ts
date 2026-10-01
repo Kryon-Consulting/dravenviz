@@ -90,6 +90,12 @@ function validate(assets: FontAsset[]): Validated {
     }
     seen.add(asset.weight);
     const url = assertSameOriginOrRelative(asset.url);
+    if (items.some((x) => x.url === url)) {
+      throw new DravenVizError(
+        'INVALID_OPTIONS',
+        `Font URL ${url} is used for more than one weight; each weight needs its own file.`,
+      );
+    }
     if (
       asset.format !== undefined &&
       asset.format !== 'woff2' &&
@@ -121,6 +127,7 @@ async function loadOne(
   url: string,
   format: FontFormat,
   signal: AbortSignal,
+  onFace: (face: FontFace) => void,
 ): Promise<ResolvedFace> {
   const fileName = fileNameOf(url);
   const fail = (reason: string, cause?: unknown): DravenVizError =>
@@ -132,10 +139,11 @@ async function loadOne(
   try {
     let response: Response;
     try {
-      response = await fetch(url, { signal });
+      // Redirects are refused: a same-origin URL must not bounce to another origin (design section 12).
+      response = await fetch(url, { signal, redirect: 'error' });
     } catch (e) {
       if (signal.aborted) throw disposed();
-      throw fail('network error', e);
+      throw fail('network error or redirect', e);
     }
     if (!response.ok) throw fail(`HTTP ${response.status}`);
     let buffer: ArrayBuffer;
@@ -151,6 +159,7 @@ async function loadOne(
     try {
       face = new FontFace(family, buffer, { weight: String(weight) });
       document.fonts.add(face);
+      onFace(face);
       await face.load();
     } catch (e) {
       throw fail('the font data could not be decoded', e);
@@ -170,21 +179,25 @@ function acquire(
   format: FontFormat,
 ): RegistryEntry {
   const existing = entries.get(url);
-  if (existing !== undefined) {
-    if (existing.family !== family) {
+  if (existing !== undefined && !existing.controller.signal.aborted) {
+    if (existing.family !== family || existing.weight !== weight) {
       throw new DravenVizError(
         'INVALID_OPTIONS',
-        `Font ${url} is already registered under a different family.`,
+        `Font ${url} is already registered under a different family or weight.`,
       );
     }
     return existing;
   }
   const controller = new AbortController();
   const entry: RegistryEntry = {
+    url,
     family,
+    weight,
     controller,
     waiters: 0,
-    promise: loadOne(family, weight, url, format, controller.signal).then(
+    promise: loadOne(family, weight, url, format, controller.signal, (f) => {
+      entry.face = f;
+    }).then(
       (face) => {
         recordResolved(face);
         return face;
@@ -205,17 +218,24 @@ function wait(entry: RegistryEntry, signal: AbortSignal): Promise<ResolvedFace> 
   return new Promise<ResolvedFace>((resolve, reject) => {
     const onAbort = (): void => {
       entry.waiters -= 1;
-      // Only cancel the shared network load when nobody else is waiting for it.
-      if (entry.waiters <= 0) entry.controller.abort();
+      // Only cancel the shared network load when nobody else is waiting for it. The entry is
+      // dropped first (synchronously) so a caller that never aborted can start a fresh load
+      // instead of inheriting this aborted one (React StrictMode mount, dispose, mount).
+      if (entry.waiters <= 0) {
+        if (entries.get(entry.url) === entry) forgetFont(entry.url);
+        entry.controller.abort();
+      }
       reject(disposed());
     };
     signal.addEventListener('abort', onAbort, { once: true });
     entry.promise.then(
       (face) => {
+        entry.waiters -= 1;
         signal.removeEventListener('abort', onAbort);
         resolve(face);
       },
       (e: unknown) => {
+        entry.waiters -= 1;
         signal.removeEventListener('abort', onAbort);
         reject(e instanceof Error ? e : new Error(String(e)));
       },
@@ -224,9 +244,31 @@ function wait(entry: RegistryEntry, signal: AbortSignal): Promise<ResolvedFace> 
 }
 
 /**
+ * `document.fonts.check()` passes vacuously in Chromium when no matching face exists, so the
+ * face itself is verified: it must be loaded and present in `document.fonts` under the expected
+ * family and weight. `check()` stays as an extra guard.
+ */
+function isRegistered(entry: RegistryEntry, family: string, weight: 400 | 600): boolean {
+  const face = entry.face;
+  if (face === undefined || face.status !== 'loaded') return false;
+  let present = false;
+  document.fonts.forEach((f) => {
+    if (f === face) present = true;
+  });
+  if (
+    !present ||
+    face.family.replace(/^["']|["']$/g, '') !== family ||
+    face.weight !== String(weight)
+  ) {
+    return false;
+  }
+  return document.fonts.check(`${weight} ${CHECK_SIZE_PX}px "${family}"`);
+}
+
+/**
  * Loads, hashes and registers the fonts (design section 9, step 2). Rejects with
  * `INVALID_OPTIONS` before any fetch, `FONT_LOAD_FAILED` for network, status, decode or
- * `document.fonts.check` failures, and `DISPOSED` when `signal` aborts. A URL already loaded
+ * font-registration verification failures, and `DISPOSED` when `signal` aborts. A URL already loaded
  * is served from the page registry with no second request.
  */
 export async function loadFonts(
@@ -239,16 +281,21 @@ export async function loadFonts(
     i,
     entry: acquire(family, i.asset.weight, i.url, i.format),
   }));
+  // If one weight fails, the sibling weights that did load stay registered: they are valid,
+  // cached by URL and reused by the retry, so there is nothing to clean up for them.
   const faces = await Promise.all(acquired.map(({ entry }) => wait(entry, signal)));
-  for (const { i } of acquired) {
-    if (!document.fonts.check(`${i.asset.weight} ${CHECK_SIZE_PX}px "${family}"`)) {
-      forgetFont(i.url);
-      throw new DravenVizError(
-        'FONT_LOAD_FAILED',
-        `Font ${i.url} loaded but "${family}" ${i.asset.weight} is not available to the page.`,
-        { path: i.url },
-      );
-    }
+  // Evict every unverified face (not just the first) so a retry starts clean.
+  let failed: string | undefined;
+  let failedUrl: string | undefined;
+  for (const { i, entry } of acquired) {
+    if (isRegistered(entry, family, i.asset.weight)) continue;
+    if (entry.face !== undefined) document.fonts.delete(entry.face);
+    if (entries.get(i.url) === entry) forgetFont(i.url);
+    failed ??= `Font ${i.url} loaded but "${family}" ${i.asset.weight} is not registered with the page.`;
+    failedUrl ??= i.url;
+  }
+  if (failed !== undefined) {
+    throw new DravenVizError('FONT_LOAD_FAILED', failed, { path: failedUrl as string });
   }
   return { family, faces: faces.sort((a, b) => a.weight - b.weight) };
 }

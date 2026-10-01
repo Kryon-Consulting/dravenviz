@@ -35,7 +35,11 @@ export interface ResolvedFontSet {
 
 /** Internal registry entry. `waiters` counts callers still interested in the load. */
 export interface RegistryEntry {
+  url: string;
   family: string;
+  weight: 400 | 600;
+  /** The `FontFace` added to `document.fonts`, set once created. */
+  face?: FontFace;
   promise: Promise<ResolvedFace>;
   controller: AbortController;
   waiters: number;
@@ -88,6 +92,9 @@ export function assertSameOriginOrRelative(url: string): string {
     parsed = new URL(url, document.baseURI);
   } catch {
     throw new DravenVizError('INVALID_OPTIONS', 'A font or asset URL could not be parsed.');
+  }
+  if (parsed.username !== '' || parsed.password !== '') {
+    throw new DravenVizError('INVALID_OPTIONS', 'Font or asset URLs must not contain credentials.');
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new DravenVizError(

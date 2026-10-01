@@ -21,7 +21,19 @@ export default defineConfig({
           const m = /^\/(fonts|test-fonts)\/([^/?#]+)(?:[?#].*)?$/.exec(url);
           if (!m) return next();
           const dir = m[1] === 'fonts' ? 'assets/fonts' : 'tests/assets/fonts';
-          const name = decodeURIComponent(m[2] as string);
+          let name: string;
+          try {
+            name = decodeURIComponent(m[2] as string);
+          } catch {
+            res.statusCode = 400;
+            res.end('bad request');
+            return;
+          }
+          if (/[/\\]|\.\./.test(name)) {
+            res.statusCode = 400;
+            res.end('bad request');
+            return;
+          }
           const { readFile } = await import('node:fs/promises');
           try {
             const body = await readFile(`${repo}${dir}/${name}`);
