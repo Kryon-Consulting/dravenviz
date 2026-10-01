@@ -23,7 +23,8 @@ const SAMPLE_HASH = (
   JSON.parse(readFileSync('evidence/pdf/report-slice1.json', 'utf8')) as {
     instances: { fixture: string; specSha256: string }[];
   }
-).instances.find((i) => i.fixture === 'line-weekly-flow')?.specSha256 as string;
+).instances.find((i) => i.fixture === 'line-weekly-flow')?.specSha256 ?? '';
+if (SAMPLE_HASH === '') throw new Error('report-slice1.json has no line-weekly-flow instance');
 /** Screenshots are evidence, refreshed on request (DV_SCREENSHOTS=1) so a normal run leaves the tree clean. */
 const shot = async (page: Page, name: string): Promise<void> => {
   if (process.env['DV_SCREENSHOTS'] === '1') {
@@ -424,8 +425,17 @@ test('sample PDF link present with hash and labelled when edited', async ({ page
 test('a Render is not dropped when a setting changes while it is in flight', async ({ page }) => {
   await openPlayground(page);
   await editTitle(page, ' RACE');
-  await page.getByRole('button', { name: 'Render' }).click();
-  await page.getByLabel('Width').fill('500');
+  // Click Render and change the width in the same task, so the setting changes while the Render's
+  // preflight is still running (separate Playwright calls are slower than the preflight).
+  await page.evaluate(() => {
+    const render = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Render');
+    const width = document.querySelector<HTMLInputElement>('input[type="number"]');
+    if (!render || !width) throw new Error('controls not found');
+    render.click();
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    set?.call(width, '500');
+    width.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   await expect(liveSvg(page).locator('title')).toHaveText('Items opened and closed RACE');
   await expect(liveSvg(page)).toHaveAttribute('viewBox', '0 0 500 320');
 });
