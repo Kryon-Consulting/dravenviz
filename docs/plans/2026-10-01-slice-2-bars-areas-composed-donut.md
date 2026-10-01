@@ -112,7 +112,7 @@ src/render/svg/recharts-metadata.ts  src/print/export.ts (desc summary)
 src/react/{interaction.ts,hit-test.ts,Chart.tsx}
 fixtures/valid/<22 slice-2 fixtures>.json  fixtures/invalid/sum-not-finite.json(+.expected.json)  fixtures/reports/report-slice2.json  fixtures/index.ts
 examples/dravenpdf/{run_pdf_check.py,calibrate_pdf.py,test_driver.py,bundle/bootstrap.js,bundle/index.html}  scripts/test-pdf.ts
-tests/unit/{model-bar,model-stack,model-donut,layout-slice2}.test.ts  tests/unit/helpers/slice2.ts
+tests/unit/{model-bar,model-stack,model-donut,layout-slice2}.test.ts (+ table, react, perf-report, matrix, fixtures, validate, schema, theme tests)  tests/unit/helpers/slice2.ts
 tests/unit/fixtures/layout-slice1-snapshot.json
 tests/browser/{geometry-bars,geometry-horizontal,geometry-areas,geometry-donut}.spec.ts (+ export, mount, react specs)
 tests/visual/{candidates.ts,render.ts,generate.ts,calibrate.ts,tolerances.ts,visual.spec.ts,REVIEW.md,MISMATCHES.md,tolerances.json}  tests/pdf/compare.ts
@@ -160,11 +160,11 @@ test('8 measured-zero bar reaches the custom shape', async ({ page }) => {
 test('9 bars and areas wrapped in a DravenViz <g data-dv-mark> keep grouping and stacking', async ({
   page,
 }) => {
-  await page.goto('/?case=wrapped'); // barCategoryGap="20%" (string), barGap in px from the slot formula
+  await page.goto('/?case=wrapped'); // barCategoryGap="10%" (per side, i.e. barGap 0.2 × 50), barGap in px from the slot formula
   const r = await page.evaluate(() => (window as any).probe.wrapped());
   expect(r.groupedDistinctX && r.stackedSameX && r.areaTopEqualsSum).toBe(true);
   expect(r.itemsInsideWrapper).toBe(true);
-  expect(r.slotOracleDelta).toBeLessThanOrEqual(0.5); // bar x/width vs the slot formula (offset and width per slot, with inter-slot gap)
+  expect(r.slotOracleDelta).toBeLessThanOrEqual(0.5); // bar x/width vs the Recharts slot formula: side = band × pct, size = round((band − 2·side − (n−1)·gap)/n) when > 1, offset = side + (size + gap)·i
 });
 test('10 percent stack: shares with stackOffset none; all-null category draws nothing', async ({
   page,
@@ -648,7 +648,7 @@ test('buildLaid rejects families, presets and orientations until their renderer 
 **Files:**
 
 - Create: `src/core/shares/index.ts` (internal: imported by path from `render/model`, `core/table` and `core/validate`, not re-exported from `src/core/index.ts`), `src/core/validate/semantic/sums.ts`, `fixtures/invalid/sum-not-finite.json` (+ `.expected.json`), `src/render/model/{stacks.ts,areas.ts}`
-- Modify: `src/render/model/{types.ts,cartesian.ts,bars.ts,manifest.ts}`, `src/core/validate/semantic/cartesian-domains.ts` (its stack-sum loop reuses `stackPositions`), `src/core/validate/index.ts` (register `sum-not-finite`)
+- Modify: `src/render/model/{types.ts,cartesian.ts,bars.ts,manifest.ts}`, `src/core/validate/semantic/cartesian-domains.ts` (its stack-sum loop reuses `stackPositions`), `src/core/validate/semantic/cartesian.ts` (calls the stack check from `sums.ts`)
 - Test: `tests/unit/model-stack.test.ts`, `tests/unit/validate.test.ts`; modify `tests/unit/model-line.test.ts` (the `min-area` unsupported assertion)
 
 **Interfaces:**
@@ -664,11 +664,11 @@ test('buildLaid rejects families, presets and orientations until their renderer 
   - `stackExtent(stacks, stackId, xValue, seriesId): { lower: number; upper: number; end: number }` (`end` = `upper` for positive members, `lower` for negative), the one accessor every consumer uses (R56).
   - **Cumulative-coordinate contract (R56):** for every stacked member,
     - (a) auto-domain data is every member's `lower` and `upper`, never the raw values;
-    - (b) clipping under `clip-indicated`: clipped `above` when `upper > max`, `below` when `lower < min`; `ClippedModel` records the member; the model and `core/table` read the clip state from `stackPositions`, never compare raw values;
+    - (b) clipping under `clip-indicated`: clipped `above` when `upper > max`, `below` when `lower < min`; `ClippedModel` records the member; the model and `core/table` read the clip state from `stackPositions`, never compare raw values; the clip note's `(max …)` / `(min …)` reports the cumulative extent (`upper` 80 for `40 + 40`, not the raw 40), and the table cell keeps the member's raw value;
     - (c) quality, partial and marker-only markers sit at the member's `end` (the cumulative endpoint);
     - (d) value labels, focus positions and hit rectangles (Tasks 11a, 11b, 15) use `[lower, upper]`.
       The validator's existing cumulative sum loop in `cartesian-domains.ts` reuses `stackPositions`, so validation and rendering agree by construction.
-  - **`sum-not-finite` (R67):** `src/core/validate/semantic/sums.ts` rejects a stack position whose finite inputs sum to a non-finite value (for example `1e308 + 1e308`) with `INVALID_SPEC`, rule `sum-not-finite`, path of the position's first member point; Task 6 adds the donut case. Such specs cannot render today, so the rule invalidates nothing that worked.
+  - **`sum-not-finite` (R67):** `src/core/validate/semantic/sums.ts` rejects a stack position whose finite inputs sum to a non-finite value (for example `1e308 + 1e308`) with `INVALID_SPEC`, rule `sum-not-finite`, path of the position's first member point; Task 6 adds the donut case, called from `semantic/donut.ts`. Like `x.position` today, the check skips points whose x cannot be resolved (an invalid time reported by its own rule), so it never throws on unresolved input. Such specs cannot render today, so the rule invalidates nothing that worked.
   - `StackModel = StackPositions` on `CartesianModel.stacks`, plus `CartesianModel.stacking?: { mode; valueUnit?: string; segmentLabels: "none" | "share" | "value" | "value-and-share" }` (percent default `share`, absolute default `none`).
   - `AreaSeriesModel = { mark: "area"; id; label; axisId; stackId?: string; style: { color; dash; shape; width; pattern: FillPattern }; interpolation; baseline: number; points: PointModel[]; segments: SegmentModel[]; markers: MarkerModel[]; clipped: ClippedModel[] }`.
     - Unstacked areas segment exactly like lines (gaps, marker-only, isolated markers, estimated ranges).
@@ -745,7 +745,7 @@ test('cumulative overflow clips the upper member', () => {
     [],
     [{ pointId: 'b1', side: 'above' }],
   ]);
-  expect(m.notes).toEqual([expect.stringMatching(/^1 value above 50 /)]);
+  expect(m.notes).toEqual(['1 value above 50 is clipped at the top edge (max 80)']);
 });
 test('negative cumulative overflow', () => {
   const m = modelOf(
@@ -769,7 +769,7 @@ test('stacked quality marker at the cumulative end', () => {
 });
 test('validator and model agree on stack sums', () => {
   const spec = stackSpec({ a: [40], b: [40], domain: { policy: 'fixed', min: 0, max: 50 } });
-  expect(catchErr(() => validateSpec(spec))).toMatchObject({ rule: 'fixed-domain-excludes-data' });
+  expect(catchErr(() => validateSpec(spec))).toMatchObject({ rule: 'bar-domain-excludes-data' }); // stackSpec builds bar stacks
 });
 test('sum-not-finite rejects an overflowing stack', () => {
   expect(catchErr(() => validateSpec(stackSpec({ a: [1e308], b: [1e308] })))).toMatchObject({
@@ -942,7 +942,7 @@ test('stackPositions is DOM-free and shared', () => {
 **Files:**
 
 - Create: `src/render/model/donut.ts`
-- Modify: `src/core/shares/index.ts` (add `donutShares`), `src/core/validate/semantic/sums.ts` (donut case of `sum-not-finite`), `src/render/model/{types.ts,index.ts,manifest.ts,cartesian.ts}` (drop the donut branch from `unsupported`)
+- Modify: `src/core/shares/index.ts` (add `donutShares`), `src/core/validate/semantic/sums.ts` (donut case of `sum-not-finite`, called from `semantic/donut.ts`), `src/render/model/{types.ts,index.ts,manifest.ts,cartesian.ts}` (drop the donut branch from `unsupported`)
 - Test: `tests/unit/model-donut.test.ts`; modify `tests/unit/model-line.test.ts` (`non-line kinds report unsupported` now uses `min-heatmap`)
 
 **Interfaces:**
@@ -963,6 +963,7 @@ test('stackPositions is DOM-free and shared', () => {
 - **Option precedence (R63):**
   - (a) In `all-zero` and `incomplete` states the state centre (`0` / `Incomplete`) overrides a caller `center.value` string; a caller `center.label` is kept. In `ok`, `center.value: "total"` → formatted total (no unit suffix), `"none"` → no value, any other string → shown verbatim; `label` verbatim.
   - (b) `legendShown` = `legend.show` resolved (`auto`: more than one slice), except that an `incomplete` donut always shows its legend (§5.3 makes its rows normative).
+  - (d) Cartesian legends under `legend.show: "never"`: compact-stack and role legends stay shown (a preset requirement and the colour-meaning rule); rejecting would invalidate valid specs (§20). Applied by Tasks 8 and 9.
   - (c) When the legend is not shown, or `legendValues` is `"none"`, layout (Task 10) names every slice without a visible inline label in a note of kind `segment`: `Slice values not shown on the chart: <label> <display> (<shareText>); …` (in `all-zero`, the share part is `(–)`).
 
 - [ ] **Step 1: Write the failing tests** (add `donut`, `donutOf`, `donutSpec` to the helpers first):
@@ -1214,7 +1215,7 @@ test('heatmap tables still report not-implemented-in-slice', () => {
 
 - Consumes: `CartesianModel` (Tasks 4–5), `planXTicks`, `wrapWords`, `notoMeasurer`, `Theme`.
 - Produces (additions to `LaidOutChart`, which keeps its name and stays the Cartesian layout):
-  - `resolveSlots(bandWidth: number, n: number, theme: Theme): { offset: number; width: number }[]` and `slotGap(bandWidth, n, theme): number` in `slots.ts` (R61): the group spans `bandWidth × (1 − barGap)` centred in the band; each of the `n` slots has width `(group − (n − 1) × gap) / n` with `gap = groupGap × group / n`; offsets are from the band start. The one formula used by layout fit, `slotGeometry` (Task 11a), the spike oracle and interaction. Recharts receives `barCategoryGap={`${barGap × 100}%`}` (a string, so a percentage) and `barGap={slotGap(...)}` (a number, so pixels).
+  - `resolveSlots(bandWidth: number, n: number, theme: Theme): { offset: number; width: number }[]` and `slotGap(bandWidth, n, theme): number` in `slots.ts` (R61), reproducing Recharts 3.10.1 (`combineAllBarPositions`, no `maxBarSize`). The theme token `spacing.barGap` keeps its meaning as the **total** fraction of the band left empty, so each side gets `side = bandWidth × barGap / 2`; the group is `group = bandWidth × (1 − barGap)`; `gap = slotGap(...) = groupGap × group / n`; `size = (bandWidth − 2 × side − (n − 1) × gap) / n`, rounded with `Math.round` when `size > 1` (Recharts does this); slot `i` has `offset = side + (size + gap) × i` and `width = size` (offsets from the band start; after rounding the group is not re-centred, exactly as Recharts). The one formula used by layout fit, `slotGeometry` (Task 11a), the spike oracle and interaction. Recharts receives `barCategoryGap={`${barGap × 50}%`}` (a string: Recharts applies a percentage on **each** side of the band) and `barGap={slotGap(...)}` (a number, so pixels).
   - `orientation: "vertical" | "horizontal"` and `grid: "horizontal" | "vertical"`.
   - `manifest: MarkManifest`: the model manifest plus layout-decided groups `labels:value` (value and total labels drawn) and `labels:segment` (segment labels that fit). `verifyAndReport` verifies `laid.manifest` instead of `laid.model.manifest`.
   - `valueLabels: PlacedValueLabel[]`, `PlacedValueLabel = { kind; seriesId?; stackId?; xKey; text; sign; width; height; visible: boolean }`. Layout reserves space and decides fit; positions are computed at render by the `ValueLabels` overlay from `slotGeometry` and the cumulative extents (Task 11a), so a stack total never depends on a member being drawn.
@@ -1228,20 +1229,22 @@ test('heatmap tables still report not-implemented-in-slice', () => {
   - **Note convergence (R72):** fit-dependent notes (segment omissions) are allocated in a bounded loop: compute fit, allocate the note, recompute the plot and fit, and repeat until the omitted set is stable. The set only grows, so the loop ends within labels + 1 passes (or throws at the 8-label cap).
   - Placeholder text must fit its band (vertical: band width; horizontal: band height for one line) or `LAYOUT_ERROR` names the placeholder.
   - Annotation and reference labels stay measured in every mode for every family and orientation (R44). **R54 (first part):** `labels.values` and `stacking.segmentLabels` are also on-chart text in every mode: they are explicit spec choices, and hiding them in interactive mode would silently drop text the caller asked for (same reasoning as R44); `staticLabels` governs `staticLabel` point labels only.
-  - Compact-stack and role legends are shown even under `legend.show: "never"` (R63 e).
+  - Compact-stack and role legends are shown even under `legend.show: "never"` (R63 (d), legends under `never`).
 
 - [ ] **Step 1: Write the failing tests** (all at 680 × 320, print theme, `printWidthMm: 178`, `notoMeasurer`; add `laid`, `laidOf`, `horizontalSpec`, `expectNoBoxOverlap`, `withoutSlice2Fields`, `rankingLabels` to the helpers first). Before changing any layout code, generate `tests/unit/fixtures/layout-slice1-snapshot.json` from the unmodified code: the JSON of `laid('line-weekly-flow')`, `laid('line-category-labels-rotate')` and `laid('line-fixed-domain-clipped')`, and commit it with the tests.
 
 ```ts
-test('resolveSlots includes the inter-slot gap', () => {
-  const s = resolveSlots(100, 3, themes.print); // barGap 0.2, groupGap 0.1 → group 80, gap 2.667
-  expect(s.map((x) => x.width)).toEqual([
-    expect.closeTo(24.889, 3),
-    expect.closeTo(24.889, 3),
-    expect.closeTo(24.889, 3),
+test('resolveSlots reproduces Recharts slot geometry', () => {
+  // band 100, barGap 0.2 (10 per side), groupGap 0.1 → group 80, gap 2.667, size round(24.889) = 25
+  const s = resolveSlots(100, 3, themes.print);
+  expect(s.map((x) => x.width)).toEqual([25, 25, 25]);
+  expect(s.map((x) => x.offset)).toEqual([
+    10,
+    expect.closeTo(37.667, 3),
+    expect.closeTo(65.333, 3),
   ]);
   expect(s[1].offset - (s[0].offset + s[0].width)).toBeCloseTo(slotGap(100, 3, themes.print), 6);
-  expect(s[0].offset).toBeCloseTo(10, 6);
+  expect(resolveSlots(4, 3, themes.print)[0].width).toBeCloseTo(0.996, 3); // size <= 1 is not rounded
 });
 test('a label that fits the gapless bound but not the resolved slot throws', () => {
   expect(() => laidOf(groupedBarSpec(8, { labels: 'all', value: 12345 }))).toThrow(/value labels/);
@@ -1390,7 +1393,7 @@ test('slice-1 line layouts are unchanged', () => {
 - Produces: preset layouts inside `layoutChart` (same `LaidOutChart` type) with `preset: "standard" | "sparkline" | "compact-stack"` added to it, and `sparklineLabels: { seriesId; kind: "series" | "first" | "last"; text: string; width: number; height: number }[]`.
 - Rules:
   - **Sparkline** (§5.2, line or area series): no axes (every axis box has zero width and height), no grid, no legend. Under the title, one label line per series: `<series label>: <last display> <unit>` (unit from the y axis, omitted when absent), e.g. `p95 latency: 207 ms`. First and last value labels (`212`, `207`) sit beside the first and last measured points; layout reserves a left and right gutter of their widths plus the tick gap. A note of kind `preset`, `Sparkline: axes and legend omitted`, is always added (caption size); the live `<desc>` (Task 12) and the exported `<desc>` (Task 14) carry it too. Manifest group `labels:sparkline` counts the labels drawn (3 per series with any measured value).
-  - **Compact-stack** (§5.2, R51): percent-stacked horizontal bars; no value axis, ticks or grid (the value axis box is zero-sized; Task 12 renders it hidden with domain `[0, 100]`); category labels at the left only when there is more than one category; the legend is always shown (R63 e). With one category, legend items read `<label> — <value> <valueUnit> (<share>)`, e.g. `Compliant — 312 services (78%)`. With more than one category, legend items show labels only and a `preset` note `Values for each category are shown on the segments and in the data table.` is added (the legend never sums across categories; omitted segment labels are still named per Task 8).
+  - **Compact-stack** (§5.2, R51): percent-stacked horizontal bars; no value axis, ticks or grid (the value axis box is zero-sized; Task 12 renders it hidden with domain `[0, 100]`); category labels at the left only when there is more than one category; the legend is always shown (R63 (d), legends under `never`). With one category, legend items read `<label> — <value> <valueUnit> (<share>)`, e.g. `Compliant — 312 services (78%)`. With more than one category, legend items show labels only and a `preset` note `Values for each category are shown on the segments and in the data table.` is added (the legend never sums across categories; omitted segment labels are still named per Task 8).
   - Arithmetic check at 680 wide, print, fontScale 1: sparkline needs 32 (padding) + 21.25 (title) + 10 + 16.25 (label line) + 5 + 60 (minimum plot) + 13.75 (note) + 10 = 168.25 ≤ 180; compact-stack needs 32 + 21.25 + 10 + 36.5 (2 legend rows) + 12 + 60 + 13.75 (one note line) + 10 = 195.5 ≤ 220.
 
 - [ ] **Step 1: Write the failing tests** (add `laidAt`, `compactSpec`, `sparklineSpec` to the helpers first):
@@ -1565,7 +1568,7 @@ test('buildLaid returns a donut layout but rendering is still guarded', () => {
 
 - Consumes: Task 1 results (fallbacks Z, W, O, S, and the point-11 answer), `LaidOutChart` (Tasks 8–9), `resolveSlots`, `stackExtent`, `planIds`, `DvText`, `Marker`, `strokeStyle`, the overlay hooks (`useXAxisScale`, `useYAxisScale`, `usePlotArea`), R48–R50, R52, R56, R58, R60, R65.
 - Produces:
-  - `slotGeometry(laid: LaidOutChart, slot: BarSlot, xKey: string): { x: number; width: number }` (vertical; Task 11b adds the horizontal form): band from the category scale plus `resolveSlots` (R61); under fallback O it reads the geometry store first.
+  - `slotGeometry(laid: LaidOutChart, slot: BarSlot, xKey: string): { x: number; width: number }` (vertical; Task 11b adds the horizontal form): band from the category scale plus `resolveSlots` (R61). Signature `slotGeometry(laid, slot, xKey, store?: GeometryStore)`: under fallback O the browser callers (overlays, `hitTest`, focus) pass the store they read from a `GeometryStoreContext` provided by `ChartView` for the current render id; Node callers (layout, unit tests) have no store and always get the formula.
   - Bars: one Recharts `Bar` per bar series inside `<g data-dv-mark="series:<id>:bar">`, `isAnimationActive={false}`, a `name` prop (avoids `name="undefined"`, spike observation 5), `stackId` for stack members, and a `shape` render prop returning `<g data-dv-item><path d=…/></g>` with inline fill (or `url(#pattern-id)`) and, for stack segments, a boundary stroke of `theme.stroke.sliceBorder` in the background colour. Zero bars draw a zero-height path (fallback Z if the spike showed the shape is not called). Estimated bars get a dashed outline.
   - **Two-axis bars (R58):** if Task 1 point 11 recorded overlap, bars whose axis differs from the first bar axis are drawn by DravenViz rectangles from `slotGeometry` and their own axis scale, inside the same group structure and manifest keys.
   - Chart-level `stackOffset` = `"sign"` for absolute and `"none"` for percent; `barCategoryGap` and `barGap` as Task 8 states.
@@ -1916,7 +1919,7 @@ test('standalone files re-render identically (slice 2)', async ({ page }) => {
 
 - Consumes: `LaidOut`, `navigableDatums`, `moveFocus`, `announcement`, `nearestDatum`, `DatumEvent` (slice 1), `stackExtent`, `slotGeometry`, `resolveSlots`, `laid.ring`, `laid.legendRowBoxes`.
 - Produces:
-  - `Datum.value` becomes `number | null` and `Datum` gains `target: { kind: "point"; x; y } | { kind: "rect"; x; y; width; height } | { kind: "sector"; startDeg; endDeg } | { kind: "legend-row"; box: Box } | { kind: "ring-tick"; deg: number }`. Cartesian navigation keeps R5 (null datums are never produced); only donut datums can carry `null` (R64).
+  - `Datum` keeps `pointId` and `seriesId` (slice 1); donut datums set `pointId` to the slice id and leave `seriesId` undefined. `Datum.value` becomes `number | null` and `Datum` gains `target: { kind: "point"; x; y } | { kind: "rect"; x; y; width; height } | { kind: "sector"; startDeg; endDeg } | { kind: "legend-row"; box: Box } | { kind: "ring-tick"; deg: number }`. Cartesian navigation keeps R5 (null datums are never produced); only donut datums can carry `null` (R64).
   - **`hitTest(laid: LaidOut, x: number, y: number): Datum | undefined` (R59)** in `hit-test.ts`, used by hover (tooltip) and click (`onDatumActivate`):
     - bars and stack segments: rectangle containment from `slotGeometry` and the member's `[lower, upper]` (no radius); a zero-height bar gets a hit band of ±4 units around its zero line (interaction target only, never drawn);
     - donut sectors: annulus (`innerRadius ≤ r ≤ outerRadius`) plus angle containment from the model angles; the hole and the outside hit nothing;
@@ -1931,7 +1934,7 @@ test('standalone files re-render identically (slice 2)', async ({ page }) => {
     - bar: `Findings, Critical: 12 count`;
     - percent stack member: `0–30 days, Payments: 10 items (25% of 40)` (§5.2 "tooltips always show both");
     - absolute stack member in a partial category: value plus `(total partial)`; the partial-stack marker announces `Archive Store: Partial stack — Critical not measured`;
-    - a datum with a role: the role label after the value, e.g. `Open age, Customer Identity Verification: 68 days (Overdue)`;
+    - a datum with a role: the role label after the value, e.g. `Open age, Customer Identity Verification: 68 days (Overdue)`; the role label is omitted when it equals the datum label (so `bar-severity-counts` reads `Findings, High: 31 count`, not `… (High)`);
     - donut `ok`: `Critical: 12 findings (4.8%)`; zero slice `31–90 days: 0 items (0%)`;
     - donut `all-zero`: `0–30 days: 0 items (–)` (no share exists, §5.3 "Shares show –");
     - donut `incomplete`: measured slices `Full: 12 systems` (no share), null slices `Partial: Not measured` (theme string);
@@ -1944,13 +1947,13 @@ test('hitTest: inside a tall bar, near a segment boundary, in the donut hole', (
   // react.test.ts
   const bars = laidOf(validateSpec(loadFixture('bar-age-bands-percent')));
   const seg = rectOf(bars, 'a0', 'svc-a'); // helper from slotGeometry + extents
-  expect(hitTest(bars, seg.x + seg.width / 2, seg.y + seg.height / 2)!.id).toBe('a0-1');
-  expect(hitTest(bars, seg.x + 1, seg.y + 1)!.id).toBe('a0-1'); // just inside the boundary with a1
+  expect(hitTest(bars, seg.x + seg.width / 2, seg.y + seg.height / 2)!.pointId).toBe('a0-1');
+  expect(hitTest(bars, seg.x + 1, seg.y + 1)!.pointId).toBe('a0-1'); // just inside the boundary with a1
   const d = laidDonutOf(validateSpec(loadFixture('donut-severity-share')));
   expect(hitTest(d, d.ring.cx, d.ring.cy)).toBeUndefined();
-  expect(hitTest(d, ...pointAt(d, 'low', 0.95))!.id).toBe('low'); // inside the sector near its outer edge
+  expect(hitTest(d, ...pointAt(d, 'low', 0.95))!.pointId).toBe('low'); // inside the sector near its outer edge
   const zero = laidOf(validateSpec(loadFixture('bar-all-zero')));
-  expect(hitTest(zero, ...zeroLinePoint(zero, 'w2', +3))!.id).toBe('r2'); // within the ±4 hit band
+  expect(hitTest(zero, ...zeroLinePoint(zero, 'w2', +3))!.pointId).toBe('r2'); // within the ±4 hit band
 });
 test('hover and click well inside a bar select it', async ({ page }) => {
   /* bar-severity-counts: hover at the centre of the High bar (far from its top) → tooltip 'Findings, High: 31 count';
@@ -2057,7 +2060,7 @@ test('unavailable categories are not focusable', async ({ page }) => {
   - **Calibration plumbing:** `calibrate_pdf.py --report <id>` renders 10 measured PDF runs per report (`report-slice1` and `report-slice2`); `calibrate.ts` maps namespace → fixture → family from `fixtures/reports/report-slice{1,2}.json` and the catalog; the calibration record lists the sample count per family and comparison type; a family tolerance is written only with a nonzero sample count, else the run fails.
   - **Recalibration with a condition (R55):** `visual:calibrate` records observed maxima per family (`line`, `bar`, `area`, `composed`, `donut`) for each comparison type and writes `tolerances.json` as `{ tolerances: { …slice-1 keys… }, families: { <family>: { sameBrowser, samePdf, crossSvgBrowser, crossPdfBrowser } }, calibration }`. The `line` values stay the slice-1 values unless the line pairs themselves change in the new run; slice-2 families get their own values by the §16.2 rules (same-path max + 0.05 pp, cross-path max + 0.1 pp, capped at 1 %). `visual.spec.ts` and `tests/pdf/compare.ts` read the value for the fixture's family. The 14 approved slice-1 baselines are untouched.
   - **Chromium selection (R71):** `generate.ts`, `calibrate.ts` and `tests/pdf/compare.ts` select Chromium like R46: `PW_CHROMIUM_PATH` when set, else Playwright's resolved `chromium.executablePath()` of the `chromium` channel; no hard-coded `/opt` path.
-- Visual baselines stay `pending owner review` until the owner approves them in the PR; the generator never writes `baselines/approved/` (D4, R6). CI's `visual` step stays red for pending candidates (R41).
+- Visual baselines stay `pending owner review` until the owner approves them in the PR; the generator never writes `baselines/approved/` (D4, R6). CI's `visual` step (when the manually triggered workflow is run) stays red for pending candidates (R41).
 
 - [ ] **Step 1: Write** the candidate list and structural assertions in `visual.spec.ts` for the new families (manifest mark counts, domain labels, segment and slice counts, annotation position ±0.5), the per-family tolerance lookup, and a unit check in `tests/unit/` that `calibrate.ts`'s family map covers every namespace of both reports.
 - [ ] **Step 2: Run** `pnpm visual:calibrate && pnpm exec playwright test --project=visual`. Expected: FAIL with `pending owner review` for each slice-2 candidate; slice-1 baselines still pass at the unchanged line tolerance; the calibration record shows nonzero samples for `line`, `bar`, `area`, `composed` and `donut`.
@@ -2117,7 +2120,7 @@ test('slice-2 SVG download is portable', async ({ page }) => {
 **Files:**
 
 - Modify: `scripts/measure-size.ts` (SVG bytes for every slice-2 `static` fixture; `report-slice2` PDF bytes and pages; gzip delta of the browser bundle attributed per slice-2 family by building with each family's renderer module stubbed), `evidence/perf/{size.json,latency.json,README.md}`, `docs/design.md` §18 (a new §18.2 "slice-2 baselines"; §18.1 budgets unchanged unless the owner rules), `evidence/verification-matrix.md`, `tests/unit/matrix.test.ts`, `tests/unit/perf-report.test.ts`, `CHANGELOG.md`, `docs/plans/handover/slice-2-ledger.md` (outcomes, deferred minors; the rulings are already there)
-- CI: `.github/workflows/ci.yml` keeps its job shape (`install`, `lint-typecheck`, `unit`, `browser` with the separate `visual` step, `package`, `docs`, `pdf`); no job is added or removed.
+- CI: `.github/workflows/ci.yml` keeps its job shape (`install`, `lint-typecheck`, `unit`, `browser` with the separate `visual` step, `package`, `docs`, `pdf`); no job is added or removed. CI is triggered manually (`workflow_dispatch`, commit c42b6bf): the close-out records a manual run of the workflow (run URL and outcome) in the matrix, or states that none was run; nothing assumes push- or PR-triggered CI.
 
 **Interfaces:**
 
