@@ -691,7 +691,7 @@ def main() -> int:
                 ratios = {c["namespace"]: c["ratio"] for c in comparison["comparisons"]}
                 worst = max(ratios.items(), key=lambda kv: kv[1])
                 run.add(
-                    f"chart crops match the browser render (pixelmatch threshold {comparison['threshold']}, ratio <= {comparison['maxRatio'] * 100:.1f} %)",
+                    f"chart crops match the browser render (pixelmatch threshold {comparison['threshold']}, ratio <= {comparison['maxRatio'] * 100:.3f} %)",
                     all(v <= comparison["maxRatio"] for v in ratios.values()),
                     f"worst {worst[0]} {worst[1] * 100:.3f} %",
                 )

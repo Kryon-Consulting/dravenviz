@@ -5,6 +5,8 @@ import path from 'node:path';
 import { chromium } from '@playwright/test';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
+import { isMain } from '../../scripts/gen-lib';
+import { loadTolerances, THRESHOLD } from '../visual/tolerances';
 
 /**
  * Browser side of `pnpm test:pdf` (design sections 13 and 16.2). Loads the SAME bundle that
@@ -26,14 +28,12 @@ import { PNG } from 'pngjs';
  *   receives browser.json, comparison.json, browser/<ns>.png and diff/<ns>.png.
  */
 
-/** pixelmatch settings of design section 16.2. */
-export const THRESHOLD = 0.1;
 /**
- * Provisional cross-path allowance: about twice the largest ratio observed on the slice-1 report
- * (0.26 %), well under the 1 % cap of design section 16.2, which is never raised to absorb a
- * difference. Task 19 (`visual:calibrate`) replaces it with the 10-pair calibration.
+ * pixelmatch settings and the allowed cross-path ratio come from `tests/visual/tolerances.json`
+ * (design section 16.2), the single place `pnpm visual:calibrate` writes. `--calibrate` skips
+ * reading the allowance (the calibration run measures ratios, it does not judge them).
  */
-export const MAX_MISMATCH_RATIO = 0.005;
+export { THRESHOLD };
 const DPI = 150;
 const CSS_DPI = 96;
 /** Render factor on both sides before the box filter down to 150 dpi (must match the PDF crops). */
@@ -81,13 +81,13 @@ function arg(name: string): string {
   return path.resolve(value);
 }
 
-interface Image {
+export interface Image {
   width: number;
   height: number;
   data: Buffer;
 }
 
-function cropTopLeft(img: Image, width: number, height: number): Image {
+export function cropTopLeft(img: Image, width: number, height: number): Image {
   const data = Buffer.alloc(width * height * 4);
   for (let y = 0; y < height; y++) {
     img.data.copy(data, y * width * 4, y * img.width * 4, y * img.width * 4 + width * 4);
@@ -96,7 +96,7 @@ function cropTopLeft(img: Image, width: number, height: number): Image {
 }
 
 /** Box filter: the mean of each factor x factor block. */
-function downsample(img: Image, factor: number): Image {
+export function downsample(img: Image, factor: number): Image {
   const width = Math.floor(img.width / factor);
   const height = Math.floor(img.height / factor);
   const data = Buffer.alloc(width * height * 4);
@@ -174,6 +174,7 @@ async function main(): Promise<void> {
     await failureMode();
     return;
   }
+  const maxRatio = process.argv.includes('--calibrate') ? null : loadTolerances().crossPdfBrowser;
   const bundle = arg('bundle');
   const crops = arg('crops');
   const out = arg('out');
@@ -299,7 +300,7 @@ async function main(): Promise<void> {
     );
     writeFileSync(
       path.join(out, 'comparison.json'),
-      `${JSON.stringify({ threshold: THRESHOLD, includeAA: false, maxRatio: MAX_MISMATCH_RATIO, comparisons }, null, 2)}\n`,
+      `${JSON.stringify({ threshold: THRESHOLD, includeAA: false, maxRatio, comparisons }, null, 2)}\n`,
     );
   } finally {
     await browser.close();
@@ -307,7 +308,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+if (isMain(import.meta.url)) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}

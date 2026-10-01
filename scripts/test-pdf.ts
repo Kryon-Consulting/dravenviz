@@ -19,7 +19,7 @@ function unverified(reason: string): never {
   process.exit(3);
 }
 
-function checkPrerequisites(): void {
+export function checkPrerequisites(): void {
   const uv = spawnSync('uv', ['--version'], { encoding: 'utf8' });
   if (uv.error || uv.status !== 0) unverified('uv is not installed');
   const python = spawnSync('uv', ['python', 'find', '3.12'], { encoding: 'utf8' });

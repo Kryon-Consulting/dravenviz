@@ -47,6 +47,8 @@
     "test:browser": "playwright test",
     "check:drift": "tsx scripts/check-drift.ts",
     "gen": "tsx scripts/gen-types.ts && tsx scripts/gen-validator.ts",
+    "visual:calibrate": "tsx tests/visual/calibrate.ts",
+    "visual:candidates": "tsx tests/visual/generate.ts",
     "test:pdf": "tsx scripts/test-pdf.ts",
     "test:package": "pnpm pack:local && tsx tests/package/run.ts",
     "pack:local": "pnpm build && tsx scripts/pack-local.ts",
