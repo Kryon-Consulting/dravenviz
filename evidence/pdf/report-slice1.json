@@ -1,0 +1,384 @@
+{
+  "report": "report-slice1",
+  "status": "pass",
+  "path": "http",
+  "renderAttempts": 1,
+  "frameMethod": "link-dest",
+  "dravenpdf": {
+    "commit": "7a249e0",
+    "options": {
+      "paper": "A4",
+      "media": "print",
+      "print_background": true,
+      "prefer_css_page_size": true,
+      "wait_until": "load",
+      "wait_for_ready_flag": true,
+      "fail_on_resource_errors": true,
+      "fail_on_page_errors": true,
+      "timeout_ms": 30000
+    }
+  },
+  "chromium": "Chromium 141.0.7390.37",
+  "pypdfium2": "5.13.0",
+  "rasterDpi": 150,
+  "package": {
+    "tarball": "draven-viz-0.1.0.tgz",
+    "sha256": "fbafc496573e7362139df8d07df4efa9ae22d9766bdbae122021ca7581b96a2d",
+    "version": "0.1.0"
+  },
+  "fonts": [
+    {
+      "path": "fonts/NotoSans-Regular.woff2",
+      "sha256": "23a8c28d5ffb5e4f4545de7655fb34bdab36872938a712ec9d874c5ad9a2d02e"
+    },
+    {
+      "path": "fonts/NotoSans-SemiBold.woff2",
+      "sha256": "6e31729e067bc35e3ec767012a52e6b389866317f1d0a1d8311bedfd8e57eb27"
+    },
+    {
+      "path": "fonts/noto-sans.css",
+      "sha256": "818c7f95ed8f553eb142ddf38638b85691d39696c1b5bc062cf5f0a8ebde7a67"
+    }
+  ],
+  "pdf": {
+    "file": "report-slice1.pdf",
+    "bytes": 84748,
+    "sha256": "88fc42cf987d81ba9ce40ce57cc2758a34bda9b1af733fc5e2fd70a9f81b9002",
+    "pages": 6,
+    "pageSizePt": [
+      594.96,
+      841.92
+    ]
+  },
+  "instances": [
+    {
+      "fixture": "line-weekly-flow",
+      "namespace": "wf-a",
+      "specSha256": "a285f9e5cdab9a5976134963db8035418eed3db20a5164e9caeab7d7f162c5ee",
+      "page": 1,
+      "rectPt": [
+        45.0,
+        529.92,
+        549.574,
+        767.67
+      ],
+      "rectMm": [
+        15.875,
+        186.944,
+        193.878,
+        270.817
+      ],
+      "method": "link-dest",
+      "cropSha256": "6209d191be25006eba76777f85507c260a7ce665af9842d4e592ee35577dde54",
+      "mismatchRatio": 0.0026276081461619047
+    },
+    {
+      "fixture": "line-weekly-flow",
+      "namespace": "wf-b",
+      "specSha256": "a285f9e5cdab9a5976134963db8035418eed3db20a5164e9caeab7d7f162c5ee",
+      "page": 1,
+      "rectPt": [
+        45.0,
+        175.17,
+        549.574,
+        412.17
+      ],
+      "rectMm": [
+        15.875,
+        61.796,
+        193.878,
+        145.404
+      ],
+      "method": "link-dest",
+      "cropSha256": "2cd8acf1edf433c566eb12ee72396dd5c5009ea9ae6bcbafc3c3d0c700981018",
+      "mismatchRatio": 0.002632927190992192
+    },
+    {
+      "fixture": "line-thinned-annotation",
+      "namespace": "ta",
+      "specSha256": "00559da8e47b27205cf297db984dedbf5f1cd5857e95a67e3e600209ade7cfa2",
+      "page": 2,
+      "rectPt": [
+        45.0,
+        559.17,
+        549.574,
+        796.92
+      ],
+      "rectMm": [
+        15.875,
+        197.263,
+        193.878,
+        281.136
+      ],
+      "method": "link-dest",
+      "cropSha256": "dc8123ead4ba7937c005d4592f50ceea0eb87d9cf44a427be7df52f73927934a",
+      "mismatchRatio": 0.002527655239358379
+    },
+    {
+      "fixture": "line-singleton",
+      "namespace": "sg",
+      "specSha256": "222f660c1927d72a4a8a124191e7c2e3e0f9df2a1ef4856b739a37d7fb23a1e8",
+      "page": 4,
+      "rectPt": [
+        45.0,
+        484.92,
+        549.574,
+        722.67
+      ],
+      "rectMm": [
+        15.875,
+        171.069,
+        193.878,
+        254.942
+      ],
+      "method": "link-dest",
+      "cropSha256": "04143e5bf7235f6818d4bcd11e3442751074cf13de4a3fb70f60accedd1ae34a",
+      "mismatchRatio": 0.0005343636171419235
+    },
+    {
+      "fixture": "line-measured-zero",
+      "namespace": "mz",
+      "specSha256": "5db0c4fa7c8d2b1f443e4b431c5768ddffcc143858f793ba21790524d7ab4680",
+      "page": 4,
+      "rectPt": [
+        45.0,
+        143.67,
+        549.574,
+        380.67
+      ],
+      "rectMm": [
+        15.875,
+        50.684,
+        193.878,
+        134.292
+      ],
+      "method": "link-dest",
+      "cropSha256": "93be3964111422c6301f71b38e12e4da40c67d165352f3843d50aedd76ede480",
+      "mismatchRatio": 0.0005951532567787764
+    },
+    {
+      "fixture": "line-all-missing",
+      "namespace": "am",
+      "specSha256": "c52482c5031c75c4f9232f6b83cabf84c6f977d8aa42d53e35f3cbf6967464aa",
+      "page": 5,
+      "rectPt": [
+        45.0,
+        559.17,
+        549.574,
+        796.92
+      ],
+      "rectMm": [
+        15.875,
+        197.263,
+        193.878,
+        281.136
+      ],
+      "method": "link-dest",
+      "cropSha256": "a64fa4d757abe726a4bb6d224305ac9d0aa23d77c56c74b56b57f6a4359fcda0",
+      "mismatchRatio": 0.0006631490932156965
+    },
+    {
+      "fixture": "line-fixed-domain-clipped",
+      "namespace": "fc",
+      "specSha256": "1d4d220a7c060b2e1d606dd4ed9911fea03f7d5bf714d52af8cbe2981ab83471",
+      "page": 5,
+      "rectPt": [
+        45.0,
+        217.92,
+        549.574,
+        454.92
+      ],
+      "rectMm": [
+        15.875,
+        76.877,
+        193.878,
+        160.486
+      ],
+      "method": "link-dest",
+      "cropSha256": "9df8d50955c4330d8f143742db27cad45b709aceb0377a9d25b93a8248edfd05",
+      "mismatchRatio": 0.002295866285049519
+    },
+    {
+      "fixture": "line-estimated-monotone",
+      "namespace": "em",
+      "specSha256": "cab160653863fed9a01f8b4027c22152d6549f8225fa9ab41cb2bbaadbc4ea2a",
+      "page": 6,
+      "rectPt": [
+        45.0,
+        559.17,
+        549.574,
+        796.92
+      ],
+      "rectMm": [
+        15.875,
+        197.263,
+        193.878,
+        281.136
+      ],
+      "method": "link-dest",
+      "cropSha256": "739610fa52cacad0403de1481bfe337ad786b443a99c1d742c759fc83c143f87",
+      "mismatchRatio": 0.0018375957481571183
+    }
+  ],
+  "labels": {
+    "roles": {
+      "reference": [
+        9.644999742507935,
+        9.644999742507935
+      ],
+      "annotation": [
+        9.644999742507935,
+        9.644999742507935
+      ],
+      "axis-title": [
+        9.644999742507935,
+        9.644999742507935
+      ],
+      "title": [
+        12.607499599456787,
+        12.607499599456787
+      ],
+      "legend": [
+        9.644999742507935,
+        9.644999742507935
+      ],
+      "note": [
+        8.160000085830688,
+        8.160000085830688
+      ],
+      "tick": [
+        9.644999742507935,
+        9.644999742507935
+      ]
+    },
+    "worstOverlapPt2": 0.0
+  },
+  "checks": [
+    {
+      "name": "control: the intact bundle renders within 8000 ms",
+      "status": "pass",
+      "detail": "1.4 s"
+    },
+    {
+      "name": "missing font fails the PDF render (504 render_timeout, no PDF written)",
+      "status": "pass",
+      "detail": "HTTP 504 render_timeout: render did not finish within 8000 ms"
+    },
+    {
+      "name": "missing font: bootstrap throws and never sets the ready flag",
+      "status": "pass",
+      "detail": "ready=False, 1 page error(s): Could not load font http://127.0.0.1:42115/fonts/NotoSans-Regular.woff2: HTTP 404.; 404s ['404 /fonts/NotoSans-Regular.woff2', '404 /fonts/NotoSans-Regular.woff2']"
+    },
+    {
+      "name": "missing stylesheet fails strict resource checking (422 render_incomplete)",
+      "status": "pass",
+      "detail": "HTTP 422 render_incomplete"
+    },
+    {
+      "name": "the PDF is A4 (595 x 842 pt +-1) with at least 1 page",
+      "status": "pass",
+      "detail": "6 pages, 595.0 x 841.9 pt, 84748 bytes, path http"
+    },
+    {
+      "name": "every report instance has exactly one frame (link-dest)",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "name": "each frame is 178 mm wide (+-0.5 mm) at aspect 680:320 (+-0.5 %)",
+      "status": "pass",
+      "detail": "8 frames"
+    },
+    {
+      "name": "title \"Items opened and closed\" appears 4 times (SVG title + table caption per instance)",
+      "status": "pass",
+      "detail": "4 found, 2 instance(s) x 2 expected"
+    },
+    {
+      "name": "title \"Open items over 90 days\" appears 2 times (SVG title + table caption per instance)",
+      "status": "pass",
+      "detail": "2 found, 1 instance(s) x 2 expected"
+    },
+    {
+      "name": "title \"Single measurement\" appears 2 times (SVG title + table caption per instance)",
+      "status": "pass",
+      "detail": "2 found, 1 instance(s) x 2 expected"
+    },
+    {
+      "name": "title \"Measured zero\" appears 2 times (SVG title + table caption per instance)",
+      "status": "pass",
+      "detail": "2 found, 1 instance(s) x 2 expected"
+    },
+    {
+      "name": "title \"No measurements\" appears 2 times (SVG title + table caption per instance)",
+      "status": "pass",
+      "detail": "2 found, 1 instance(s) x 2 expected"
+    },
+    {
+      "name": "title \"Coverage with clipped values\" appears 2 times (SVG title + table caption per instance)",
+      "status": "pass",
+      "detail": "2 found, 1 instance(s) x 2 expected"
+    },
+    {
+      "name": "title \"Forecast against actual\" appears 2 times (SVG title + table caption per instance)",
+      "status": "pass",
+      "detail": "2 found, 1 instance(s) x 2 expected"
+    },
+    {
+      "name": "text \"Partial week\" is present and inside a frame or table",
+      "status": "pass",
+      "detail": "6 found"
+    },
+    {
+      "name": "text \"Target\" is present and inside a frame or table",
+      "status": "pass",
+      "detail": "2 found"
+    },
+    {
+      "name": "text \"Not measured\" is present and inside a frame or table",
+      "status": "pass",
+      "detail": "11 found"
+    },
+    {
+      "name": "text \"Collection paused\" is present and inside a frame or table",
+      "status": "pass",
+      "detail": "4 found"
+    },
+    {
+      "name": "chart crops match the browser render (pixelmatch threshold 0.1, ratio <= 0.5 %)",
+      "status": "pass",
+      "detail": "worst wf-b 0.263 %"
+    },
+    {
+      "name": "chart text is set in the embedded bundled font (Noto Sans), not a fallback",
+      "status": "pass",
+      "detail": "CAAAAA+NotoSans-Regular, DAAAAA+NotoSans-SemiBold"
+    },
+    {
+      "name": "PDF text objects map one-to-one onto the browser label manifest",
+      "status": "pass",
+      "detail": "114 labels in 8 frames"
+    },
+    {
+      "name": "effective font size per role within the print limits",
+      "status": "pass",
+      "detail": "annotation 9.64-9.64, axis-title 9.64-9.64, legend 9.64-9.64, note 8.16-8.16, reference 9.64-9.64, tick 9.64-9.64, title 12.61-12.61"
+    },
+    {
+      "name": "effective font size agrees with ReadyInfo.effectivePt (+-0.15 pt)",
+      "status": "pass",
+      "detail": "all roles"
+    },
+    {
+      "name": "no label region leaves its frame or the printable area",
+      "status": "pass",
+      "detail": "oriented quads inside"
+    },
+    {
+      "name": "no two labels overlap (oriented quads, <= 0.25 pt2)",
+      "status": "pass",
+      "detail": "largest overlap 0.000 pt2"
+    }
+  ],
+  "seconds": 27.1
+}
