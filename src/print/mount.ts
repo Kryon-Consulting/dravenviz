@@ -3,23 +3,15 @@ import { DUPLICATE_CHART_EMBEDDING } from '../core/validate/index';
 import { loadFonts } from '../render/fonts/load';
 import { fontStack } from '../render/fonts/registry';
 import { createCanvasMeasurer } from '../render/layout/canvas-measure';
-import { layoutChart } from '../render/layout/index';
 import type { LaidOutChart } from '../render/layout/types';
-import { buildModel } from '../render/model/index';
+import { buildLaid, nextFrame, verifyAndReport, type ReadyInfo } from '../render/pipeline';
 import { nextRenderId } from '../render/render-id';
-import { expectationsOf, verifyCommitted } from '../render/verify';
 import { Batch, renderChart } from './lifecycle';
 import { resolveOptions, type MountOptions, type ResolvedOptions } from './options';
 
 export type { MountOptions } from './options';
 
-export interface ReadyInfo {
-  chartId: string;
-  renderId: number;
-  width: number;
-  height: number;
-  effectivePt?: { title: number; label: number; caption: number };
-}
+export type { ReadyInfo };
 
 export interface MountHandle {
   /** One entry per spec, in order. */
@@ -28,11 +20,7 @@ export interface MountHandle {
   dispose(): void;
 }
 
-const frame = (signal: AbortSignal): Promise<void> =>
-  new Promise((resolve) => {
-    if (signal.aborted) return resolve();
-    requestAnimationFrame(() => resolve());
-  });
+const frame = nextFrame;
 
 function throwIfAborted(signal: AbortSignal, reason: () => DravenVizError): void {
   if (signal.aborted) throw reason();
@@ -78,14 +66,6 @@ function validateBatch(
   for (const key of seen) pending.add(key);
   reserved.push(...seen);
   return validated;
-}
-
-function notImplemented(spec: VizSpec, reason: string): DravenVizError {
-  const message = `Cannot draw "${spec.id}" yet: ${reason}. Slice 1 draws Cartesian line charts only.`;
-  return new DravenVizError('RENDER_FAILED', message, {
-    chartId: spec.id,
-    issues: [{ rule: 'not-implemented-in-slice', path: '', message }],
-  });
 }
 
 /**
@@ -172,26 +152,18 @@ export function mountBatch(
         }
       });
       const measure = createCanvasMeasurer(fontStack(fonts));
-      const modelCtx = {
-        theme: resolved.theme,
-        locale: resolved.locale,
-        timezone: resolved.timezone,
-      };
-      const laids: LaidOutChart[] = validated.map((spec) => {
-        const model = buildModel(spec, modelCtx);
-        if (model.kind === 'unsupported') throw notImplemented(spec, model.reason);
-        return layoutChart(
-          model,
-          {
-            width: resolved.width,
-            height: resolved.height,
-            theme: resolved.theme,
-            mode: resolved.staticLabels ? 'static' : 'interactive',
-            ...(resolved.printWidthMm === undefined ? {} : { printWidthMm: resolved.printWidthMm }),
-          },
+      const laids: LaidOutChart[] = validated.map((spec) =>
+        buildLaid(spec, {
+          theme: resolved.theme,
+          locale: resolved.locale,
+          timezone: resolved.timezone,
+          width: resolved.width,
+          height: resolved.height,
+          staticLabels: resolved.staticLabels,
+          printWidthMm: resolved.printWidthMm,
           measure,
-        );
-      });
+        }),
+      );
       throwIfAborted(abort.signal, abortReason);
       laids.forEach((laid, i) => {
         batch.add(
@@ -210,33 +182,9 @@ export function mountBatch(
       await frame(abort.signal);
       await frame(abort.signal);
       throwIfAborted(abort.signal, abortReason);
-      return batch.charts.map((chart) => {
-        const svg = chart.element.querySelector('svg[data-dv-render-id]');
-        if (!(svg instanceof SVGSVGElement)) {
-          throw new DravenVizError('RENDER_FAILED', 'The chart did not produce an SVG.', {
-            chartId: chart.chartId,
-            issues: [
-              { rule: 'missing-svg', path: '', message: 'The chart did not produce an SVG.' },
-            ],
-          });
-        }
-        verifyCommitted(
-          svg,
-          chart.laid.model.manifest,
-          chart.renderId,
-          resolved.width,
-          resolved.height,
-          expectationsOf(chart.laid),
-        );
-        const effectivePt = chart.laid.metrics.effectivePt;
-        return {
-          chartId: chart.chartId,
-          renderId: chart.renderId,
-          width: resolved.width,
-          height: resolved.height,
-          ...(effectivePt === undefined ? {} : { effectivePt }),
-        };
-      });
+      return batch.charts.map((chart) =>
+        verifyAndReport(chart.element, chart.laid, chart.renderId, resolved.width, resolved.height),
+      );
     } finally {
       clearTimeout(timer);
     }
