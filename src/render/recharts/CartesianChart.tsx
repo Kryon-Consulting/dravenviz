@@ -14,6 +14,7 @@ import { planIds } from './ids';
 import { StyleGuard } from './StyleGuard';
 import {
   Annotations,
+  FocusRing,
   chartRows,
   Backdrop,
   ClipIndicators,
@@ -32,6 +33,8 @@ export interface CartesianChartProps {
   namespace: string;
   family: string;
   measure: TextMeasurer;
+  /** Keyboard focus ring position; interactive (React) charts only. */
+  focus?: { x: number; y: number } | null;
 }
 
 /** The part of Recharts' tick render props DravenViz reads. */
@@ -266,6 +269,9 @@ export function CartesianChart(props: CartesianChartProps): ReactElement {
       <Title laid={laid} theme={theme} family={family} />
       <Legend laid={laid} theme={theme} family={family} measure={measure} />
       <Notes laid={laid} theme={theme} family={family} />
+      {props.focus === null || props.focus === undefined ? null : (
+        <FocusRing {...ctx} x={props.focus.x} y={props.focus.y} />
+      )}
       <Probe {...ctx} />
     </ComposedChart>
   );

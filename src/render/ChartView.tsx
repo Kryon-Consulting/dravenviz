@@ -5,10 +5,10 @@ import { createCanvasMeasurer } from './layout/canvas-measure';
 import type { LaidOutChart, TextMeasurer } from './layout/types';
 import { CartesianChart } from './recharts/CartesianChart';
 
-/** Interaction wiring for the React `Chart` (Task 14). Accepted and ignored by the print path. */
+/** Interaction state the React `Chart` passes in. The print path never sets it. */
 export interface InteractionProps {
-  /** Reserved: Task 14 adds datum activation and keyboard handling here. */
-  enabled?: boolean;
+  /** Where to draw the keyboard focus ring (logical units); null or absent draws none. */
+  focus?: { x: number; y: number } | null;
 }
 
 export interface ChartViewProps {
@@ -45,6 +45,7 @@ export function ChartView(props: ChartViewProps): ReactElement {
       namespace={namespace}
       family={fontFamily}
       measure={measure}
+      focus={props.interactive?.focus ?? null}
     />
   );
 }

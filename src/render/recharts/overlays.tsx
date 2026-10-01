@@ -531,3 +531,29 @@ export function Probe({ laid }: OverlayCtx): ReactElement {
     </g>
   );
 }
+
+// ---- keyboard focus ring ----------------------------------------------------------------------------------
+
+/**
+ * The visible focus ring for the datum the keyboard has selected. `data-dv-interactive` keeps it
+ * out of any exported SVG. It carries no `data-dv-mark`, so it is not part of the manifest.
+ */
+export function FocusRing({ theme, x, y }: OverlayCtx & { x: number; y: number }): ReactElement {
+  return (
+    <circle
+      data-dv-focus-ring=""
+      data-dv-interactive=""
+      cx={x}
+      cy={y}
+      r={theme.marker.size / 2 + 4}
+      style={{
+        fill: 'none',
+        stroke: theme.color.focus,
+        strokeWidth: 2,
+        strokeDasharray: 'none',
+        opacity: 1,
+        pointerEvents: 'none',
+      }}
+    />
+  );
+}

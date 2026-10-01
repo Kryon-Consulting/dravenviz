@@ -20,3 +20,13 @@ test('recharts only under src/render/recharts', () => {
 test('no eval / Function / innerHTML in src', () => {
   expect(grep('src', /\beval\(|new Function\(|\.innerHTML\s*=/)).toEqual([]);
 });
+
+test('react and print never import each other', () => {
+  expect(scanImports('src/react', [/^\.{1,2}\/(?:.*\/)?print(?:\/|$)|src\/print/])).toEqual([]);
+  expect(scanImports('src/print', [/^\.{1,2}\/(?:.*\/)?react(?:\/|$)|src\/react/])).toEqual([]);
+  expect(listFiles('src/react').length).toBeGreaterThan(0);
+});
+
+test('src/react touches no DOM at module top level', () => {
+  expect(grep('src/react', /^(?:window|document|navigator)\./m)).toEqual([]);
+});
