@@ -2,7 +2,7 @@ import { DravenVizError, InvalidSpecError } from '../errors';
 import type { VizSpec } from '../spec/index';
 import { schemaValidate } from './ajv.gen.js';
 import { IssueSink, type ValidationIssue, mapAjvErrors } from './issues';
-import { type Limits, checkLimits, resolveLimits } from './limits';
+import { LIMIT_RULES, type Limits, checkLimits, resolveLimits } from './limits';
 import { checkCartesian } from './semantic/cartesian';
 import { checkDonut } from './semantic/donut';
 import { checkHeatmap } from './semantic/heatmap';
@@ -71,10 +71,12 @@ function runSemantic(spec: VizSpec, sink: IssueSink): void {
 
 function fail(
   issues: readonly ValidationIssue[],
-  code: 'INVALID_SPEC' | 'LIMIT_EXCEEDED',
+  requested: 'INVALID_SPEC' | 'LIMIT_EXCEEDED',
   input: unknown,
 ): never {
+  let code = requested;
   const chartId = readChartId(input);
+  if (issues.length > 0 && issues.every((i) => LIMIT_RULES.has(i.rule))) code = 'LIMIT_EXCEEDED';
   throw new InvalidSpecError(issues, { code, ...(chartId === undefined ? {} : { chartId }) });
 }
 

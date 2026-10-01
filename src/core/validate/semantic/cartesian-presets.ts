@@ -57,5 +57,15 @@ export function checkOrientationAndPreset(spec: CartesianSpec, sink: IssueSink):
         "The 'compact-stack' preset allows bar series only.",
       );
     }
+    const stackId = spec.series[0]?.stackId;
+    spec.series.forEach((s, i) => {
+      if (s.stackId === undefined || s.stackId !== stackId) {
+        sink.add(
+          'preset-incompatible',
+          ptr('series', i, 'stackId'),
+          "The 'compact-stack' preset is one stack: give every series the same stackId.",
+        );
+      }
+    });
   }
 }

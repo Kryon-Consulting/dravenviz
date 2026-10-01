@@ -15,8 +15,18 @@ export function stackGroups(spec: CartesianSpec): Map<string, number[]> {
   return groups;
 }
 
-/** stack-mixed-marks and stack-mixed-axes. */
+/**
+ * stacking-without-stack, stack-mixed-marks and stack-mixed-axes.
+ * A stackId without a `stacking` object means an absolute stack.
+ */
 export function checkStackMembers(spec: CartesianSpec, sink: IssueSink): void {
+  if (spec.stacking !== undefined && !spec.series.some((s) => s.stackId !== undefined)) {
+    sink.add(
+      'stacking-without-stack',
+      '/stacking',
+      "'stacking' is set but no series has a stackId; give the bar or area series that should stack a shared stackId, or remove 'stacking'.",
+    );
+  }
   for (const [stackId, members] of stackGroups(spec)) {
     const stackable = members.filter((i) => STACKABLE.has(spec.series[i]!.mark));
     for (const i of members) {

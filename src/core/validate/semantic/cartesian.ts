@@ -1,6 +1,11 @@
 import type { CartesianSpec } from '../../spec/index';
 import { type IssueSink, ptr } from '../issues';
-import { checkDomainShapes, checkYDomains } from './cartesian-domains';
+import {
+  checkDomainShapes,
+  checkXDomainData,
+  checkYDomains,
+  checkYOverlayDomains,
+} from './cartesian-domains';
 import { checkSeriesPoints } from './cartesian-points';
 import { checkOrientationAndPreset } from './cartesian-presets';
 import { checkPercentStacks, checkStackMembers } from './cartesian-stacks';
@@ -118,5 +123,7 @@ export function checkCartesian(spec: CartesianSpec, sink: IssueSink): void {
   checkOverlays(spec, sink, x);
   checkStackMembers(spec, sink);
   checkPercentStacks(spec, sink);
-  checkYDomains(spec, sink);
+  checkYDomains(spec, sink, x);
+  checkXDomainData(spec, sink, x);
+  checkYOverlayDomains(spec, sink);
 }

@@ -11,6 +11,7 @@ export const GENERATED_FILES = [
   'src/core/spec/types.gen.ts',
   'src/core/validate/ajv.gen.js',
   'src/core/validate/ajv.gen.d.ts',
+  'src/core/validate/allowed.gen.ts',
 ] as const;
 
 export const HEADER_LINE = 'GENERATED — do not edit.';

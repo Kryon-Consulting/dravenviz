@@ -42,7 +42,11 @@ function deepFreeze<T>(v: T): T {
 }
 
 const issuesOf = (spec: unknown, options?: Parameters<typeof validateSpec>[1]) =>
-  catchErr(() => validateSpec(spec, options)).issues as { rule: string; path: string }[];
+  catchErr(() => validateSpec(spec, options)).issues as {
+    rule: string;
+    path: string;
+    message: string;
+  }[];
 
 /** Every rule id named in design section 6. */
 const SECTION_6_RULES = [
@@ -80,6 +84,7 @@ const SECTION_6_RULES = [
   'percent-axis-configured',
   'percent-axis-shared',
   'percent-value-unit-required',
+  'stacking-without-stack',
 ];
 
 describe('fixtures', () => {
@@ -963,5 +968,235 @@ describe('semantic rule variants', () => {
     }
     const issues = issuesOf(spec);
     expect(issues[0], JSON.stringify(issues)).toMatchObject({ rule, path: p });
+  });
+});
+
+describe('fix round 1', () => {
+  const first = (spec: unknown, options?: Parameters<typeof validateSpec>[1]) =>
+    issuesOf(spec, options)[0] as { rule: string; path: string; message: string };
+
+  describe('x domains and overlays (Important 1)', () => {
+    test('fixed linear x domain excluding a point', () => {
+      const s = loadFixture('min-scatter');
+      s.xAxis.domain = { policy: 'fixed', min: 0, max: 5 };
+      expect(first(s)).toMatchObject({ rule: 'fixed-domain-excludes-data', path: '/xAxis/domain' });
+    });
+    test('clip-indicated linear x domain is allowed', () => {
+      const s = loadFixture('min-scatter');
+      s.xAxis.domain = { policy: 'fixed', min: 0, max: 5, overflow: 'clip-indicated' };
+      expect(isValidSpec(s).ok).toBe(true);
+    });
+    test('time domain excluding a point', () => {
+      const s = loadFixture('min-line');
+      s.xAxis.domain = { min: '2026-07-02' };
+      expect(first(s)).toMatchObject({ rule: 'fixed-domain-excludes-data', path: '/xAxis/domain' });
+      s.xAxis.domain = { max: '2026-07-02' };
+      expect(first(s)).toMatchObject({ rule: 'fixed-domain-excludes-data' });
+      s.xAxis.domain = { min: '2026-07-01', max: '2026-07-03' };
+      expect(isValidSpec(s).ok).toBe(true);
+    });
+    test('reference line and annotation outside the y domain', () => {
+      const s = loadFixture('min-composed');
+      s.referenceLines[0].value = 150;
+      expect(first(s)).toMatchObject({
+        rule: 'fixed-domain-excludes-data',
+        path: '/referenceLines/0/value',
+      });
+      const t = loadFixture('min-composed');
+      t.annotations = [{ id: 'n', x: 'q1', yAxisId: 'pct', y: 101, label: 'L' }];
+      expect(first(t)).toMatchObject({
+        rule: 'fixed-domain-excludes-data',
+        path: '/annotations/0/y',
+      });
+    });
+    test('reference line and annotation outside the x domain', () => {
+      const s = loadFixture('min-scatter');
+      s.xAxis.domain = { policy: 'fixed', min: 0, max: 20 };
+      s.referenceLines = [{ id: 'r', axisId: 'days', value: 25 }];
+      s.annotations = [{ id: 'n', x: 5, x2: 30, label: 'L' }];
+      expect(issuesOf(s)).toEqual([
+        expect.objectContaining({
+          rule: 'fixed-domain-excludes-data',
+          path: '/referenceLines/0/value',
+        }),
+        expect.objectContaining({ rule: 'fixed-domain-excludes-data', path: '/annotations/0/x2' }),
+      ]);
+    });
+    test('a non-bar stack with a domain that excludes zero is not flagged for the zero baseline', () => {
+      const s = loadFixture('min-area');
+      s.yAxes[0].domain = { policy: 'fixed', min: 5, max: 20 };
+      expect(isValidSpec(s).ok).toBe(true);
+    });
+  });
+
+  describe('default limits (Important 2, R12)', () => {
+    const seriesN = (n: number) => {
+      const s = loadFixture('min-line');
+      s.series = Array.from({ length: n }, (_, i) => ({
+        ...structuredClone(loadFixture('min-line').series[0]),
+        id: `s${i}`,
+      }));
+      return s;
+    };
+    const slicesN = (n: number) => {
+      const s = loadFixture('min-donut');
+      s.slices = Array.from({ length: n }, (_, i) => ({ id: `s${i}`, label: 'x', value: 1 }));
+      return s;
+    };
+    const annotationsN = (n: number) => {
+      const s = loadFixture('min-line');
+      s.annotations = Array.from({ length: n }, (_, i) => ({
+        id: `a${i}`,
+        x: '2026-07-01',
+        label: 'L',
+      }));
+      return s;
+    };
+    test.each([
+      ['17 series', seriesN(17), 'series-count', '/series'],
+      ['33 slices', slicesN(33), 'donut-slices', '/slices'],
+      ['17 annotations', annotationsN(17), 'annotation-count', '/annotations'],
+    ])('%s -> LIMIT_EXCEEDED, same with or without limits', (_n, spec, rule, p) => {
+      for (const options of [undefined, { limits: {} }, { limits: { jsonBytes: 1_000_000 } }]) {
+        expect(catchErr(() => validateSpec(spec, options))).toMatchObject({
+          code: 'LIMIT_EXCEEDED',
+          rule,
+          path: p,
+        });
+      }
+    });
+    test('17 reference lines, 21 progress items and 251 categories', () => {
+      const rl = loadFixture('min-composed');
+      rl.referenceLines = Array.from({ length: 17 }, (_, i) => ({
+        id: `r${i}`,
+        axisId: 'pct',
+        value: 1,
+      }));
+      expect(catchErr(() => validateSpec(rl))).toMatchObject({
+        code: 'LIMIT_EXCEEDED',
+        rule: 'reference-line-count',
+      });
+      const pr = loadFixture('min-progress');
+      pr.variant = 'bar';
+      pr.items = Array.from({ length: 21 }, (_, i) => ({ id: `i${i}`, label: 'x', value: 1 }));
+      expect(catchErr(() => validateSpec(pr))).toMatchObject({
+        code: 'LIMIT_EXCEEDED',
+        rule: 'progress-items',
+      });
+      const bar = loadFixture('min-bar');
+      bar.xAxis.categories = Array.from({ length: 251 }, (_, i) => `c${i}`);
+      expect(catchErr(() => validateSpec(bar))).toMatchObject({
+        code: 'LIMIT_EXCEEDED',
+        rule: 'bar-categories',
+      });
+    });
+    test('mixed with another schema error the code is INVALID_SPEC', () => {
+      const s = slicesN(33);
+      s.colour = 'red';
+      expect(catchErr(() => validateSpec(s)).code).toBe('INVALID_SPEC');
+    });
+  });
+
+  describe('stacking without stackId (Important 3, R13)', () => {
+    test('compact-stack without stackId and a negative value fails', () => {
+      const s = loadFixture('min-bar');
+      s.preset = 'compact-stack';
+      s.orientation = 'horizontal';
+      s.stacking = { mode: 'percent', valueUnit: 'items' };
+      s.yAxes[0] = { id: 'count' };
+      s.series[0].points[0].value = -10;
+      const rules = issuesOf(s).map((i) => i.rule);
+      expect(rules).toContain('preset-incompatible');
+      expect(rules).toContain('stacking-without-stack');
+    });
+    test('compact-stack with one shared stackId is valid; differing ids are not', () => {
+      const ok = loadFixture('min-area');
+      ok.preset = 'compact-stack';
+      ok.orientation = 'horizontal';
+      ok.stacking = { mode: 'percent', valueUnit: 'u' };
+      ok.yAxes[0] = { id: 'n' };
+      for (const x of ok.series) x.mark = 'bar';
+      expect(isValidSpec(ok).ok).toBe(true);
+      ok.series[1].stackId = 't';
+      expect(first(ok)).toMatchObject({ rule: 'preset-incompatible', path: '/series/1/stackId' });
+    });
+    test('stackId without stacking is an absolute stack and is accepted', () => {
+      const s = loadFixture('min-area');
+      delete s.stacking;
+      expect(isValidSpec(s).ok).toBe(true);
+    });
+  });
+
+  test('stack totals use the resolved x position (Important 4)', () => {
+    const s = loadFixture('min-area');
+    s.xAxis = { id: 'm', scale: 'time' };
+    s.yAxes[0].domain = { policy: 'fixed', min: 0, max: 15 };
+    s.series[0].points = [{ id: 'a1', x: '2026-07-01T02:00:00+02:00', value: 10 }];
+    s.series[1].points = [{ id: 'b1', x: '2026-07-01T00:00:00Z', value: 10 }];
+    expect(first(s)).toMatchObject({ rule: 'fixed-domain-excludes-data', path: '/yAxes/0/domain' });
+    s.yAxes[0].domain = { policy: 'fixed', min: 0, max: 25 };
+    expect(isValidSpec(s).ok).toBe(true);
+  });
+
+  describe('mixed-x-types path (Important 5, R14)', () => {
+    test('outlier domain min gets the error, exactly one issue', () => {
+      const s = loadFixture('min-line');
+      s.xAxis.domain = { min: '2026-07-01T00:00:00Z' };
+      const issues = issuesOf(s);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toMatchObject({ rule: 'mixed-x-types', path: '/xAxis/domain/min' });
+    });
+    test('outlier reference line gets the error', () => {
+      const s = loadFixture('min-line');
+      s.referenceLines = [{ id: 'r', axisId: 'day', value: '2026-07-02T00:00:00Z' }];
+      expect(first(s)).toMatchObject({ rule: 'mixed-x-types', path: '/referenceLines/0/value' });
+    });
+    test('the first point decides: later date-times are the outliers', () => {
+      const s = loadFixture('min-line');
+      s.series[0].points[0].x = '2026-07-01T00:00:00Z';
+      s.series[0].points[1].x = '2026-07-02T00:00:00Z';
+      s.series[0].points[2].x = '2026-07-03T00:00:00Z';
+      s.xAxis.domain = { min: '2026-06-01T00:00:00Z' };
+      expect(isValidSpec(s).ok).toBe(true);
+      s.series[0].points[2].x = '2026-07-03';
+      expect(first(s)).toMatchObject({ rule: 'mixed-x-types', path: '/series/0/points/2/x' });
+    });
+  });
+
+  describe('messages (M1, M2, M3)', () => {
+    test('unknown field message lists allowed fields', () => {
+      const m = first({ ...loadFixture('min-line'), colour: 'red' }).message;
+      expect(m).toMatch(
+        /Remove unknown field 'colour'.*\(allowed: schemaVersion, id, kind, title, .*xAxis.*\)/,
+      );
+    });
+    test('allowed fields follow discriminators and nesting', () => {
+      const s = loadFixture('min-line');
+      s.xAxis.bogus = 1;
+      s.series[0].points[0].oops = 1;
+      s.yAxes[0].domain = { policy: 'fixed', min: 0, max: 1, extra: 1 };
+      const msgs = issuesOf(s).map((i) => i.message);
+      expect(msgs[0]).toMatch(/allowed: id, scale, label, domain, tickFormat\)/);
+      expect(msgs.some((m) => /allowed: id, x, value, displayValue/.test(m))).toBe(true);
+      expect(msgs.some((m) => /allowed: policy, min, max, overflow\)/.test(m))).toBe(true);
+    });
+    test('non-finite number in a union position is reported once, by name', () => {
+      const s = loadFixture('min-bar');
+      s.series[0].points[0].x = Infinity;
+      const issues = issuesOf(s);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toMatchObject({ rule: 'non-finite-number', path: '/series/0/points/0/x' });
+    });
+    test('wrong-type union value does not surface raw anyOf text', () => {
+      const s = loadFixture('min-bar');
+      s.series[0].points[0].x = true;
+      expect(issuesOf(s).map((i) => i.rule)).not.toContain('schema-anyOf');
+    });
+    test('bar-domain-excludes-data is reported once per path', () => {
+      const s = loadFixture('min-bar');
+      s.yAxes[0].domain = { policy: 'fixed', min: 10, max: 20 };
+      const rules = issuesOf(s).filter((i) => i.rule === 'bar-domain-excludes-data');
+      expect(rules).toHaveLength(1);
+    });
   });
 });

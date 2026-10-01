@@ -1,5 +1,6 @@
 import { parseTime } from '../format/time';
 import type { AjvError } from './ajv.gen.js';
+import { ALLOWED_FIELDS, type AllowedNode } from './allowed.gen';
 
 export interface ValidationIssue {
   /** Stable rule id, e.g. "bar-domain-excludes-data" or "schema-additionalProperties". */
@@ -45,6 +46,28 @@ function valueAt(root: unknown, pointer: string): unknown {
   return cur;
 }
 
+/** Field names the schema allows on the object at `base`, following discriminators in the data. */
+function allowedFields(input: unknown, base: string): string[] | undefined {
+  let node: AllowedNode | undefined = ALLOWED_FIELDS;
+  let data: unknown = input;
+  const pick = (n: AllowedNode | undefined): AllowedNode | undefined => {
+    if (!n?.tag) return n;
+    const t = (data as Record<string, unknown> | null)?.[n.tag];
+    return typeof t === 'string' ? n.variants?.[t] : undefined;
+  };
+  const segments = base === '' ? [] : base.slice(1).split('/').map(unescapeSegment);
+  for (const seg of segments) {
+    node = pick(node);
+    if (!node) return undefined;
+    node = Array.isArray(data) ? node.items : (node.props?.[seg] ?? node.values);
+    data =
+      data !== null && typeof data === 'object'
+        ? (data as Record<string, unknown>)[seg]
+        : undefined;
+  }
+  return pick(node)?.keys;
+}
+
 const jsType = (v: unknown): string =>
   v === null
     ? 'null'
@@ -57,6 +80,17 @@ const jsType = (v: unknown): string =>
 /** A bounded rendering (JSON escapes any control characters) of a caller-supplied tag, for "unknown value" messages. */
 const shown = (v: unknown): string =>
   typeof v === 'string' ? JSON.stringify(v.length > 40 ? v.slice(0, 40) + '…' : v) : typeof v;
+
+/** Schema array caps that are protection limits (design section 6), by instance path. */
+const LIMIT_PATHS: Record<string, string | undefined> = {
+  '/series': 'series-count',
+  '/xAxis/categories': 'bar-categories',
+  '/xAxis/labels': 'bar-categories',
+  '/slices': 'donut-slices',
+  '/referenceLines': 'reference-line-count',
+  '/annotations': 'annotation-count',
+  '/items': 'progress-items',
+};
 
 const TAG_ALLOWED: Record<string, string> = {
   kind: 'cartesian, donut, heatmap, progress',
@@ -98,10 +132,13 @@ function mapOne(e: AjvError, input: unknown): ValidationIssue | undefined {
     }
     case 'additionalProperties': {
       const name = String(p.additionalProperty);
+      const allowed = allowedFields(input, base);
       return {
         rule: 'schema-additionalProperties',
         path: base + ptr(name),
-        message: `Remove unknown field '${name}' from ${at}, or fix its spelling; the schema allows only its documented fields.`,
+        message: `Remove unknown field '${name}' from ${at}, or fix its spelling${
+          allowed ? ` (allowed: ${allowed.join(', ')})` : ''
+        }.`,
       };
     }
     case 'propertyNames': {
@@ -189,6 +226,13 @@ function mapOne(e: AjvError, input: unknown): ValidationIssue | undefined {
           message: `A chart has at most ${String(p.limit)} y axes; remove the extra axes or move the series to one of the two.`,
         };
       }
+      if (LIMIT_PATHS[base] !== undefined) {
+        return {
+          rule: LIMIT_PATHS[base],
+          path: base,
+          message: `This list has more than the limit of ${String(p.limit)} entries; reduce it or split the chart.`,
+        };
+      }
       return {
         rule: 'schema-maxItems',
         path: base,
@@ -221,9 +265,32 @@ export function mapAjvErrors(errors: readonly AjvError[], input: unknown): Valid
   const nameErrorPaths = new Set(
     errors.filter((e) => e.keyword === 'propertyNames').map((e) => e.instancePath),
   );
+  // A non-finite number fails every branch of a union; report it once, by name.
+  const nonFinitePaths = new Set(
+    errors
+      .filter((e) => {
+        const v = e.keyword === 'type' ? valueAt(input, e.instancePath) : undefined;
+        return typeof v === 'number' && !Number.isFinite(v);
+      })
+      .map((e) => e.instancePath),
+  );
+  // Raw anyOf/oneOf text is dropped when a more specific error exists at or below that path.
+  const hasSpecific = (e: AjvError): boolean =>
+    errors.some(
+      (o) =>
+        o !== e &&
+        o.keyword !== 'anyOf' &&
+        o.keyword !== 'oneOf' &&
+        (o.instancePath === e.instancePath || o.instancePath.startsWith(e.instancePath + '/')),
+    );
   const seen = new Set<string>();
   const out: ValidationIssue[] = [];
-  for (const e of errors) {
+  for (const raw of errors) {
+    let e = raw;
+    if ((e.keyword === 'anyOf' || e.keyword === 'oneOf') && hasSpecific(e)) continue;
+    if (nonFinitePaths.has(e.instancePath) && e.keyword !== 'additionalProperties') {
+      e = { ...e, keyword: 'type' };
+    }
     // propertyNames re-reports its failing key as a pattern error on the parent object.
     if (
       e.keyword !== 'propertyNames' &&

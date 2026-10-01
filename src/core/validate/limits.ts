@@ -126,3 +126,16 @@ export function checkLimits(spec: VizSpec, limits: Limits, sink: IssueSink): voi
       break;
   }
 }
+
+/** Rule ids of limit issues; an error made only of these has code LIMIT_EXCEEDED. */
+export const LIMIT_RULES: ReadonlySet<string> = new Set([
+  'json-bytes',
+  'series-count',
+  'cartesian-points',
+  'bar-categories',
+  'donut-slices',
+  'heatmap-cells',
+  'reference-line-count',
+  'annotation-count',
+  'progress-items',
+]);
