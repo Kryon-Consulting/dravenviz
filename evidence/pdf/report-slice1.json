@@ -23,7 +23,7 @@
   "rasterDpi": 150,
   "package": {
     "tarball": "draven-viz-0.1.0.tgz",
-    "sha256": "af2654737516d24f825f9941217e3333a0df117e56b5af5539c5e736c1a92537",
+    "sha256": "f6a53424d0a06215f50b6b3b94043ed9c58811aac6b2c6317952ce493e1e4749",
     "version": "0.1.0"
   },
   "fonts": [
@@ -43,7 +43,7 @@
   "pdf": {
     "file": "report-slice1.pdf",
     "bytes": 84748,
-    "sha256": "460d0b076cdc7730834e9767b0185567dbb2e132030e6e269cda86f070a8a8b9",
+    "sha256": "b638cb3da4dac28106b40cc6975444397de0cd4e3a8ebee9227c735887802ec0",
     "pages": 6,
     "pageSizePt": [
       594.96,
@@ -289,7 +289,7 @@
     {
       "name": "control: the intact bundle renders within 8000 ms (http)",
       "status": "pass",
-      "detail": "1.7 s",
+      "detail": "1.8 s",
       "attempts": 1
     },
     {
@@ -301,7 +301,7 @@
     {
       "name": "missing font: bootstrap throws and never sets the ready flag",
       "status": "pass",
-      "detail": "ready=False, 1 page error(s): Could not load font http://127.0.0.1:35577/fonts/NotoSans-Regular.woff2: HTTP 404.; 404s ['404 /fonts/NotoSans-Regular.woff2', '404 /fonts/NotoSans-Regular.woff2']",
+      "detail": "ready=False, 1 page error(s): Could not load font http://127.0.0.1:37125/fonts/NotoSans-Regular.woff2: HTTP 404.; 404s ['404 /fonts/NotoSans-Regular.woff2', '404 /fonts/NotoSans-Regular.woff2']",
       "attempts": null
     },
     {
@@ -437,5 +437,5 @@
       "attempts": null
     }
   ],
-  "seconds": 33.3
+  "seconds": 30.7
 }
