@@ -447,3 +447,62 @@ test('standalone file re-renders identically', async ({ page, browser }) => {
   });
   expect(mismatched).toBe(0);
 });
+
+const HOSTILE = [
+  'body{color:red;font:20px serif;letter-spacing:3px}',
+  'svg{fill:blue;font-size:30px;dominant-baseline:hanging}',
+  '*{opacity:.5}',
+  'g{stroke:green}',
+  'rect{fill:red}',
+  'text{font-style:italic}',
+  'path,line,circle{stroke:orange;stroke-width:9px}',
+].join('\n');
+
+test('hostile page CSS cannot change the export (byte-identical to a clean page)', async ({
+  page,
+}) => {
+  const clean = await h(page).renderToSvg('line-weekly-flow', o);
+  await openHarness(page);
+  await page.addStyleTag({ content: HOSTILE });
+  const hostile = await h(page).renderToSvg('line-weekly-flow', o);
+  expect(hostile).toBe(clean);
+  const emb = await h(page).renderToSvg('line-weekly-flow', { ...o, fontMode: 'embedded' });
+  await openHarness(page);
+  expect(await h(page).renderToSvg('line-weekly-flow', { ...o, fontMode: 'embedded' })).toBe(emb);
+  expect(await h(page).counts()).toEqual(none);
+});
+
+test('the live chart keeps its text positions under a dominant-baseline host rule', async ({
+  page,
+}) => {
+  const boxes = (): Promise<number[][]> =>
+    page.evaluate(() =>
+      Array.from(document.querySelectorAll('svg[data-dravenviz-chart] text')).map((t) => {
+        const r = t.getBoundingClientRect();
+        return [r.x, r.y, r.width, r.height].map((n) => Math.round(n * 100) / 100);
+      }),
+    );
+  await h(page).mount(['line-weekly-flow'], { width: 680, height: 320, namespace: 'live' });
+  const clean = await boxes();
+  await openHarness(page);
+  await page.addStyleTag({ content: 'svg,svg *{dominant-baseline:hanging}' });
+  await h(page).mount(['line-weekly-flow'], { width: 680, height: 320, namespace: 'live' });
+  const hostile = await boxes();
+  expect(clean.length).toBeGreaterThan(10);
+  expect(hostile).toEqual(clean);
+});
+
+test('an unknown data-* attribute fails the export instead of being stripped', async ({ page }) => {
+  const err = await h(page).exportError('line-weekly-flow', o, '<path d="M0 0" data-foo="1"/>');
+  expect(err.code).toBe('EXPORT_FAILED');
+  expect(err.rule).toBe('svg-disallowed-attribute');
+  expect(err.path).toMatch(/@data-foo$/);
+});
+
+test('a style element in the live chart fails the export', async ({ page }) => {
+  const err = await h(page).exportError('line-weekly-flow', o, '<style>text{fill:red}</style>');
+  expect(err.code).toBe('EXPORT_FAILED');
+  expect(err.rule).toBe('svg-disallowed-element');
+  expect(err.path).toMatch(/\/style\[1\]$/);
+  expect(await h(page).counts()).toEqual(none);
+});

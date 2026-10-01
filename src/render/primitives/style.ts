@@ -80,6 +80,7 @@ export function textStyle(input: TextStyleInput): CSSProperties {
     fontSize: input.size,
     fontWeight: input.weight,
     textAnchor: input.anchor ?? 'start',
+    dominantBaseline: 'auto',
     // Host rules for these would change text widths away from what layout measured.
     letterSpacing: 'normal',
     fontStyle: 'normal',

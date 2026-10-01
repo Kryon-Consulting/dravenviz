@@ -184,7 +184,7 @@ export function finalizeSvg(el: SVGSVGElement, ctx: FinalizeContext): SvgExport 
   el.setAttribute('role', 'img');
   // The root states every inherited property, so nothing depends on a host page or viewer default.
   for (const prop of MATERIALIZED_PROPERTIES) {
-    if (prop !== 'opacity' && prop !== 'dominant-baseline' && !el.hasAttribute(prop)) {
+    if (prop !== 'opacity' && !el.hasAttribute(prop)) {
       throw new DravenVizError('EXPORT_FAILED', `The root element has no computed ${prop}.`, {
         chartId: ctx.chartId,
         issues: [{ rule: 'svg-root-property', path: '/svg', message: prop }],

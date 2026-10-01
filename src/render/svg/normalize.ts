@@ -1,3 +1,4 @@
+import { DravenVizError } from '../../core/index';
 import {
   MATERIALIZED_PROPERTIES,
   isRechartsMetadata,
@@ -150,8 +151,9 @@ function prune(el: Element, inherited: Values, isRoot: boolean): void {
     } else if (prop === 'opacity') {
       if (value === '1') el.removeAttribute(prop);
     } else if (prop === 'dominant-baseline') {
-      if (value === 'auto' && (inherited[prop] ?? 'auto') === 'auto') el.removeAttribute(prop);
-      else next[prop] = value;
+      if (!isRoot && value === 'auto' && (inherited[prop] ?? 'auto') === 'auto') {
+        el.removeAttribute(prop);
+      } else next[prop] = value;
     }
   }
   for (const child of Array.from(el.children)) prune(child, next, false);
@@ -165,8 +167,27 @@ function stripMetadata(el: Element): void {
   for (const child of Array.from(el.children)) stripMetadata(child);
 }
 
+/** Only finalize may add a `<style>` (the font rules); one in the live SVG could restyle the export. */
+function rejectStyleElements(el: Element, path: string): void {
+  const counts = new Map<string, number>();
+  for (const child of Array.from(el.children)) {
+    const n = (counts.get(child.localName) ?? 0) + 1;
+    counts.set(child.localName, n);
+    const here = `${path}/${child.localName}[${n}]`;
+    if (child.localName === 'style') {
+      const message = 'A <style> element in the chart is not allowed; only export adds font rules.';
+      throw new DravenVizError('EXPORT_FAILED', message, {
+        path: here,
+        issues: [{ rule: 'svg-disallowed-element', path: here, message }],
+      });
+    }
+    rejectStyleElements(child, here);
+  }
+}
+
 export function normalizeSvg(live: SVGSVGElement): SVGSVGElement {
   const clone = live.cloneNode(true) as SVGSVGElement;
+  rejectStyleElements(clone, '/svg');
   materialize(live, clone, false);
   // Step 6: Recharts' own title and desc go; finalize adds DravenViz's.
   for (const child of Array.from(clone.children)) {

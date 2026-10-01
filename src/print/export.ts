@@ -100,16 +100,23 @@ export async function renderToSvgWithAssets(
   const host = document.createElement('div');
   host.setAttribute('aria-hidden', 'true');
   host.setAttribute('data-dv-export-host', '');
+  // `all: initial` first, then the positioning: nothing is inherited from the page.
   host.style.cssText =
-    `position:fixed;left:-100000px;top:0;width:${resolved.width}px;height:${resolved.height}px;` +
-    'overflow:hidden;pointer-events:none';
+    'all:initial;display:block;position:fixed;left:-100000px;top:0;' +
+    `width:${resolved.width}px;height:${resolved.height}px;overflow:hidden;pointer-events:none`;
+  // The chart renders inside a shadow root, so no page stylesheet rule (`svg{fill:blue}`,
+  // `*{opacity:.5}`, `g{stroke:green}`) can match it and the export cannot depend on the host page.
+  const shadow = host.attachShadow({ mode: 'open' });
+  const mountPoint = document.createElement('div');
+  mountPoint.style.cssText = `width:${resolved.width}px;height:${resolved.height}px`;
+  shadow.appendChild(mountPoint);
   document.body.appendChild(host);
-  const handle = mountBatch(host, [spec], { ...options, staticLabels: true }, [
+  const handle = mountBatch(mountPoint, [spec], { ...options, staticLabels: true }, [
     `__export-${++exportSequence}`,
   ]);
   try {
     await handle.ready;
-    const live = host.querySelector('svg[data-dv-render-id]');
+    const live = mountPoint.querySelector('svg[data-dv-render-id]');
     if (!(live instanceof SVGSVGElement)) {
       throw new DravenVizError('EXPORT_FAILED', 'The mounted chart produced no SVG to export.', {
         chartId: validated.id,

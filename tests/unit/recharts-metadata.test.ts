@@ -37,7 +37,7 @@ test('the exported sets contain every recorded presentation and metadata attribu
       expect(RECHARTS_PRESENTATION_ATTRIBUTES.has(name), `${tag}@${name}`).toBe(true);
     }
     if (recorded === 'metadata') {
-      expect(RECHARTS_METADATA_ATTRIBUTES.has(name) || name.startsWith('data-'), name).toBe(true);
+      expect(RECHARTS_METADATA_ATTRIBUTES.has(name), name).toBe(true);
       expect(isRechartsMetadata(tag, name), `${tag}@${name}`).toBe(true);
     }
   }
@@ -52,4 +52,11 @@ test('an unknown attribute is unclassified, never silently metadata', () => {
   expect(classifyAttribute('path', 'foo')).toBe('unclassified');
   expect(classifyAttribute('g', 'width')).toBe('unclassified');
   expect(classifyAttribute('rect', 'width')).toBe('geometry');
+});
+
+test('only named DravenViz live-only data attributes are metadata', () => {
+  expect(isRechartsMetadata('g', 'data-dravenviz-ns')).toBe(true);
+  expect(isRechartsMetadata('g', 'data-dv-render-id')).toBe(true);
+  expect(isRechartsMetadata('g', 'data-foo')).toBe(false);
+  expect(classifyAttribute('g', 'data-foo')).toBe('unclassified');
 });

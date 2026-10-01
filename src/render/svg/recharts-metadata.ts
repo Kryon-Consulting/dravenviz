@@ -39,7 +39,7 @@ export const RECHARTS_PRESENTATION_ATTRIBUTES: ReadonlySet<string> = new Set(
   MATERIALIZED_PROPERTIES,
 );
 
-/** Removed from every element whatever its tag. `data-*` other than `data-dv-*` is handled by prefix. */
+/** Removed from every element whatever its tag. */
 const METADATA_ALWAYS = ['class', 'style', 'tabindex', 'focusable', 'cursor', 'pointer-events'];
 
 /**
@@ -104,13 +104,23 @@ export const GLOBAL_ATTRIBUTES: ReadonlySet<string> = new Set([
 export const isPassthrough = (name: string): boolean =>
   name.startsWith('aria-') || name.startsWith('data-dv-');
 
-/** `data-dv-render-id` changes on every mount; keeping it would make exports non-deterministic. */
-export const NEVER_EXPORTED = new Set(['data-dv-render-id']);
+/**
+ * The only `data-*` attributes the normalizer strips: DravenViz's own live-only markers. Any other
+ * `data-*` is unknown, is kept, and fails strict validation (`svg-disallowed-attribute`).
+ * `data-dv-render-id` changes on every mount; keeping it would make exports non-deterministic.
+ */
+export const NEVER_EXPORTED: ReadonlySet<string> = new Set([
+  'data-dravenviz-ns',
+  'data-dravenviz-chart',
+  'data-dv-render-id',
+  'data-dv-interactive',
+  'data-dv-style-guard',
+]);
 
 export function isRechartsMetadata(tag: string, name: string): boolean {
   if (NEVER_EXPORTED.has(name)) return true;
   if (isPassthrough(name)) return false;
-  if (METADATA_ALWAYS.includes(name) || name.startsWith('data-')) return true;
+  if (METADATA_ALWAYS.includes(name)) return true;
   return (RECHARTS_METADATA_BY_TAG[tag] ?? []).includes(name);
 }
 

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { ComposedChart, XAxis, YAxis } from 'recharts';
 import type { Theme } from '../../core/index';
 import type { LaidOutChart, PlacedTick, TextMeasurer } from '../layout/types';
@@ -69,6 +69,27 @@ export function chartMargin(laid: LaidOutChart): {
  * sizes, scales and domains, and DravenViz overlays as chart children. Recharts' Tooltip, Legend
  * and ResponsiveContainer are not used.
  */
+function rootStyle(family: string, theme: Theme, fontScale: number): CSSProperties {
+  return {
+    opacity: 1,
+    fill: theme.color.text,
+    fillOpacity: 1,
+    stroke: 'none',
+    strokeOpacity: 1,
+    strokeWidth: 1,
+    strokeDasharray: 'none',
+    strokeLinecap: 'butt',
+    strokeLinejoin: 'miter',
+    fontFamily: cssFamily(family),
+    fontSize: Math.round(theme.text.label * fontScale * 100) / 100,
+    fontWeight: 400,
+    textAnchor: 'start',
+    dominantBaseline: 'auto',
+    letterSpacing: 'normal',
+    fontStyle: 'normal',
+  };
+}
+
 export function CartesianChart(props: CartesianChartProps): ReactElement {
   const { laid, theme, renderId, namespace, family, measure } = props;
   const model = laid.model;
@@ -209,8 +230,9 @@ export function CartesianChart(props: CartesianChartProps): ReactElement {
       data-dravenviz-ns={namespace}
       data-dravenviz-chart={model.chartId}
       role="img"
-      // font-family on the root makes the live SVG self-describing: export states the same family on its root.
-      style={{ opacity: 1, fontFamily: cssFamily(family) }}
+      // The root states every inherited property with chart-defined values (theme and layout), so
+      // neither a host rule nor a viewer default reaches the chart or its export (design section 10).
+      style={rootStyle(family, theme, laid.fontScale)}
       title={model.title}
       {...(model.description === undefined ? {} : { desc: model.description })}
     >
