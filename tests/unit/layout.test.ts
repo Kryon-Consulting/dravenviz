@@ -6,11 +6,13 @@ import {
   layoutChart,
   labelQuad,
   notoMeasurer,
+  noteGlyph,
   polygonsIntersect,
   type Box,
   type LaidOutChart,
   type PlacedTick,
 } from '../../src/render/layout/index';
+import { NOTO_METRICS } from '../../src/render/layout/noto-metrics.gen';
 import { loadFixture } from './helpers/files';
 
 const theme = themes.print;
@@ -70,10 +72,10 @@ describe('weekly-flow at 680x320 print', () => {
     expect(laid.metrics.effectivePt!.label).toBeGreaterThanOrEqual(9);
     expect(laid.fontScale).toBe(1);
   });
-  test('notes are numbered with circled digits; axes expose sizes', () => {
-    expect(laid.notes[0]!.text).toMatch(/^① Partial week — Collection paused/);
+  test('notes are numbered with parenthesised numerals; axes expose sizes', () => {
+    expect(laid.notes[0]!.text).toMatch(/^\(1\) Partial week — Collection paused/);
     expect(laid.boxes.axes['count']!.width).toBeGreaterThan(0);
-    expect(laid.boxes.axes['x']!.height).toBeGreaterThan(0);
+    expect(laid.boxes.xAxis.height).toBeGreaterThan(0);
   });
   test('layout is deterministic and JSON-serialisable', () => {
     const again = lay('line-weekly-flow', 680, 320, { printWidthMm: 178 });
@@ -174,9 +176,10 @@ describe('time ticks and annotations', () => {
     expect(l.notes[0]!.text).toContain('Policy change');
     expect(l.xTicks.every((t) => t.rotate === 0)).toBe(true);
   });
-  test('legend rows wrap and title/legend/notes do not overlap', () => {
-    const l = lay('line-thinned-annotation');
+  test('legend items wrap onto separate rows at a narrow width; boxes do not overlap', () => {
+    const l = lay('line-thinned-annotation', 400, 360);
     expect(l.legendRows.flat().length).toBe(2);
+    expect(l.legendRows.length).toBe(2);
     expect(overlapArea(l.boxes.legend, l.boxes.plot)).toBe(0);
   });
 });
@@ -216,11 +219,114 @@ describe('errors and titles', () => {
       expect(notoMeasurer(line, { size: theme.text.title, weight: 600 }).width).toBeLessThanOrEqual(
         680 - 2 * theme.spacing.padding,
       );
-    const unbroken = layoutChart(
-      { ...m, title: 'W'.repeat(180) },
-      { width: 680, height: 400, theme, mode: 'interactive' },
-      notoMeasurer,
+  });
+});
+
+describe('fix round 1', () => {
+  const opts = (width: number, height: number) => ({
+    width,
+    height,
+    theme,
+    mode: 'interactive' as const,
+  });
+  const fail = (fn: () => unknown): DravenVizError => {
+    try {
+      fn();
+    } catch (e) {
+      return e as DravenVizError;
+    }
+    throw new Error('expected a throw');
+  };
+
+  test('a title needing more than 3 lines throws LAYOUT_ERROR naming the title and width', () => {
+    const m = { ...model('line-weekly-flow'), title: 'W'.repeat(180) };
+    const e = fail(() => layoutChart(m, opts(680, 400), notoMeasurer));
+    expect(e.code).toBe('LAYOUT_ERROR');
+    expect(e.message).toContain('title');
+    expect(e.message).toMatch(/\d+ units/);
+    const ok = {
+      ...m,
+      title: 'Quarterly service reliability and responsiveness review '.repeat(4).slice(0, 180),
+    };
+    expect(layoutChart(ok, opts(680, 400), notoMeasurer).titleLines.length).toBeLessThanOrEqual(3);
+    expect('titleEllipsized' in layoutChart(ok, opts(680, 400), notoMeasurer).metrics).toBe(false);
+  });
+
+  test('x axis box is keyed by its real id; a y axis called "x" does not collide', () => {
+    const spec = loadFixture('line-weekly-flow');
+    spec.yAxes[0].id = 'x';
+    for (const s of spec.series) s.yAxisId = 'x';
+    for (const r of spec.referenceLines) r.axisId = 'x';
+    const m = buildModel(validateSpec(spec), ctx) as CartesianModel;
+    const l = layoutChart(m, opts(680, 320), notoMeasurer);
+    expect(l.boxes.axes['week']).toEqual(l.boxes.xAxis);
+    expect(l.boxes.axes['x']).not.toEqual(l.boxes.xAxis);
+    expect(overlapArea(l.boxes.axes['x']!, l.boxes.xAxis)).toBe(0);
+    expect(l.boxes.xAxis.height).toBeGreaterThan(0);
+    expect(l.boxes.axes['x']!.width).toBeGreaterThan(0);
+  });
+
+  test('a long y axis title wraps into columns inside the plot span, or throws', () => {
+    const spec = loadFixture('line-weekly-flow');
+    spec.yAxes[0].unit = 'items per engineer per working week across all regional teams';
+    const m = buildModel(validateSpec(spec), ctx) as CartesianModel;
+    const l = layoutChart(m, opts(680, 320), notoMeasurer);
+    const cols = l.yAxisTitles['count']!;
+    expect(cols.length).toBeGreaterThan(1);
+    expect(cols.length).toBeLessThanOrEqual(3);
+    for (const c of cols)
+      expect(notoMeasurer(c, { size: theme.text.label, weight: 400 }).width).toBeLessThanOrEqual(
+        l.boxes.plot.height + 1e-6,
+      );
+    const ax = l.boxes.axes['count']!;
+    expect(ax.y).toBeCloseTo(l.boxes.plot.y, 6);
+    expect(ax.height).toBeCloseTo(l.boxes.plot.height, 6);
+    expect(l.boxes.plot.x).toBeCloseTo(ax.x + ax.width, 6);
+    spec.yAxes[0].unit = 'items per engineer per working week across all regional teams '.repeat(6);
+    const e = fail(() =>
+      layoutChart(
+        buildModel(validateSpec(spec), ctx) as CartesianModel,
+        opts(680, 320),
+        notoMeasurer,
+      ),
     );
-    expect(unbroken.titleLines.length).toBeLessThanOrEqual(3);
+    expect(e.code).toBe('LAYOUT_ERROR');
+    expect(e.message).toContain('y axis');
+  });
+
+  test('a long legend item label wraps inside the legend box', () => {
+    const m0 = model('line-weekly-flow');
+    const long = 'Items opened by the regional intake teams during the reporting periods';
+    expect(long.length).toBe(70);
+    const m: CartesianModel = {
+      ...m0,
+      legend: [{ ...m0.legend[0]!, label: long }, ...m0.legend.slice(1)],
+    };
+    const l = layoutChart(m, opts(400, 360), notoMeasurer);
+    const lines = l.legendLabels[m0.legend[0]!.id]!;
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.join(' ')).toBe(long);
+    const swatch = theme.marker.size * 4;
+    const gap = theme.spacing.titleGap / 2;
+    for (const line of lines)
+      expect(
+        swatch + gap + notoMeasurer(line, { size: theme.text.label, weight: 400 }).width,
+      ).toBeLessThanOrEqual(l.boxes.legend.width + 1e-6);
+    expect(l.boxes.legend.height).toBeGreaterThanOrEqual(
+      lines.length * theme.text.label * theme.text.lineHeight,
+    );
+  });
+
+  test('dash, ellipsis and note numerals have real advances; numbers use parentheses', () => {
+    for (const ch of ['\u2013', '\u2014', '\u2026'])
+      expect(NOTO_METRICS.advances[400][ch.codePointAt(0)!]).toBeGreaterThan(0);
+    expect(noteGlyph(1)).toBe('(1)');
+    expect(noteGlyph(21)).toBe('(21)');
+  });
+
+  test('canvas measurer reports a typed error outside a browser', async () => {
+    const { createCanvasMeasurer } = await import('../../src/render/layout/canvas-measure');
+    const e = fail(() => createCanvasMeasurer("'Noto Sans', sans-serif"));
+    expect(e.code).toBe('RENDER_FAILED');
   });
 });

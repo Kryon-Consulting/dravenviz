@@ -30,11 +30,11 @@ export { labelQuad, polygonsIntersect } from './labels';
 
 export const MIN_PLOT = { width: 80, height: 60 } as const;
 const MAX_TITLE_LINES = 3;
-const ELLIPSIS = '…';
+const MAX_Y_TITLE_COLUMNS = 3;
 
-/** Circled digits for 1-20, then "(21)". */
+/** Note numbers are parenthesised numerals: Noto Sans has no circled digits (U+2460-U+2473). */
 export function noteGlyph(n: number): string {
-  return n >= 1 && n <= 20 ? String.fromCodePoint(0x2460 + n - 1) : `(${n})`;
+  return `(${n})`;
 }
 
 const r = (v: number): number => Math.round(v * 1e6) / 1e6;
@@ -69,6 +69,9 @@ function layoutError(
 }
 
 interface Pass {
+  plotH: number;
+  /** False when a y title needs more columns at the real plot height than at the hint used. */
+  stable: boolean;
   chart: LaidOutChart;
   minX: number;
   maxX: number;
@@ -94,8 +97,13 @@ export function layoutChart(
   let rightExtra = 0;
   let last: Pass | undefined;
   // Rotated labels can overhang the viewBox edge; widen that side and lay out again.
-  for (let attempt = 0; attempt < 6; attempt++) {
-    last = pass(model, opts, measure, fontScale, leftExtra, rightExtra);
+  let hint: number | undefined;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    last = pass(model, opts, measure, fontScale, leftExtra, rightExtra, hint);
+    if (!last.stable) {
+      hint = last.plotH;
+      continue;
+    }
     const needL = last.minX < 0 ? -last.minX : 0;
     const needR = last.maxX > width ? last.maxX - width : 0;
     if (needL < 1e-6 && needR < 1e-6) break;
@@ -112,6 +120,7 @@ function pass(
   fontScale: number,
   leftExtra: number,
   rightExtra: number,
+  plotHeightHint: number | undefined,
 ): Pass {
   const { width, height, theme, mode, printWidthMm } = opts;
   const sp = theme.spacing;
@@ -127,29 +136,44 @@ function pass(
   const innerX = sp.padding;
   const innerW = width - 2 * sp.padding;
 
-  // ---- title (wrapped, at most 3 lines) --------------------------------------------------------
-  let titleLines = wrapWords(model.title, innerW, measure, fTitle);
-  let titleEllipsized = false;
+  // ---- title (wrapped, at most 3 lines; more is a layout error) ----------------------------------
+  const titleLines = wrapWords(model.title, innerW, measure, fTitle);
   if (titleLines.length > MAX_TITLE_LINES) {
-    titleEllipsized = true;
-    let tail = titleLines[MAX_TITLE_LINES - 1]!;
-    while (tail.length > 0 && measure(tail + ELLIPSIS, fTitle).width > innerW)
-      tail = tail.slice(0, -1);
-    titleLines = [...titleLines.slice(0, MAX_TITLE_LINES - 1), tail + ELLIPSIS];
+    let lo = innerW;
+    let hi = Math.max(innerW, measure(model.title, fTitle).width);
+    for (let i = 0; i < 40 && hi - lo > 0.01; i++) {
+      const mid = (lo + hi) / 2;
+      if (wrapWords(model.title, mid, measure, fTitle).length <= MAX_TITLE_LINES) hi = mid;
+      else lo = mid;
+    }
+    throw new DravenVizError(
+      'LAYOUT_ERROR',
+      `The title needs ${titleLines.length} lines at ${Math.floor(innerW)} units wide, more than the maximum of ${MAX_TITLE_LINES}; it needs an inner width of about ${Math.ceil(hi)} units. Shorten the title or enlarge the chart.`,
+      { chartId: model.chartId },
+    );
   }
   const titleH = titleLines.length * lh(sizeTitle);
 
-  // ---- legend (wrapped rows) -------------------------------------------------------------------
+  // ---- legend (wrapped rows; long labels wrap inside their item) --------------------------------
   const showLegend =
     model.legendOptions.show === 'always' ||
     (model.legendOptions.show === 'auto' && model.legend.length > 1);
   const swatch = theme.marker.size * 4;
   const legendRows: LegendItem[][] = [];
+  const legendLabels: Record<string, string[]> = {};
+  let legendH = 0;
   if (showLegend) {
+    const labelMax = Math.max(1, innerW - swatch - tickGap);
+    const itemW: number[] = [];
     let row: LegendItem[] = [];
     let used = 0;
+    const rowHeight = (items: LegendItem[]): number =>
+      Math.max(...items.map((i) => legendLabels[i.id]!.length)) * lh(sizeLabel);
     for (const item of model.legend) {
-      const w = swatch + tickGap + measure(item.label, fLabel).width;
+      const lines = wrapWords(item.label, labelMax, measure, fLabel);
+      legendLabels[item.id] = lines;
+      const w = swatch + tickGap + Math.max(0, ...lines.map((l) => measure(l, fLabel).width));
+      itemW.push(w);
       if (row.length > 0 && used + sp.legendGap + w > innerW) {
         legendRows.push(row);
         row = [];
@@ -159,24 +183,45 @@ function pass(
       row.push(item);
     }
     if (row.length > 0) legendRows.push(row);
+    legendH =
+      legendRows.reduce((sum, r2) => sum + rowHeight(r2), 0) +
+      Math.max(0, legendRows.length - 1) * rowGap;
   }
-  const legendH =
-    legendRows.length === 0
-      ? 0
-      : legendRows.length * lh(sizeLabel) + (legendRows.length - 1) * rowGap;
 
-  // ---- y axes: widest tick label + gap + rotated title height ----------------------------------
-  const yWidths = model.yAxes.map((axis) => {
+  // ---- y axes: widest tick label + gap + rotated title columns ----------------------------------
+  const yTitleText = (axis: CartesianModel['yAxes'][number]): string =>
+    axis.label !== undefined
+      ? axis.unit !== undefined
+        ? `${axis.label} (${axis.unit})`
+        : axis.label
+      : axis.unit !== undefined
+        ? `(${axis.unit})`
+        : '';
+  const titleColumns = (axis: CartesianModel['yAxes'][number], span: number): string[] => {
+    const text = yTitleText(axis);
+    if (text === '') return [];
+    const cols = wrapWords(text, Math.max(1, span), measure, fLabel);
+    if (cols.length > MAX_Y_TITLE_COLUMNS) {
+      throw new DravenVizError(
+        'LAYOUT_ERROR',
+        `The y axis title for "${axis.id}" needs ${cols.length} columns along a plot height of ${Math.floor(span)} units, more than the maximum of ${MAX_Y_TITLE_COLUMNS}. Shorten the title or unit, or enlarge the chart.`,
+        { chartId: model.chartId },
+      );
+    }
+    return cols;
+  };
+  // The plot height is not known until the widths are; start from an upper bound and let
+  // `layoutChart` rerun with the real height when a title needed more columns than assumed.
+  const spanHint = plotHeightHint ?? height - 2 * sp.padding - tickGap - lh(sizeLabel);
+  const yCols = model.yAxes.map((axis) => titleColumns(axis, spanHint));
+  const yWidths = model.yAxes.map((axis, i) => {
     const tickW = Math.max(0, ...axis.ticks.map((t) => measure(t.label, fLabel).width));
-    const title =
-      axis.label !== undefined
-        ? axis.unit !== undefined
-          ? `${axis.label} (${axis.unit})`
-          : axis.label
-        : axis.unit !== undefined
-          ? `(${axis.unit})`
-          : '';
-    return tickW + tickGap + (title === '' ? 0 : tickGap + lh(sizeLabel));
+    const cols = yCols[i]!.length;
+    return tickW + tickGap + (cols === 0 ? 0 : tickGap + cols * lh(sizeLabel));
+  });
+  const yAxisTitles: Record<string, string[]> = {};
+  model.yAxes.forEach((a, i) => {
+    yAxisTitles[a.id] = yCols[i]!;
   });
   const sideTotal = (side: 'left' | 'right'): number =>
     model.yAxes.reduce((s, a, i) => s + (a.position === side ? yWidths[i]! : 0), 0);
@@ -304,7 +349,8 @@ function pass(
       rightCursor += w;
     }
   });
-  axes['x'] = box(plotX, plotBottom, plotW, xH);
+  const xAxisBox = box(plotX, plotBottom, plotW, xH);
+  axes[model.x.id] = xAxisBox;
 
   const staticLabels: StaticLabel[] = [];
   if (mode === 'static') {
@@ -340,10 +386,13 @@ function pass(
       legend: box(innerX, legendTop ? legendTopY : legendBottomY, innerW, legendH),
       plot: box(plotX, plotY, plotW, plotH),
       axes,
+      xAxis: xAxisBox,
       notes: box(innerX, notesY, innerW, notesH),
     },
     titleLines,
     legendRows,
+    legendLabels,
+    yAxisTitles,
     xTicks: plan.ticks.map((t) => ({
       ...t,
       x: r(t.x),
@@ -358,8 +407,8 @@ function pass(
         ? {}
         : { effectivePt: scaledEffectivePt(theme, width, printWidthMm, fontScale) }),
       xLabelStage: stage,
-      titleEllipsized,
     },
   };
-  return { chart, minX: plan.minX, maxX: plan.maxX };
+  const stable = model.yAxes.every((a, i) => titleColumns(a, plotH).length === yCols[i]!.length);
+  return { chart, minX: plan.minX, maxX: plan.maxX, plotH, stable };
 }

@@ -23,6 +23,8 @@ export interface TickModel {
 export type XScaleModel =
   | {
       type: 'category';
+      /** The spec's x axis id. */
+      id: string;
       keys: string[];
       labels: string[];
       /** Axis title, when the spec gives one. */
@@ -30,6 +32,7 @@ export type XScaleModel =
     }
   | {
       type: 'linear' | 'time';
+      id: string;
       domain: [number, number];
       ticks: TickModel[];
       label?: string;

@@ -78,23 +78,28 @@ export function labelQuad(
   width: number,
   height: number,
   rotate: 0 | -45,
+  inflate = 0,
 ): Point[] {
+  const d = inflate;
   if (rotate === 0) {
-    const l = x - width / 2;
+    const l = x - width / 2 - d;
+    const t = y - d;
+    const w = width + 2 * d;
+    const h = height + 2 * d;
     return [
-      { x: l, y },
-      { x: l + width, y },
-      { x: l + width, y: y + height },
-      { x: l, y: y + height },
+      { x: l, y: t },
+      { x: l + w, y: t },
+      { x: l + w, y: t + h },
+      { x: l, y: t + h },
     ];
   }
   const c = Math.SQRT1_2;
   const s = -Math.SQRT1_2;
   const local: Point[] = [
-    { x: -width, y: -height / 2 },
-    { x: 0, y: -height / 2 },
-    { x: 0, y: height / 2 },
-    { x: -width, y: height / 2 },
+    { x: -width - d, y: -height / 2 - d },
+    { x: d, y: -height / 2 - d },
+    { x: d, y: height / 2 + d },
+    { x: -width - d, y: height / 2 + d },
   ];
   return local.map((p) => ({ x: x + p.x * c - p.y * s, y: y + p.x * s + p.y * c }));
 }
@@ -266,7 +271,8 @@ function planCategory(x: Extract<XScaleModel, { type: 'category' }>, input: XPla
     width: measure(labelOf(k), font).width,
     height: lineHeight,
   }));
-  const quads = ticks.map((t) => labelQuad(t.x, t.y, t.width, t.height, -45));
+  // Inflate by half the label gap so kept labels keep `gap` of clear space between them.
+  const quads = ticks.map((t) => labelQuad(t.x, t.y, t.width, t.height, -45, gap / 2));
   const { n: step, keep } = thinIndices(quads);
   const kept = new Set(keep);
   ticks.forEach((t, i) => {

@@ -82,12 +82,18 @@ export interface LaidOutChart {
     title: Box;
     legend: Box;
     plot: Box;
-    /** One box per y axis id, plus `x` for the x axis. */
+    /** One box per axis id: every y axis and the x axis (under `model.x.id`). */
     axes: Record<string, Box>;
+    /** The x axis box (the same box as `axes[model.x.id]`). */
+    xAxis: Box;
     notes: Box;
   };
   titleLines: string[];
   legendRows: LegendItem[][];
+  /** Wrapped label lines per legend item id. */
+  legendLabels: Record<string, string[]>;
+  /** Rotated y axis title as columns (each at most the plot height long), per y axis id. */
+  yAxisTitles: Record<string, string[]>;
   xTicks: PlacedTick[];
   notes: NoteLine[];
   /** Static mode only; empty in interactive mode. */
@@ -97,7 +103,5 @@ export interface LaidOutChart {
     effectivePt?: { title: number; label: number; caption: number };
     /** Which stage of the x label policy was reached. */
     xLabelStage: XLabelStage;
-    /** True when the title needed more than 3 lines and its third line ends in an ellipsis. */
-    titleEllipsized: boolean;
   };
 }

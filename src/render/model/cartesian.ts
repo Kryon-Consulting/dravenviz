@@ -109,6 +109,7 @@ export function buildCartesianModel(
     const labels = xAxis.labels ? [...xAxis.labels] : [...xAxis.categories];
     x = {
       type: 'category',
+      id: xAxis.id,
       keys: [...xAxis.categories],
       labels,
       ...(xAxis.label !== undefined ? { label: xAxis.label } : {}),
@@ -132,6 +133,7 @@ export function buildCartesianModel(
     const t = timeTicks(min, max, timeKind, xAxis.tickFormat ?? 'auto', locale, timezone);
     x = {
       type: 'time',
+      id: xAxis.id,
       domain: [min, max],
       ticks: t.ticks,
       timeKind,
@@ -150,6 +152,7 @@ export function buildCartesianModel(
     });
     x = {
       type: 'linear',
+      id: xAxis.id,
       domain: vs.domain,
       ticks: toTicks(vs.tickValues, vs.format, locale),
       ...(xAxis.label !== undefined ? { label: xAxis.label } : {}),
