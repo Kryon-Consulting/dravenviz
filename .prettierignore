@@ -5,3 +5,7 @@ dist
 coverage
 test-results
 playwright-report
+spikes
+docs
+.superpowers
+pnpm-lock.yaml

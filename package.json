@@ -1,0 +1,108 @@
+{
+  "name": "@draven/viz",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./print": {
+      "types": "./dist/print/index.d.ts",
+      "import": "./dist/print/index.js"
+    },
+    "./browser": "./dist/dravenviz.browser.js",
+    "./styles.css": "./dist/dravenviz.css",
+    "./schema.json": "./schema/viz-spec-v1.schema.json",
+    "./asset-manifest.json": "./dist/asset-manifest.json",
+    "./fonts/*": "./assets/fonts/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "assets",
+    "README.md",
+    "CHANGELOG.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "sh -c 'echo \"not implemented until Task 15\" >&2; exit 1'",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . && prettier --check .",
+    "test": "vitest run",
+    "test:browser": "sh -c 'echo \"not implemented until Task 11\" >&2; exit 1'",
+    "check:drift": "sh -c 'echo \"not implemented until Task 4\" >&2; exit 1'",
+    "gen": "sh -c 'echo \"not implemented until Task 4\" >&2; exit 1'",
+    "test:pdf": "sh -c 'echo \"not implemented until Task 16\" >&2; exit 1'",
+    "test:package": "sh -c 'echo \"not implemented until Task 18\" >&2; exit 1'",
+    "pack:local": "sh -c 'echo \"not implemented until Task 15\" >&2; exit 1'",
+    "dev:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "build:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "preview:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "test:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "measure": "sh -c 'echo \"not implemented until Task 20\" >&2; exit 1'"
+  },
+  "dependencies": {
+    "recharts": "3.10.1"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0",
+    "react-is": "^18.3.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "react-is": {
+      "optional": true
+    }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.56.1",
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "ajv": "8.20.0",
+    "esbuild": "0.27.7",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
+    "json-schema-to-typescript": "16.0.0",
+    "pixelmatch": "7.2.0",
+    "pngjs": "7.0.0",
+    "prettier": "3.9.9",
+    "publint": "0.3.24",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-is": "19.3.0",
+    "tsup": "8.5.1",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "5.0.3"
+  }
+}
