@@ -61,9 +61,11 @@ export function Start(): ReactElement {
       <h2>First React chart</h2>
       <p>
         <code>validateSpec</code> checks the JSON and returns the typed spec; <code>Chart</code>{' '}
-        draws it. This is <code>examples/react/src/main.tsx</code>. The React example currently only
-        proves that its imports resolve from the packed tarball (module resolution); a runtime check
-        of the example arrives with the package tests, so do not read it as a runtime proof.
+        draws it. This is <code>examples/react/src/main.tsx</code>. Staging it proves that its
+        imports resolve from the packed tarball. <code>pnpm test:package</code> additionally installs
+        the tarball with <code>npm</code> into clean React 18.3.1 and React 19.3.0 apps (the same
+        chart, built with Vite) and checks in Chromium that the chart is ready and{' '}
+        <code>onReady</code> is called. The example file itself is not run by that test.
       </p>
       <CodeBlock id="react" label="examples/react/src/main.tsx" text={snippets.react} />
 

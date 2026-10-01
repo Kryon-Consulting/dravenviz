@@ -116,6 +116,11 @@ export default tseslint.config(
     files: ['examples/html/**/*.js'],
     languageOptions: { globals: { ...globals.browser } },
   },
+  // Clean-consumer apps (tests/package/run.ts): the React ones run in a browser, the core one in Node.
+  {
+    files: ['tests/consumers/**/*.{js,mjs}'],
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
+  },
   // The DravenPDF report bundle loads the browser bundle (global `DravenViz`) as a classic script.
   {
     files: ['examples/dravenpdf/**/*.js'],
