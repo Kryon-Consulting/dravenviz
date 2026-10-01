@@ -9,3 +9,11 @@ export {
 } from './validate/index';
 export { SCHEMA_VERSION, version } from './version';
 export * from './spec/index';
+export {
+  effectivePt,
+  resolveTheme,
+  themes,
+  type Theme,
+  type ThemeName,
+  type ThemeOverrides,
+} from './theme/index';
