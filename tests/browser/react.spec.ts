@@ -247,11 +247,154 @@ test('100 prop updates and unmount leave no roots or observers', async ({ page }
   await page.waitForTimeout(500);
   const during = await page.evaluate(() => window.__r.counts());
   expect(during.svgs).toBe(1);
-  expect(during.observers).toBeLessThanOrEqual(3);
+  expect(during.roots).toBe(1);
+  // Exactly one ResizeObserver for the fluid chart; the other is the style guard's MutationObserver.
+  expect(await page.evaluate(() => window.__r.resizeObservers())).toBe(1);
+  expect(during.observers).toBe(2);
   await page.evaluate(() => window.__r.unmount());
   expect(await page.evaluate(() => window.__r.counts())).toEqual({
     roots: 0,
     observers: 0,
     svgs: 0,
   });
+});
+
+const estimated = { fixture: 'line-estimated-monotone', theme: 'light', height: 300 } as const;
+
+/** Every clip-path url(#id) inside `host` resolves to an element inside the same host. */
+const clipRefsStayInside = (page: Page, index: number) =>
+  page.evaluate((i) => {
+    const el = document.querySelectorAll('.dravenviz-root')[i];
+    const refs = Array.from(el?.querySelectorAll('[clip-path]') ?? []).map(
+      (n) => /#([^)"]+)/.exec(n.getAttribute('clip-path') ?? '')?.[1],
+    );
+    return refs.every((id) => id !== undefined && el!.contains(document.getElementById(id)));
+  }, index);
+
+test('two roots with cold fonts both become ready, no error', async ({ page }) => {
+  await page.route(/\/fonts\/NotoSans-/, async (route) => {
+    await new Promise((r) => setTimeout(r, 300));
+    await route.continue();
+  });
+  await page.evaluate((e) => {
+    window.__r.mountExtra({ ...e, width: 600, identifierPrefix: 'a' });
+    window.__r.mountExtra({ ...e, width: 500, identifierPrefix: 'b' });
+  }, estimated);
+  await page.waitForFunction(() => {
+    const a = window.__r.extra(0);
+    const b = window.__r.extra(1);
+    return a.ready.length + a.errors.length > 0 && b.ready.length + b.errors.length > 0;
+  });
+  await page.waitForTimeout(500);
+  for (const i of [0, 1]) {
+    const x = await page.evaluate((n) => window.__r.extra(n), i);
+    expect(x.errors).toEqual([]);
+    expect(x.ready).toHaveLength(1);
+  }
+});
+
+test('roots with different identifierPrefix get distinct namespaces and keep their own clips', async ({
+  page,
+}) => {
+  await page.evaluate((e) => {
+    window.__r.mountExtra({ ...e, width: 600, identifierPrefix: 'a' });
+    window.__r.mountExtra({ ...e, width: 300, identifierPrefix: 'b' });
+  }, estimated);
+  await page.waitForFunction(
+    () => window.__r.extra(0).ready.length > 0 && window.__r.extra(1).ready.length > 0,
+  );
+  const a = await page.evaluate(() => window.__r.extra(0));
+  const b = await page.evaluate(() => window.__r.extra(1));
+  expect(a.ns).toMatch(/^dv-[a-z0-9]+$/);
+  expect(a.ns).not.toBe(b.ns);
+  expect(await clipRefsStayInside(page, 0)).toBe(true);
+  expect(await clipRefsStayInside(page, 1)).toBe(true);
+});
+
+test('two roots given the same namespace fail loudly, never silently', async ({ page }) => {
+  await page.evaluate((e) => {
+    // Client-created roots get distinct useIds, so the clash needs an explicit shared namespace.
+    window.__r.mountExtra({ ...e, width: 600, namespace: 'dup' });
+    window.__r.mountExtra({ ...e, width: 300, namespace: 'dup' });
+  }, estimated);
+  await page.waitForFunction(
+    () => window.__r.extra(0).ready.length + window.__r.extra(1).ready.length > 0,
+  );
+  await page.waitForFunction(
+    () => window.__r.extra(0).errors.length + window.__r.extra(1).errors.length > 0,
+  );
+  const x = await page.evaluate(() => [window.__r.extra(0), window.__r.extra(1)]);
+  const errored = x.filter((e) => e.errors.length > 0);
+  expect(errored).toHaveLength(1);
+  expect(errored[0]!.errors[0]!.code).toBe('INVALID_OPTIONS');
+  expect(errored[0]!.errors[0]!.message).toMatch(/namespace|identifierPrefix/);
+  await expect(page.locator('[role="alert"].dravenviz-error')).toHaveCount(1);
+});
+
+test('hydrated islands plus a client root never render silently with shared ids', async ({
+  page,
+}) => {
+  await page.evaluate((e) => {
+    window.__r.mountExtra({ ...e, width: 600, hydrate: true });
+    window.__r.mountExtra({ ...e, width: 500, hydrate: true });
+    window.__r.mountExtra({ ...e, width: 400 });
+  }, estimated);
+  await page.waitForFunction(() =>
+    [0, 1, 2].every((i) => {
+      const x = window.__r.extra(i);
+      return x.ready.length + x.errors.length > 0;
+    }),
+  );
+  await page.waitForTimeout(500);
+  const x = await page.evaluate(() => [0, 1, 2].map((i) => window.__r.extra(i)));
+  const readyNs = x.filter((e) => e.ready.length > 0).map((e) => e.ns);
+  expect(new Set(readyNs).size).toBe(readyNs.length); // ready charts never share a namespace
+  for (const e of x) if (e.ready.length === 0) expect(e.errors[0]!.code).toBe('INVALID_OPTIONS');
+  const ids = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('svg [id]')).map((e) => e.id),
+  );
+  expect(new Set(ids).size).toBe(ids.length);
+  for (let i = 0; i < 3; i++) {
+    if (x[i]!.ready.length > 0) expect(await clipRefsStayInside(page, i)).toBe(true);
+  }
+});
+
+test('"100%" in a zero-width container gives ZERO_SIZE and recovers when resized', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    window.__r.setHostWidth(0);
+    window.__r.render({ fixture: 'line-weekly-flow', theme: 'light', width: '100%', height: 320 });
+  });
+  await page.waitForFunction(() => window.__r.errorCalls.length > 0);
+  expect(await page.evaluate(() => window.__r.errorCalls.map((e) => e.code))).toEqual([
+    'ZERO_SIZE',
+  ]);
+  await expect(page.locator('[role="alert"].dravenviz-error')).toContainText('ZERO_SIZE');
+  expect(await page.evaluate(() => window.__r.readyCalls.length)).toBe(0);
+  await page.evaluate(() => window.__r.setHostWidth(450));
+  await page.waitForFunction(() => window.__r.readyCalls.at(-1)?.width === 450);
+  await expect(page.locator('[role="alert"]')).toHaveCount(0);
+});
+
+test('a numeric width in a display:none host gives ZERO_SIZE and no onReady; re-render recovers', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    window.__r.setHostDisplay('none');
+    window.__r.render({ fixture: 'line-weekly-flow', theme: 'light', width: 600, height: 320 });
+  });
+  await page.waitForFunction(() => window.__r.errorCalls.length > 0);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__r.errorCalls.map((e) => e.code))).toEqual([
+    'ZERO_SIZE',
+  ]);
+  expect(await page.evaluate(() => window.__r.readyCalls.length)).toBe(0);
+  // A fixed width observes nothing: the caller re-renders once the host is shown.
+  await page.evaluate(() => {
+    window.__r.setHostDisplay('');
+    window.__r.render({ fixture: 'line-weekly-flow', theme: 'light', width: 600, height: 321 });
+  });
+  await ready(page);
+  expect((await page.evaluate(() => window.__r.readyCalls))[0]!.height).toBe(321);
 });

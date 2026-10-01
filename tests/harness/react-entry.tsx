@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 import { liveObserverCount, liveResizeObserverCount } from './observers';
 import { createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { InvalidSpecError } from '../../src/core/index';
 import { Chart, type ChartProps, type DatumEvent, type ReadyInfo } from '../../src/react/index';
 
@@ -32,6 +33,13 @@ interface ErrorLog {
   isSameInstanceAsLast?: boolean;
 }
 
+interface ExtraLog {
+  ready: ReadyInfo[];
+  errors: ErrorLog[];
+  root: Root | null;
+  host: HTMLElement;
+}
+const extras: ExtraLog[] = [];
 const specs = new Map<string, unknown>();
 
 function specFor(p: HarnessProps): unknown {
@@ -88,9 +96,68 @@ const harness = {
   },
   /** True when the last onError argument is the very `InvalidSpecError` validation threw. */
   lastErrorIsInvalidSpec: (): boolean => lastError instanceof InvalidSpecError,
+  /**
+   * An additional, independent React root with its own <Chart>. `hydrate` first renders the chart
+   * to a string on the "server" (react-dom/server) and hydrates that markup, like an SSR island.
+   * Returns the root's index for `extra(i)`.
+   */
+  mountExtra(
+    props: HarnessProps & { identifierPrefix?: string; hydrate?: boolean; hostWidth?: number },
+  ): number {
+    const { identifierPrefix, hydrate, hostWidth, ...chartProps } = props;
+    const { fixture: _f, spec: _s, specKey: _k, freshSpec: _x, ...rest } = chartProps;
+    void [_f, _s, _k, _x];
+    const log: ExtraLog = {
+      ready: [],
+      errors: [],
+      root: null,
+      host: document.createElement('div'),
+    };
+    log.host.style.width = `${hostWidth ?? 600}px`;
+    document.body.appendChild(log.host);
+    const element = (): ReturnType<typeof createElement> =>
+      createElement(Chart, {
+        ...rest,
+        spec: specFor(chartProps),
+        onReady: (i) => log.ready.push(i),
+        onError: (e) => log.errors.push({ code: e.code, message: e.message }),
+      } as ChartProps);
+    const options = identifierPrefix === undefined ? {} : { identifierPrefix };
+    if (hydrate === true) {
+      const markup = new DOMParser().parseFromString(
+        renderToString(element(), options),
+        'text/html',
+      );
+      log.host.replaceChildren(...Array.from(markup.body.childNodes));
+      log.root = hydrateRoot(log.host, element(), options);
+    } else {
+      log.root = createRoot(log.host, options);
+      log.root.render(element());
+    }
+    extras.push(log);
+    return extras.length - 1;
+  },
+  extra(i: number): { ready: ReadyInfo[]; errors: ErrorLog[]; ns: string | null } {
+    const e = extras[i] as ExtraLog;
+    return {
+      ready: e.ready,
+      errors: e.errors,
+      ns: e.host.querySelector('.dravenviz-root')?.getAttribute('data-dravenviz-ns') ?? null,
+    };
+  },
+  unmountExtras(): void {
+    for (const e of extras.splice(0)) {
+      e.root?.unmount();
+      e.host.remove();
+    }
+  },
+  setHostDisplay(display: string): void {
+    host.style.display = display;
+  },
   counts(): { roots: number; observers: number; svgs: number } {
     return {
-      roots: root === null ? 0 : 1,
+      // Mounted <Chart> roots: one `.dravenviz-root` per chart owned by an adapter instance.
+      roots: document.querySelectorAll('.dravenviz-root').length,
       observers: liveObserverCount(),
       svgs: document.querySelectorAll('svg[data-dravenviz-chart]').length,
     };

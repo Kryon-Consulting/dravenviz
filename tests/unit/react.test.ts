@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { validateSpec } from '../../src/core/index';
-import { sanitizeNamespace } from '../../src/react/Chart';
+import { defaultNamespace } from '../../src/react/Chart';
 import { Chart, DataTable } from '../../src/react/index';
 import {
   announcement,
@@ -17,11 +17,13 @@ import { resolveTheme } from '../../src/core/index';
 
 const spec = validateSpec(structuredClone(fixture));
 
-test('namespaces from useId are valid, prefixed dv, and clamped', () => {
-  const ns = ['«r0»', ':r1:', '_r_2_', '«R3»', '«r' + 'x'.repeat(60) + '»'].map(sanitizeNamespace);
+test('default namespaces are valid, deterministic, and distinguish ids that differ only by case', () => {
+  const ids = ['_R_0_', '_r_0_', '_R_1_', '«r0»', ':r1:', '_a_r_0_', 'x'.repeat(200), ''];
+  const ns = ids.map(defaultNamespace);
   for (const n of ns) expect(n).toMatch(/^[a-z][a-z0-9-]{0,31}$/);
-  expect(ns[0]!.startsWith('dv')).toBe(true);
-  expect(new Set(ns.slice(0, 4)).size).toBe(4);
+  expect(ns.every((n) => n.startsWith('dv-'))).toBe(true);
+  expect(new Set(ns).size).toBe(ids.length);
+  expect(ids.map(defaultNamespace)).toEqual(ns);
 });
 
 test('Chart renders only a placeholder root on the server (SSR-safe, no DOM access)', () => {

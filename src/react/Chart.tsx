@@ -12,6 +12,7 @@ import {
   type PointerEvent,
   type ReactElement,
 } from 'react';
+import { DUPLICATE_CHART_EMBEDDING } from '../core/validate/index';
 import {
   DravenVizError,
   resolveTheme,
@@ -57,7 +58,11 @@ export interface ChartProps {
   spec: VizSpec | unknown;
   theme?: ThemeName | Theme;
   themeOverrides?: ThemeOverrides;
-  /** A number of logical px, or `"100%"` (default) to follow the container's width. */
+  /**
+   * A number of logical px, or `"100%"` (default) to follow the container's width. `"100%"` recovers
+   * by itself from a hidden or zero-width container (the observer sees the change). A numeric width
+   * creates no observer: after a ZERO_SIZE error because the host was hidden, re-render once it is shown.
+   */
   width?: number | '100%';
   height: number;
   /** Default: the sanitized React `useId()`, unique per instance and stable across SSR. */
@@ -74,12 +79,30 @@ export interface ChartProps {
   className?: string;
 }
 
-/** `useId()` output made into a valid namespace: `dv` plus the id with every other character a dash. */
-export function sanitizeNamespace(id: string): string {
-  const body = id.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-  // Keep the tail: it is the part of the id that differs between instances.
-  return `dv${body}`.slice(-32).replace(/^[^a-z]+/, 'dv-');
+/**
+ * The default namespace: `dv-` plus a short FNV-1a hash of the case-preserved `useId()` value.
+ * React's client (`_r_..._`) and server/hydration (`_R_..._`) ids differ only by case, so the id is
+ * hashed rather than lowercased. Deterministic across SSR and hydration, and always matches
+ * `^[a-z][a-z0-9-]{0,31}$`.
+ */
+export function defaultNamespace(id: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `dv-${h.toString(36).padStart(7, '0')}`;
 }
+
+/**
+ * Embeddings that are mounting or mounted, keyed by namespace and chart id, so two charts that
+ * start at the same moment (before either has a DOM) cannot both claim the same ids.
+ */
+const claimed = new Map<string, symbol>();
+const claimKey = (ns: string, chartId: string): string => `${ns}\u0000${chartId}`;
+
+// `useLayoutEffect` warns when rendered on the server in React 18; the effect only matters in a browser.
+const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 const NAMESPACE = /^[a-z][a-z0-9-]{0,31}$/;
 const HOVER_RADIUS = 20;
@@ -135,8 +158,11 @@ export function Chart(props: ChartProps): ReactElement {
   const { spec, height, className } = props;
   const widthProp = props.width ?? '100%';
   const reactId = useId();
-  const namespace = props.namespace ?? sanitizeNamespace(reactId);
+  const namespace = props.namespace ?? defaultNamespace(reactId);
   const rootRef = useRef<HTMLDivElement>(null);
+  const owner = useRef(Symbol('dravenviz-chart'));
+  /** Resolvers waiting for the commit of a given renderId. */
+  const commits = useRef(new Map<number, () => void>());
   const [view, setView] = useState<View>({ kind: 'idle' });
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [focusKey, setFocusKey] = useState<FocusKey | null>(null);
@@ -144,7 +170,7 @@ export function Chart(props: ChartProps): ReactElement {
 
   // Callbacks are read at call time, so a new function identity never restarts a render.
   const callbacks = useRef(props);
-  useLayoutEffect(() => {
+  useIsoLayoutEffect(() => {
     callbacks.current = props;
   });
 
@@ -170,6 +196,12 @@ export function Chart(props: ChartProps): ReactElement {
     };
   }, [fluid]);
 
+  // Tells the render waiting on a renderId that React has committed it.
+  useIsoLayoutEffect(() => {
+    if (view.kind !== 'chart') return;
+    commits.current.get(view.renderId)?.();
+  }, [view]);
+
   const width = fluid ? measured : widthProp;
   const themeKey = typeof props.theme === 'string' ? props.theme : keyOf(props.theme);
   const overridesKey = keyOf(props.themeOverrides);
@@ -183,17 +215,21 @@ export function Chart(props: ChartProps): ReactElement {
     const stale = (): boolean => ac.signal.aborted;
     let reportedId = 0;
     let chartId: string | undefined;
+    let claimedKey: string | undefined;
 
     const fail = (e: unknown): void => {
       if (stale() || reportedId === renderId) return;
       reportedId = renderId;
+      if (claimedKey !== undefined && claimed.get(claimedKey) === owner.current) {
+        claimed.delete(claimedKey);
+      }
       const error = asDravenVizError(e, chartId);
       setView({ kind: 'error', error });
       callbacks.current.onError?.(error);
     };
 
     const run = async (): Promise<void> => {
-      if (!positive(height) || (typeof width === 'number' && !positive(width))) {
+      if (!positive(height) || (typeof width === 'number' && !fluid && !positive(width))) {
         throw new DravenVizError(
           'INVALID_OPTIONS',
           'width and height must be positive finite numbers.',
@@ -209,18 +245,39 @@ export function Chart(props: ChartProps): ReactElement {
           },
         );
       }
-      if (width < 1) {
-        throw new DravenVizError(
-          'ZERO_SIZE',
-          'The chart container has no width (hidden, collapsed or not rendered).',
-        );
-      }
       const theme = resolveTheme(
         callbacks.current.theme ?? 'light',
         callbacks.current.themeOverrides,
       );
       const validated = validateSpec(spec);
       chartId = validated.id;
+      const root = rootRef.current;
+      // A measured "100%" width below 1, or a host that is not rendered (display: none, detached).
+      if (width < 1 || root === null || !root.isConnected || root.getClientRects().length === 0) {
+        throw new DravenVizError(
+          'ZERO_SIZE',
+          'The chart container has no size (hidden, collapsed or not rendered).',
+          { chartId: validated.id },
+        );
+      }
+      // Never render with ids another embedding already uses (silent clip-path cross-references).
+      const key = claimKey(namespace, validated.id);
+      const holder = claimed.get(key);
+      const inDocument = Array.from(
+        root.ownerDocument.querySelectorAll(
+          `[data-dravenviz-ns="${namespace}"][data-dravenviz-chart="${validated.id.replace(/["\\]/g, '\\$&')}"]`,
+        ),
+      ).some((el) => el !== root && !root.contains(el));
+      if ((holder !== undefined && holder !== owner.current) || inDocument) {
+        const message = `Chart "${validated.id}" is already embedded with namespace "${namespace}" in this document. Give each instance a distinct "namespace" prop, or set a distinct React identifierPrefix per root.`;
+        throw new DravenVizError('INVALID_OPTIONS', message, {
+          chartId: validated.id,
+          path: '/namespace',
+          issues: [{ rule: DUPLICATE_CHART_EMBEDDING, path: '/namespace', message }],
+        });
+      }
+      claimed.set(key, owner.current);
+      claimedKey = key;
       const assets = callbacks.current.fonts ?? defaultFontAssets(assetBaseUrl);
       const fonts = await loadFonts(assets, ac.signal);
       if (stale()) return;
@@ -237,20 +294,31 @@ export function Chart(props: ChartProps): ReactElement {
         measure,
       });
       if (stale()) return;
+      // Wait for React to commit this renderId (it may be later than two frames when several
+      // roots render at once), then for two frames: Recharts settles its hook state after commit.
+      const committed = new Promise<void>((resolve) => {
+        commits.current.set(renderId, resolve);
+        ac.signal.addEventListener('abort', () => resolve(), { once: true });
+      });
       setView({ kind: 'chart', laid, renderId, theme, fontFamily, measure });
-      // Two animation frames: Recharts settles its hook state after the first commit.
+      await committed;
+      commits.current.delete(renderId);
       await nextFrame(ac.signal);
       await nextFrame(ac.signal);
       if (stale() || reportedId === renderId) return;
-      const root = rootRef.current;
-      if (root === null) return;
       const info = verifyAndReport(root, laid, renderId, width, height);
       if (stale()) return;
       callbacks.current.onReady?.(info);
     };
 
     run().catch(fail);
-    return () => ac.abort();
+    return () => {
+      ac.abort();
+      commits.current.delete(renderId);
+      if (claimedKey !== undefined && claimed.get(claimedKey) === owner.current) {
+        claimed.delete(claimedKey);
+      }
+    };
     // `props.theme`, `themeOverrides` and `fonts` enter through their stable keys.
   }, [
     spec,
