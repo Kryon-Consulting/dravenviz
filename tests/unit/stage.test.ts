@@ -3,14 +3,17 @@ import { createHash } from 'node:crypto';
 import {
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   realpathSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { beforeAll, describe, expect, test } from 'vitest';
+import { checkResolution } from '../../scripts/stage-consumer';
 
 // Needs `pnpm build && pnpm pack:local` first. `pnpm stage react` installs from the registry.
 const ROOT = process.cwd();
@@ -106,5 +109,39 @@ describe('pnpm stage react', () => {
   test('installed.json records one react, react-dom and react-is of the same major.minor', () => {
     const installed = JSON.parse(readFileSync(join(STAGE, 'installed.json'), 'utf8')) as unknown;
     expect(JSON.stringify(installed)).toContain('"@draven/viz"');
+  });
+});
+
+describe('checkResolution', () => {
+  const fake = (entries: { source: string; real: string }[]): string => {
+    const dir = mkdtempSync(join(tmpdir(), 'dv-fake-stage-'));
+    mkdirSync(join(dir, 'node_modules'));
+    writeFileSync(join(dir, 'resolution.json'), JSON.stringify({ entries }));
+    return dir;
+  };
+
+  test('rejects a watched package resolved outside the stage node_modules', () => {
+    const dir = fake([{ source: 'react', real: '/repo/node_modules/react/index.js' }]);
+    expect(() => checkResolution(dir)).toThrow(/outside/);
+  });
+
+  test('rejects react resolving to two real paths inside the stage', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dv-fake-stage-'));
+    mkdirSync(join(root, 'node_modules'));
+    const nm = join(realpathSync(root), 'node_modules');
+    writeFileSync(
+      join(root, 'resolution.json'),
+      JSON.stringify({
+        entries: [
+          { source: 'react', real: join(nm, 'a', 'node_modules', 'react', 'index.js') },
+          {
+            source: 'react/jsx-runtime',
+            real: join(nm, 'b', 'node_modules', 'react', 'jsx-runtime.js'),
+          },
+          { source: 'react-is', real: join(nm, 'react-is', 'index.js') },
+        ],
+      }),
+    );
+    expect(() => checkResolution(root)).toThrow(/more than one real path/);
   });
 });
