@@ -23,7 +23,7 @@
   "rasterDpi": 150,
   "package": {
     "tarball": "draven-viz-0.1.0.tgz",
-    "sha256": "fbafc496573e7362139df8d07df4efa9ae22d9766bdbae122021ca7581b96a2d",
+    "sha256": "0a02de0950bb18c4c785285dd37c92f62214d99c0cb8f6e38ca7b257e8925ea4",
     "version": "0.1.0"
   },
   "fonts": [
@@ -42,8 +42,8 @@
   ],
   "pdf": {
     "file": "report-slice1.pdf",
-    "bytes": 84748,
-    "sha256": "88fc42cf987d81ba9ce40ce57cc2758a34bda9b1af733fc5e2fd70a9f81b9002",
+    "bytes": 75970,
+    "sha256": "20291c811186ee37e67cff0066efed4481f504fa22c89652fc38fe3480ff95a8",
     "pages": 6,
     "pageSizePt": [
       594.96,
@@ -70,6 +70,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "6209d191be25006eba76777f85507c260a7ce665af9842d4e592ee35577dde54",
+      "identity": {
+        "residualPt": 0.375,
+        "runnerUpPt": 355.1
+      },
       "mismatchRatio": 0.0026276081461619047
     },
     {
@@ -91,6 +95,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "2cd8acf1edf433c566eb12ee72396dd5c5009ea9ae6bcbafc3c3d0c700981018",
+      "identity": {
+        "residualPt": 0.375,
+        "runnerUpPt": 354.4
+      },
       "mismatchRatio": 0.002632927190992192
     },
     {
@@ -112,6 +120,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "dc8123ead4ba7937c005d4592f50ceea0eb87d9cf44a427be7df52f73927934a",
+      "identity": {
+        "residualPt": 0.716,
+        "runnerUpPt": null
+      },
       "mismatchRatio": 0.002527655239358379
     },
     {
@@ -133,6 +145,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "04143e5bf7235f6818d4bcd11e3442751074cf13de4a3fb70f60accedd1ae34a",
+      "identity": {
+        "residualPt": 0.38,
+        "runnerUpPt": 342.4
+      },
       "mismatchRatio": 0.0005343636171419235
     },
     {
@@ -154,6 +170,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "93be3964111422c6301f71b38e12e4da40c67d165352f3843d50aedd76ede480",
+      "identity": {
+        "residualPt": 0.476,
+        "runnerUpPt": 342.4
+      },
       "mismatchRatio": 0.0005951532567787764
     },
     {
@@ -175,6 +195,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "a64fa4d757abe726a4bb6d224305ac9d0aa23d77c56c74b56b57f6a4359fcda0",
+      "identity": {
+        "residualPt": 0.419,
+        "runnerUpPt": 342.6
+      },
       "mismatchRatio": 0.0006631490932156965
     },
     {
@@ -196,6 +220,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "9df8d50955c4330d8f143742db27cad45b709aceb0377a9d25b93a8248edfd05",
+      "identity": {
+        "residualPt": 0.666,
+        "runnerUpPt": 342.6
+      },
       "mismatchRatio": 0.002295866285049519
     },
     {
@@ -217,6 +245,10 @@
       ],
       "method": "link-dest",
       "cropSha256": "739610fa52cacad0403de1481bfe337ad786b443a99c1d742c759fc83c143f87",
+      "identity": {
+        "residualPt": 0.387,
+        "runnerUpPt": null
+      },
       "mismatchRatio": 0.0018375957481571183
     }
   ],
@@ -255,130 +287,155 @@
   },
   "checks": [
     {
-      "name": "control: the intact bundle renders within 8000 ms",
+      "name": "control: the intact bundle renders within 8000 ms (http)",
       "status": "pass",
-      "detail": "1.4 s"
+      "detail": "2.2 s",
+      "attempts": 1
     },
     {
-      "name": "missing font fails the PDF render (504 render_timeout, no PDF written)",
+      "name": "missing font fails the PDF render (504 render_timeout, no PDF returned) (http)",
       "status": "pass",
-      "detail": "HTTP 504 render_timeout: render did not finish within 8000 ms"
+      "detail": "HTTP 504 render_timeout: render did not finish within 8000 ms",
+      "attempts": 1
     },
     {
       "name": "missing font: bootstrap throws and never sets the ready flag",
       "status": "pass",
-      "detail": "ready=False, 1 page error(s): Could not load font http://127.0.0.1:42115/fonts/NotoSans-Regular.woff2: HTTP 404.; 404s ['404 /fonts/NotoSans-Regular.woff2', '404 /fonts/NotoSans-Regular.woff2']"
+      "detail": "ready=False, 1 page error(s): Could not load font http://127.0.0.1:39597/fonts/NotoSans-Regular.woff2: HTTP 404.; 404s ['404 /fonts/NotoSans-Regular.woff2', '404 /fonts/NotoSans-Regular.woff2']",
+      "attempts": null
     },
     {
-      "name": "missing stylesheet fails strict resource checking (422 render_incomplete)",
+      "name": "missing stylesheet fails strict resource checking (422 render_incomplete) (http)",
       "status": "pass",
-      "detail": "HTTP 422 render_incomplete"
+      "detail": "HTTP 422 render_incomplete: render incomplete: 1 resource(s) failed to load: https://bundle.dravenpdf.invalid/dravenviz.css returned HTTP 404",
+      "attempts": 1
     },
     {
       "name": "the PDF is A4 (595 x 842 pt +-1) with at least 1 page",
       "status": "pass",
-      "detail": "6 pages, 595.0 x 841.9 pt, 84748 bytes, path http"
+      "detail": "6 pages, 595.0 x 841.9 pt, 75970 bytes, path http",
+      "attempts": null
     },
     {
       "name": "every report instance has exactly one frame (link-dest)",
       "status": "pass",
-      "detail": ""
+      "detail": "",
+      "attempts": null
     },
     {
       "name": "each frame is 178 mm wide (+-0.5 mm) at aspect 680:320 (+-0.5 %)",
       "status": "pass",
-      "detail": "8 frames"
+      "detail": "8 frames",
+      "attempts": null
     },
     {
       "name": "title \"Items opened and closed\" appears 4 times (SVG title + table caption per instance)",
       "status": "pass",
-      "detail": "4 found, 2 instance(s) x 2 expected"
+      "detail": "4 found, 2 instance(s) x 2 expected",
+      "attempts": null
     },
     {
       "name": "title \"Open items over 90 days\" appears 2 times (SVG title + table caption per instance)",
       "status": "pass",
-      "detail": "2 found, 1 instance(s) x 2 expected"
+      "detail": "2 found, 1 instance(s) x 2 expected",
+      "attempts": null
     },
     {
       "name": "title \"Single measurement\" appears 2 times (SVG title + table caption per instance)",
       "status": "pass",
-      "detail": "2 found, 1 instance(s) x 2 expected"
+      "detail": "2 found, 1 instance(s) x 2 expected",
+      "attempts": null
     },
     {
       "name": "title \"Measured zero\" appears 2 times (SVG title + table caption per instance)",
       "status": "pass",
-      "detail": "2 found, 1 instance(s) x 2 expected"
+      "detail": "2 found, 1 instance(s) x 2 expected",
+      "attempts": null
     },
     {
       "name": "title \"No measurements\" appears 2 times (SVG title + table caption per instance)",
       "status": "pass",
-      "detail": "2 found, 1 instance(s) x 2 expected"
+      "detail": "2 found, 1 instance(s) x 2 expected",
+      "attempts": null
     },
     {
       "name": "title \"Coverage with clipped values\" appears 2 times (SVG title + table caption per instance)",
       "status": "pass",
-      "detail": "2 found, 1 instance(s) x 2 expected"
+      "detail": "2 found, 1 instance(s) x 2 expected",
+      "attempts": null
     },
     {
       "name": "title \"Forecast against actual\" appears 2 times (SVG title + table caption per instance)",
       "status": "pass",
-      "detail": "2 found, 1 instance(s) x 2 expected"
+      "detail": "2 found, 1 instance(s) x 2 expected",
+      "attempts": null
     },
     {
       "name": "text \"Partial week\" is present and inside a frame or table",
       "status": "pass",
-      "detail": "6 found"
+      "detail": "6 found",
+      "attempts": null
     },
     {
       "name": "text \"Target\" is present and inside a frame or table",
       "status": "pass",
-      "detail": "2 found"
+      "detail": "2 found",
+      "attempts": null
     },
     {
       "name": "text \"Not measured\" is present and inside a frame or table",
       "status": "pass",
-      "detail": "11 found"
+      "detail": "11 found",
+      "attempts": null
     },
     {
       "name": "text \"Collection paused\" is present and inside a frame or table",
       "status": "pass",
-      "detail": "4 found"
+      "detail": "4 found",
+      "attempts": null
     },
     {
-      "name": "chart crops match the browser render (pixelmatch threshold 0.1, ratio <= 0.5 %)",
+      "name": "chart crops match the browser render (pixelmatch threshold 0.1, ratio <= 0.363 %)",
       "status": "pass",
-      "detail": "worst wf-b 0.263 %"
+      "detail": "worst wf-b 0.263 %",
+      "attempts": null
     },
     {
       "name": "chart text is set in the embedded bundled font (Noto Sans), not a fallback",
       "status": "pass",
-      "detail": "CAAAAA+NotoSans-Regular, DAAAAA+NotoSans-SemiBold"
+      "detail": "AAAAAA+NotoSans-SemiBold, BAAAAA+NotoSans-Regular",
+      "attempts": null
     },
     {
       "name": "PDF text objects map one-to-one onto the browser label manifest",
       "status": "pass",
-      "detail": "114 labels in 8 frames"
+      "detail": "114 labels in 8 frames",
+      "attempts": null
     },
     {
       "name": "effective font size per role within the print limits",
       "status": "pass",
-      "detail": "annotation 9.64-9.64, axis-title 9.64-9.64, legend 9.64-9.64, note 8.16-8.16, reference 9.64-9.64, tick 9.64-9.64, title 12.61-12.61"
+      "detail": "annotation 9.64-9.64, axis-title 9.64-9.64, legend 9.64-9.64, note 8.16-8.16, reference 9.64-9.64, tick 9.64-9.64, title 12.61-12.61",
+      "attempts": null
     },
     {
       "name": "effective font size agrees with ReadyInfo.effectivePt (+-0.15 pt)",
       "status": "pass",
-      "detail": "all roles"
+      "detail": "all roles",
+      "attempts": null
     },
     {
       "name": "no label region leaves its frame or the printable area",
       "status": "pass",
-      "detail": "oriented quads inside"
+      "detail": "oriented quads inside",
+      "attempts": null
     },
     {
       "name": "no two labels overlap (oriented quads, <= 0.25 pt2)",
       "status": "pass",
-      "detail": "largest overlap 0.000 pt2"
+      "detail": "largest overlap 0.000 pt2",
+      "attempts": null
     }
   ],
-  "seconds": 27.1
+  "seconds": 33.9
 }

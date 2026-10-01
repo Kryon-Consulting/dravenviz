@@ -30,6 +30,11 @@ Exit codes:
 | 3    | a prerequisite is missing: prints `UNVERIFIED: <reason>` (uv, Python 3.12 or Chromium)                                 |
 | 4    | everything that could run passed, but part of the evidence could not be proven (prints `UNVERIFIED:`; no frame method) |
 
+Exit 4 is the "method none" branch (controller ruling R2): when the probe results name
+`Chosen method: none`, the driver cannot locate frames, so the crop comparison, the label
+manifest, font-size and geometry checks are reported as `unverified` (not skipped silently) and the
+run ends with 4. A `fail` always wins over `unverified` (exit 1), and neither is ever a `PASS`.
+
 `UNVERIFIED` is never a pass. Set `PW_CHROMIUM_PATH` to use another Chromium (default
 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`). The comparison needs Chromium 141 (the
 revision pinned Playwright installs, 1194).
@@ -60,9 +65,10 @@ DravenPDF Python library (`Renderer.from_html(html, options, assets=...)`).
   renders each equivalent data table with `DravenViz.renderDataTable`, then sets
   `window.__DRAVENPDF_READY__ = true`. A rejection is left uncaught (a page error) and the flag is
   never set. The flag belongs to this integration, not to the renderer.
-- DravenViz draws 680 x 320 logical units. `report.css` scales the chart to the 178 mm frame: the
-  Recharts wrapper carries inline pixel sizes, so the override uses `!important` and a fixed aspect
-  ratio. Without it the page overflows and Chromium shrinks the whole page to fit.
+- DravenViz draws 680 x 320 logical units. `bootstrap.js` passes `fit: 'width'`, which scales each
+  chart to its container's width (here the 178 mm frame) with the aspect ratio kept; the logical
+  layout and the SVG `viewBox` do not change. The rules live in `dravenviz.css`
+  (`.dravenviz-root[data-dv-fit="width"]`), so the report stylesheet needs no renderer class names.
 - Instrumentation for the PDF checks lives only here (never in the library): every chart is wrapped
   in `<a class="dv-frame" href="#dvt-<ns>">`, whose box is exactly the SVG, each data-table caption
   ends with a 1 pt `DVT<ns>` token (the link target), and each frame holds two 1 pt corner tokens
@@ -85,6 +91,21 @@ pnpm pack:local && cd examples/dravenpdf && uv run python probe_frames.py
 - Chromium writes a named destination shifted by the page margin; the probe measures the shift and
   the driver applies it only to identify which instance a link belongs to. The frame rectangle is
   the link rectangle itself.
+- Negative checks run through the same path as the report. Over HTTP a missing font is
+  `504 render_timeout` and a missing stylesheet `422 render_incomplete`. If `dravenpdf serve` cannot
+  start, the report and the same negative checks go through the Python API (`path: "library"`):
+  `RenderTimeoutError` and `IncompleteRenderError`. A run never reports `PASS` without them.
+- Retry rule for those renders: a render that returns a PDF where it must fail fails the check at
+  once; otherwise at most one retry, and only after a different error code than expected. The
+  attempt count of every DravenPDF check is in `report-slice1.json`.
+- DravenPDF checks page errors only after the ready-flag wait and does not log them when that wait
+  times out, so the server log cannot show the missing-font page error. The driver proves it in a
+  browser instead (the bootstrap throws, the flag is never set).
+- The driver's retry and fallback logic has unit tests (`test_driver.py`, no Chromium), run first by
+  `pnpm test:pdf`, or alone: `uv run --project examples/dravenpdf python -m unittest discover -s examples/dravenpdf -p 'test_*.py'`.
+- Link identity (ruling R35): a link is tied to its instance through the measured constant page-margin
+  offset between destination and token. `report-slice1.json` records, per instance, the residual
+  (`identity.residualPt`) and the next-nearest token (`identity.runnerUpPt`).
 - The strict options (`fail_on_resource_errors`, `fail_on_page_errors`) fail a render whose page
   threw only when the page still sets the ready flag. A page that never sets it (the font-404 case)
   ends in `504 render_timeout`, which is what `test:pdf` asserts for a missing font.

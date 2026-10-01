@@ -135,7 +135,7 @@ function pass(
   rightExtra: number,
   plotHeightHint: number | undefined,
 ): Pass {
-  const { width, height, theme, mode, printWidthMm } = opts;
+  const { width, height, theme, printWidthMm } = opts;
   const sp = theme.spacing;
   const tickGap = sp.titleGap / 2;
   const rowGap = sp.legendGap / 3;
@@ -374,27 +374,27 @@ function pass(
   const xAxisBox = box(plotX, plotBottom, plotW, xH);
   axes[model.x.id] = xAxisBox;
 
+  // Annotation and reference-line labels are always drawn, in every mode, so their text is
+  // measured and reserved here. `mode` only governs point labels (design section 5.2).
   const staticLabels: StaticLabel[] = [];
-  if (mode === 'static') {
-    for (const a of model.annotations) {
-      staticLabels.push({
-        kind: 'annotation',
-        id: a.id,
-        text: a.label,
-        width: r(measure(a.label, fLabel).width),
-        height: r(lh(sizeLabel)),
-      });
-    }
-    for (const ref of model.referenceLines) {
-      if (ref.label === undefined) continue;
-      staticLabels.push({
-        kind: 'reference',
-        id: ref.id,
-        text: ref.label,
-        width: r(measure(ref.label, fLabel).width),
-        height: r(lh(sizeLabel)),
-      });
-    }
+  for (const a of model.annotations) {
+    staticLabels.push({
+      kind: 'annotation',
+      id: a.id,
+      text: a.label,
+      width: r(measure(a.label, fLabel).width),
+      height: r(lh(sizeLabel)),
+    });
+  }
+  for (const ref of model.referenceLines) {
+    if (ref.label === undefined) continue;
+    staticLabels.push({
+      kind: 'reference',
+      id: ref.id,
+      text: ref.label,
+      width: r(measure(ref.label, fLabel).width),
+      height: r(lh(sizeLabel)),
+    });
   }
 
   const stage: XLabelStage = plan.stage;

@@ -102,6 +102,38 @@ function dateTimeFormat(
   return dtf;
 }
 
+/**
+ * Validates the render `locale` and `timezone` options once, up front (design section 9, step 1).
+ * Throws `INVALID_OPTIONS` with path `/locale` or `/timezone`. A raw UTC offset such as "+05:00"
+ * is rejected (R15). Applies to every chart, including those without a time axis.
+ */
+export function assertLocaleAndTimezone(locale: unknown, timezone: unknown): void {
+  const bad = (message: string, path: string, cause?: unknown): DravenVizError =>
+    new DravenVizError('INVALID_OPTIONS', message, {
+      path,
+      ...(cause === undefined ? {} : { cause }),
+    });
+  if (typeof locale !== 'string' || locale === '') {
+    throw bad('locale must be a non-empty BCP 47 language tag.', '/locale');
+  }
+  try {
+    Intl.getCanonicalLocales(locale);
+  } catch (e) {
+    throw bad('locale is not a valid BCP 47 language tag.', '/locale', e);
+  }
+  if (typeof timezone !== 'string' || timezone === '') {
+    throw bad('timezone must be a non-empty IANA time zone name.', '/timezone');
+  }
+  if (/^[+-]\d/.test(timezone)) {
+    throw bad('The timezone must be an IANA name, not an offset.', '/timezone');
+  }
+  try {
+    new Intl.DateTimeFormat(locale, { timeZone: timezone });
+  } catch (e) {
+    throw bad('timezone is not a supported IANA time zone name.', '/timezone', e);
+  }
+}
+
 const UNIT_OPTIONS: Record<Exclude<TimeTickUnit, 'quarter'>, Intl.DateTimeFormatOptions> = {
   hour: { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
   day: { month: 'short', day: 'numeric' },
@@ -109,6 +141,48 @@ const UNIT_OPTIONS: Record<Exclude<TimeTickUnit, 'quarter'>, Intl.DateTimeFormat
   month: { month: 'short', year: 'numeric' },
   year: { year: 'numeric' },
 };
+
+/**
+ * Format a point label for a tooltip, announcement or data-table row header: always a full date
+ * (year, month, day), plus hour and minute for an instant, so two different positions never read
+ * alike. `withZone` appends the render timezone to an instant (not needed where the column header
+ * already names it). A calendar day always formats in UTC. The machine timezone is never used.
+ */
+export function formatTimeLabel(
+  epochMs: number,
+  kind: TimeKind,
+  locale: string,
+  timezone: string,
+  withZone = false,
+): string {
+  if (!Number.isFinite(epochMs)) {
+    throw new DravenVizError('INVALID_OPTIONS', 'A time format needs a finite epoch value.');
+  }
+  // Options are validated once up front (resolveOptions, the React run, toDataTable); here only the
+  // cached formatter below can reject a bad name, so a label costs no formatter construction.
+  if (kind === 'date') {
+    return dateTimeFormat(locale, 'UTC', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(epochMs);
+  }
+  if (/^[+-]\d/.test(timezone)) {
+    throw new DravenVizError(
+      'INVALID_OPTIONS',
+      'The timezone must be an IANA name, not an offset.',
+    );
+  }
+  return dateTimeFormat(locale, timezone, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    ...(withZone ? { timeZoneName: 'short' as const } : {}),
+  }).format(epochMs);
+}
 
 /**
  * Format a tick or label time. The zone is always explicit: `UTC` for a calendar day

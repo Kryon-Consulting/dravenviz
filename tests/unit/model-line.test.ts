@@ -305,3 +305,67 @@ describe('omitted category positions (R27)', () => {
     expect(model2(raw).series[0]!.segments).toHaveLength(1);
   });
 });
+
+describe('time point labels are unambiguous (I7)', () => {
+  const spec = (xs: string[]) => ({
+    schemaVersion: 1,
+    id: 'time-labels',
+    kind: 'cartesian',
+    title: 'Time labels',
+    xAxis: { id: 'when', scale: 'time' },
+    yAxes: [{ id: 'v' }],
+    series: [
+      {
+        id: 's',
+        label: 'S',
+        mark: 'line',
+        yAxisId: 'v',
+        points: xs.map((x, i) => ({ id: `p${i}`, x, value: i + 1 })),
+      },
+    ],
+  });
+  test('dates carry the year; instants carry the year and the render zone', () => {
+    const d = model2(spec(['2025-07-06', '2026-01-06', '2026-07-06']));
+    expect(d.series[0]!.points.map((p) => p.label)).toEqual([
+      'Jul 6, 2025',
+      'Jan 6, 2026',
+      'Jul 6, 2026',
+    ]);
+    const i = buildModel(validateSpec(spec(['2025-07-06T10:00:00Z', '2026-07-06T10:00:00Z'])), {
+      ...ctx,
+      timezone: 'Asia/Tokyo',
+    }) as CartesianModel;
+    const labels = i.series[0]!.points.map((p) => p.label);
+    expect(new Set(labels).size).toBe(2);
+    expect(labels[0]).toMatch(/2025/);
+    expect(labels[0]).toMatch(/GMT\+9|JST/);
+  });
+});
+
+describe('label formatting does not build Intl formatters per point (N1)', () => {
+  test('buildModel on perf-line-500x4 constructs a bounded number of formatters', () => {
+    const spec = validateSpec(loadFixture('perf-line-500x4'));
+    const RealDtf = Intl.DateTimeFormat;
+    let built = 0;
+    let canonical = 0;
+    const realCanonical = Intl.getCanonicalLocales;
+    Intl.DateTimeFormat = new Proxy(RealDtf, {
+      construct(target, args, newTarget) {
+        built++;
+        return Reflect.construct(target, args, newTarget);
+      },
+    });
+    Intl.getCanonicalLocales = (...a: Parameters<typeof realCanonical>) => {
+      canonical++;
+      return realCanonical(...a);
+    };
+    try {
+      buildModel(spec, ctx);
+    } finally {
+      Intl.DateTimeFormat = RealDtf;
+      Intl.getCanonicalLocales = realCanonical;
+    }
+    expect(canonical).toBe(0);
+    expect(built).toBeLessThan(40);
+  });
+});

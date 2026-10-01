@@ -12,6 +12,7 @@ import {
   type PointerEvent,
   type ReactElement,
 } from 'react';
+import { assertLocaleAndTimezone } from '../core/format/index';
 import { DUPLICATE_CHART_EMBEDDING } from '../core/validate/index';
 import {
   DravenVizError,
@@ -76,6 +77,12 @@ export interface ChartProps {
   onDatumActivate?: (e: DatumEvent) => void;
   onReady?: (info: ReadyInfo) => void;
   onError?: (error: DravenVizError) => void;
+  /**
+   * Readiness bound in ms (default 10000). A render that is not ready in time reports `TIMEOUT`
+   * through `onError` once and never calls `onReady`. Not a restart key: changing it does not
+   * start a new render.
+   */
+  timeoutMs?: number;
   className?: string;
 }
 
@@ -105,6 +112,7 @@ const claimKey = (ns: string, chartId: string): string => `${ns}\u0000${chartId}
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 const NAMESPACE = /^[a-z][a-z0-9-]{0,31}$/;
+const DEFAULT_TIMEOUT_MS = 10_000;
 const HOVER_RADIUS = 20;
 const CLICK_RADIUS = 16;
 
@@ -163,6 +171,8 @@ export function Chart(props: ChartProps): ReactElement {
   const owner = useRef(Symbol('dravenviz-chart'));
   /** Resolvers waiting for the commit of a given renderId. */
   const commits = useRef(new Map<number, () => void>());
+  /** The renderId whose outcome (error) was reported, so a render reports at most one error. */
+  const errored = useRef(0);
   const [view, setView] = useState<View>({ kind: 'idle' });
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [focusKey, setFocusKey] = useState<FocusKey | null>(null);
@@ -217,9 +227,17 @@ export function Chart(props: ChartProps): ReactElement {
     let chartId: string | undefined;
     let claimedKey: string | undefined;
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const settle = (): void => {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+    };
+
     const fail = (e: unknown): void => {
-      if (stale() || reportedId === renderId) return;
+      if (stale() || reportedId === renderId || errored.current === renderId) return;
       reportedId = renderId;
+      errored.current = renderId;
+      settle();
       if (claimedKey !== undefined && claimed.get(claimedKey) === owner.current) {
         claimed.delete(claimedKey);
       }
@@ -236,6 +254,11 @@ export function Chart(props: ChartProps): ReactElement {
           { path: positive(height) ? '/width' : '/height' },
         );
       }
+      if (callbacks.current.timeoutMs !== undefined && !positive(callbacks.current.timeoutMs)) {
+        throw new DravenVizError('INVALID_OPTIONS', 'timeoutMs must be a positive number.', {
+          path: '/timeoutMs',
+        });
+      }
       if (!NAMESPACE.test(namespace)) {
         throw new DravenVizError(
           'INVALID_OPTIONS',
@@ -245,6 +268,7 @@ export function Chart(props: ChartProps): ReactElement {
           },
         );
       }
+      assertLocaleAndTimezone(locale, timezone);
       const theme = resolveTheme(
         callbacks.current.theme ?? 'light',
         callbacks.current.themeOverrides,
@@ -305,14 +329,30 @@ export function Chart(props: ChartProps): ReactElement {
       commits.current.delete(renderId);
       await nextFrame(ac.signal);
       await nextFrame(ac.signal);
-      if (stale() || reportedId === renderId) return;
+      if (stale() || reportedId === renderId || errored.current === renderId) return;
       const info = verifyAndReport(root, laid, renderId, width, height);
-      if (stale()) return;
+      if (stale() || errored.current === renderId) return;
+      reportedId = renderId;
+      settle();
       callbacks.current.onReady?.(info);
     };
 
+    // The whole sequence (fonts, layout, commit, verification) is bounded by timeoutMs. The
+    // error is reported before the render is aborted, because an aborted render reports nothing.
+    const timeoutMs = callbacks.current.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    if (positive(timeoutMs)) {
+      timer = setTimeout(() => {
+        fail(
+          new DravenVizError('TIMEOUT', 'The chart was not ready before timeoutMs elapsed.', {
+            ...(chartId === undefined ? {} : { chartId }),
+          }),
+        );
+        ac.abort();
+      }, timeoutMs);
+    }
     run().catch(fail);
     return () => {
+      settle();
       ac.abort();
       commits.current.delete(renderId);
       if (claimedKey !== undefined && claimed.get(claimedKey) === owner.current) {
@@ -429,6 +469,8 @@ export function Chart(props: ChartProps): ReactElement {
   if (view.kind === 'idle') return <div {...rootProps} />;
 
   const reportRenderError = (error: unknown): void => {
+    if (errored.current === view.renderId) return;
+    errored.current = view.renderId;
     const wrapped = asDravenVizError(error, view.laid.model.chartId);
     setView({ kind: 'error', error: wrapped });
     callbacks.current.onError?.(wrapped);

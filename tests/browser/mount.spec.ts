@@ -112,6 +112,42 @@ test('rejects ZERO_SIZE for hidden ancestor', async ({ page }) => {
   expect(await h(page).counts()).toEqual({ roots: 0, observers: 0, svgs: 0 });
 });
 
+test('fit width rejects ZERO_SIZE for a rendered but 0 px wide host', async ({ page }) => {
+  const err = await h(page).mountError(['line-weekly-flow'], {
+    ...opts,
+    fit: 'width',
+    host: 'zero-width',
+  });
+  expect(err).toMatchObject({ code: 'ZERO_SIZE', chartId: 'weekly-flow' });
+  expect(await h(page).counts()).toEqual({ roots: 0, observers: 0, svgs: 0 });
+  expect(await page.locator('.dravenviz-root').count()).toBe(0);
+});
+
+test('a host rule that gives the svg no rendered size fails readiness', async ({ page }) => {
+  await page.addStyleTag({ content: 'svg[data-dravenviz-chart]{display:none !important}' });
+  const err = await h(page).mountError(['line-weekly-flow'], opts);
+  expect(err).toMatchObject({
+    code: 'RENDER_FAILED',
+    chartId: 'weekly-flow',
+    rule: 'zero-rendered-size',
+  });
+  expect(await h(page).counts()).toEqual({ roots: 0, observers: 0, svgs: 0 });
+});
+
+test('a bad timezone or locale is INVALID_OPTIONS with its path, on time and category axes', async ({
+  page,
+}) => {
+  for (const fixture of ['line-estimated-monotone', 'line-category-labels-rotate']) {
+    const tz = await h(page).mountError([fixture], { ...opts, timezone: 'Mars/Base' });
+    expect(tz).toMatchObject({ code: 'INVALID_OPTIONS', path: '/timezone' });
+    const off = await h(page).mountError([fixture], { ...opts, timezone: '+05:00' });
+    expect(off).toMatchObject({ code: 'INVALID_OPTIONS', path: '/timezone' });
+    const loc = await h(page).mountError([fixture], { ...opts, locale: 'not a locale' });
+    expect(loc).toMatchObject({ code: 'INVALID_OPTIONS', path: '/locale' });
+  }
+  expect(await h(page).counts()).toEqual({ roots: 0, observers: 0, svgs: 0 });
+});
+
 test('second batch with same embedding identity is rejected', async ({ page }) => {
   await h(page).mount(['line-weekly-flow'], opts);
   const err = await h(page).mountError(['line-weekly-flow'], opts);
@@ -149,9 +185,33 @@ test('two instances with distinct namespaces share no ids', async ({ page }) => 
   expect(ids.a.length).toBeGreaterThan(0);
   expect(ids.b.length).toBeGreaterThan(0);
   expect(ids.a.filter((id) => ids.b.includes(id))).toEqual([]);
-  // DravenViz's own ids follow <namespace>-<chartId>-<n>.
-  const own = ids.a.filter((id) => id.startsWith('wf-a-line-estimated-monotone-'));
+  // DravenViz's own ids follow <namespace>_<chartId>-<n>.
+  const own = ids.a.filter((id) => id.startsWith('wf-a_line-estimated-monotone-'));
   expect(own.length).toBeGreaterThan(0);
+});
+
+test('namespace a + chart b-c and namespace a-b + chart c share no ids', async ({ page }) => {
+  const base = await h(page).fixture<{ id: string }>('line-estimated-monotone');
+  await h(page).mount([{ ...base, id: 'b-c' }], { ...opts, namespace: 'a' });
+  await h(page).mount([{ ...base, id: 'c' }], { ...opts, namespace: 'a-b' });
+  const ids = await page.evaluate(() => {
+    const collect = (ns: string, chart: string): string[] =>
+      Array.from(
+        document.querySelectorAll(
+          `svg[data-dravenviz-ns="${ns}"][data-dravenviz-chart="${chart}"] [id]`,
+        ),
+      ).map((e) => e.id);
+    return { x: collect('a', 'b-c'), y: collect('a-b', 'c') };
+  });
+  expect(ids.x.length).toBeGreaterThan(0);
+  expect(ids.y.length).toBeGreaterThan(0);
+  expect(ids.x.some((id) => id.startsWith('a_b-c-'))).toBe(true);
+  expect(ids.y.some((id) => id.startsWith('a-b_c-'))).toBe(true);
+  expect(ids.x.filter((id) => ids.y.includes(id))).toEqual([]);
+  const all = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('[id]')).map((e) => e.id),
+  );
+  expect(new Set(all).size).toBe(all.length);
 });
 
 test('dispose before ready rejects DISPOSED and cleans up', async ({ page }) => {
@@ -436,4 +496,60 @@ test('a category with no point draws two separate paths (cat-absent)', async ({ 
   };
   await h(page).mount([spec], opts);
   expect(await page.locator('[data-dv-mark="series:A:segment"] path').count()).toBe(2);
+});
+
+test('fit "width" scales the chart to its container and keeps the aspect ratio', async ({
+  page,
+}) => {
+  await page.addStyleTag({ path: 'src/styles/dravenviz.css' });
+  const [info] = await h(page).mount(['line-weekly-flow'], { ...opts, fit: 'width' });
+  expect(info).toEqual(
+    expect.objectContaining({ chartId: 'weekly-flow', width: 680, height: 320 }),
+  );
+  const measure = () =>
+    page.evaluate(() => {
+      const svg = document.querySelector('svg[data-dravenviz-chart="weekly-flow"]')!;
+      const host = svg.closest('[data-test-host]') as HTMLElement;
+      const mark = svg.querySelector('[data-dv-mark="series:closed:segment"] path')!;
+      const r = svg.getBoundingClientRect();
+      return {
+        w: r.width,
+        h: r.height,
+        host: host.getBoundingClientRect().width,
+        markW: mark.getBoundingClientRect().width,
+        viewBox: svg.getAttribute('viewBox'),
+      };
+    });
+  // A 178 mm wide container (the harness host is 720 px wide until resized).
+  await page.evaluate(() => {
+    (document.querySelector('[data-test-host]') as HTMLElement).style.width = '178mm';
+  });
+  const a = await measure();
+  expect(a.viewBox).toBe('0 0 680 320');
+  expect(a.w).toBeCloseTo(a.host, 1);
+  expect(a.w).toBeCloseTo((178 / 25.4) * 96, 0);
+  expect(a.h / a.w).toBeCloseTo(320 / 680, 3);
+  // The plot geometry scales with the box: halving the container halves the mark.
+  await page.evaluate(() => {
+    (document.querySelector('[data-test-host]') as HTMLElement).style.width = '89mm';
+  });
+  const b = await measure();
+  expect(b.w).toBeCloseTo(a.w / 2, 0);
+  expect(b.h / b.w).toBeCloseTo(320 / 680, 3);
+  expect(b.markW / a.markW).toBeCloseTo(0.5, 2);
+  expect(b.viewBox).toBe('0 0 680 320');
+});
+
+test('the default fit leaves the chart at its logical size', async ({ page }) => {
+  await page.addStyleTag({ path: 'src/styles/dravenviz.css' });
+  await h(page).mount(['line-weekly-flow'], opts);
+  const w = await page
+    .locator('svg[data-dravenviz-chart="weekly-flow"]')
+    .evaluate((el) => el.getBoundingClientRect().width);
+  expect(w).toBeCloseTo(680, 1);
+});
+
+test('an invalid fit option is INVALID_OPTIONS', async ({ page }) => {
+  const err = await h(page).mountError(['line-weekly-flow'], { ...opts, fit: 'stretch' });
+  expect(err.code).toBe('INVALID_OPTIONS');
 });

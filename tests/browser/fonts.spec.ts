@@ -143,6 +143,22 @@ test('caller fonts load from /test-fonts/ under their own family', async ({ page
   ]);
 });
 
+test('without crypto.subtle (insecure context) loading fails early naming the requirement', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    Object.defineProperty(crypto, 'subtle', { value: undefined, configurable: true });
+  });
+  const out = await load(page, [
+    { family: 'Noto Sans', weight: 400, url: '/fonts/NotoSans-Regular.woff2' },
+    { family: 'Noto Sans', weight: 600, url: '/fonts/NotoSans-SemiBold.woff2' },
+  ]);
+  expect(out.ok).toBe(false);
+  expect(out.code).toBe('FONT_LOAD_FAILED');
+  expect(out.message).toMatch(/secure context/);
+  expect(out.message).toMatch(/HTTPS or from localhost/);
+});
+
 test('a 404 rejects with FONT_LOAD_FAILED naming the URL', async ({ page }) => {
   const url = '/fonts/missing-regular.woff2';
   const out = await load(page, [

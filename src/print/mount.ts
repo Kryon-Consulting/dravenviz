@@ -150,6 +150,15 @@ export function mountBatch(
             { chartId: spec.id },
           );
         }
+        // fit "width" scales the chart to the host, so a rendered host with no width would
+        // produce a 0 x 0 chart.
+        if (resolved.fit === 'width' && host.getBoundingClientRect().width < 1) {
+          throw new DravenVizError(
+            'ZERO_SIZE',
+            'The host element has no width, so a chart that fits its width would have no size.',
+            { chartId: spec.id },
+          );
+        }
       });
       const measure = createCanvasMeasurer(fontStack(fonts));
       const laids: LaidOutChart[] = validated.map((spec) =>
@@ -175,6 +184,7 @@ export function mountBatch(
             renderId: nextRenderId(),
             fontFamily: fontStack(fonts),
             measure,
+            fit: resolved.fit,
           }),
         );
       });

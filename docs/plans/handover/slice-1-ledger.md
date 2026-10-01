@@ -162,3 +162,93 @@ Owner instructions (2026-09-30): execute ALL FOUR slices; NO stops at plan gates
 - Ruling R37: the example's `.recharts-wrapper{width:100%!important}` override depends on a Recharts DOM class (spec forbids consumers relying on renderer class names) → library gains MountOptions `fit?: "fixed" | "width"` (default "fixed"); "width" scales the chart to its container width preserving aspect ratio via `.dravenviz-root[data-dv-fit="width"]` rules in dravenviz.css and DravenViz-owned elements only; logical layout unchanged. Example uses fit:"width". design §9 MountOptions updated — cost if wrong: an additive option.
 - Task 16 notes (not bugs, verified vs design): weekly-flow Opened has no segment o3–o4 (marker-only breaks membership — correct); Forecast May→Jun dashed (estimated range extends to the point after — §5.2). Actual vs estimated dashes close in grayscale → owner visual review (Task 19).
 - HANDOVER (2026-10-01): owner requested handover to a fresh agent. Task 16 fix-round implementer stopped; partial R37 work saved as docs/plans/handover/task-16-r1-partial-fit-option.patch (unreviewed); tree reset to 3525acc. See docs/plans/HANDOVER.md.
+- RESUME (2026-10-01, new session): branch now claude/charming-maxwell-uzxpf4 (PR #5 merged bold-curie into main). Workspace recreated by hand (sdd scripts not run: external code; briefs extracted with sed, review packages built with git). Baseline: lint/typecheck/483 unit green at 2b5a47f.
+- Task 16: fix round 1 dispatched (fresh Sonnet implementer; prior implementer gone; base 2b5a47f).
+
+## Pre-flight scan (resume, Tasks 16-fix..21)
+
+| Tasks | Shared file / interface | Finding |
+|---|---|---|
+| 16fix→19 | tests/visual/MISMATCHES.md created in 16 fix; Task 19 lists it under Create | consistent: Task 19 extends, not recreates |
+| 16→17 | evidence/pdf/report-slice1.pdf + spec hash → docs sample link | consistent |
+| 16→20 | DravenPDF server start/stop code in scripts/test-pdf.ts → P4 latency | reuse, no duplication (carry to Task 20) |
+| 15→17,18 | stage-consumer.ts, pack:local tarball | consistent; Task 17 adds `stage docs`, Task 18 consumers |
+| 17 self | milestone "stop and report to owner" | Ruling R2 (report in ledger, continue) |
+| 19→20,21 | visual.spec fails while baselines pending (R6) → `pnpm test:browser` goes red for everyone | Ruling R38 |
+| 19→21 | matrix status `pending-review` for visual rows | consistent |
+| 20 self | P1 miss → owner exception | Ruling R7 |
+| 21 self | CI `browser` runs `playwright install --with-deps chromium` (CI only) vs container rule "never playwright install locally" | consistent (CI runner only) |
+| exit criteria | visual approval + perf exception need the owner | slice cannot be *closed* by the controller; reported, not self-approved |
+
+- Ruling R38: after Task 19, visual specs live in their own Playwright project `visual` that `pnpm test:browser` still runs (plan: "Visual tests run in browser"); implementers/reviewers of later tasks treat failures whose only message is `pending owner review` as expected and must show every non-visual browser test green (e.g. `pnpm test:browser --project <non-visual>`) — keeps the plan's red-until-approved gate without hiding real regressions — cost if wrong: a script/project rename.
+- Owner decision (2026-10-01): Task 19 — controller publishes a side-by-side visual review page (browser / SVG / PDF crop) as a private artifact; owner approves or rejects each candidate; approved PNGs move to baselines/approved/ in a commit citing the owner's decision; CI red until then. Task 20 — on a P1 miss: investigate, record the cause in evidence/perf/README.md, keep the test failing, bring the numbers to the owner (no pre-accepted exception).
+- Task 16: fix round 1 implementer DONE (4af5d0a, 50b98f6, e846ade). test:pdf PASS 25/25 path http; forced ServerStartError → library path 25/25. Concern: className dravenviz-chart-box passed to Recharts wrapper. Re-review (opus) dispatched on 2b5a47f..e846ade.
+- Task 16: fix round 1/5 (I1, I2, all minors addressed; 1 open — I3/R37 sizing uses className on Recharts' wrapper + !important + `> svg` structural selector; reviewer: use ComposedChart `style` prop (width 100%, height auto, aspectRatio) and `svg[data-dravenviz-chart]`; commits 2b5a47f..e846ade)
+- Task 16: minor (deferred): dravenviz-chart-box class (if kept) lands on React path too; library-path status inferred via STATUS_BY_CODE (sound today).
+- Task 16: fix round 2 implementer DONE (3ee94c9, 58485cd); re-review dispatched on e846ade..58485cd
+- Task 16: fix round 2/5 (1 addressed, 0 open; commits e846ade..58485cd)
+- Task 16: minor (deferred): test:pdf log prints two "[FAIL]" lines from the broken-library simulation unit test — capture/label as expected.
+- Task 16: complete (commits 36fe473..58485cd, review clean). test:pdf PASS 25/25 (path http).
+- Task 17: implementer dispatched (sonnet), base 58485cd. Carry: R25 (fonts.check vacuous) applied to the brief's standalone-SVG font check; R32/R33/R37 docs; ZERO_SIZE re-render; LAYOUT_ERROR troubleshooting; React example claims limited.
+- Task 17: implementer DONE (2781e36, trailer amended to session attribution per R8). test:docs 12/12; browser 122; unit 483. Concerns: specSha256 = file bytes hash; print preview collapsed details; Vite chunk warning 1.16MB.
+- Task 17: review (opus) dispatched on 58485cd..2781e36.
+- MILESTONE (proof path, Ruling R2: recorded, no stop): line-weekly-flow renders through React (Task 14, browser specs), plain HTML (Task 15 examples), normalized standalone SVG (Task 13 export), a real DravenPDF PDF (Task 16: evidence/pdf/report-slice1.pdf, test:pdf PASS 25/25, path http), and the docs playground (Task 17: test:docs 12/12, evidence/screenshots/docs-*.png), all from the packed tarball .pack/draven-viz-0.1.0.tgz.
+- Task 17: review → Needs fixes. Important: test:docs/preview:docs can run against a stale stage (skips §16.1 stage→pack:local dependency). Minors 1–5 (dropped Render race; hardcoded SAMPLE_HASH; screenshots overwritten each run + dead mkdir; unhandled choose() rejection; Vite chunk warning) included in fix round 1 — cheap and real.
+- Task 17: minor (deferred): Validate on an unrendered edit hides banner though preview stale (status text could say so).
+- Task 17: fix round 1 implementer DONE (86f896f). test:docs 13/13; no RED run for race test.
+- Task 17: fix round 1/5 (Important 1 + minors 2–5 addressed; 1 open — race regression test passes on old buggy code 5/5, so it guards nothing; code fix verified correct; commits 2781e36..86f896f)
+- Task 17: fix round 2/5 (1 addressed, 0 open; commits 86f896f..703ce57)
+- Task 17: minor (deferred): race test selectors depend on Width being first number input and button text "Render" (fails loudly).
+- Task 17: complete (commits 58485cd..703ce57, review clean)
+- Task 18: implementer dispatched (sonnet), base 703ce57.
+- Task 18: implementer DONE_WITH_CONCERNS (96686f4). test:package 16/16 (react 18.3.1/19.3.0, vite 8.3.1, recharts 3.10.1).
+- Ruling R39: attw runs with `--profile esm-only` (entries ./styles.css and ./browser excluded as non-JS-module entries) — spec: "CJS distribution is optional, not a V1 requirement"; node10/CJS resolution is out of V1 — cost if wrong: add a CJS build later.
+- Ruling R40: the D10/§19 consumer-TS 5.4 and 6.0 declaration check is not in Task 18's brief; it is queued for the slice-4 plan ("clean-consumer package verification") rather than widening Task 18 — cost if wrong: a declaration incompatibility with TS 5.4 surfaces later.
+- Task 18: review → Approved (spec ✅, no Critical/Important).
+- Task 18: minor (deferred): publint/attw pack the working tree, not the .pack tarball; empty DV_PACKAGE_ROOT falls back to repo dist; Start.tsx "the same chart" → "an equivalent chart"; printResolved outside check(); react18/react19 consumers identical but for name.
+- Task 18: complete (commits 703ce57..96686f4, review clean)
+- Task 19: implementer dispatched (sonnet), base 96686f4.
+- Task 19: implementer DONE (cb5b139). 14 candidates pending; browser non-visual 122 green, visual 14 fail 'pending owner review'. Calibrated: same-path 0.05%, SVG-vs-browser 0.143%, PDF-vs-browser 0.363%. Review page evidence/visual/index.html 2.6 MiB. Review (opus) dispatched.
+- Task 19: review → Approved (spec ✅; D4 gate needs REVIEW.md "approved by" line AND approved PNG; probes run).
+- Task 19: minor (deferred): series order not asserted (+ x domain); structure oracle always uses print theme; THRESHOLD/INCLUDE_AA duplicated (tolerances.ts vs json, compare.ts literal); review page hard-codes "pending" (use decisionOf on regeneration); samePdf/crossSvgBrowser calibrated but unenforced; R29 exact-equality flag fragile (use ~half stroke width); calibrate_pdf.py docstring stale; evidence churn in commit.
+- Task 19: complete (commits 96686f4..cb5b139, review clean). Owner gate (Step 4) pending: review page to be published.
+- Task 19: review page published privately for the owner: https://claude.ai/artifact/C3y5i7hY5EUN5kdma4Kktt (controller spot-checked candidates: weekly-flow@print, estimated-monotone@print — Actual (series dash) vs Estimated (short dash) visibly close in print; Forecast starts on bottom edge Jan=10 (R29)). Awaiting owner decisions.
+- Task 20: implementer dispatched (sonnet), base cb5b139.
+- Task 20: implementer DONE (a315e8a). P1 p95 47.3 ms (met), P2 355.1, P4 2237.9 (0 stalls/30); bundle gzip 219,540 B. perf-report test in own vitest project (test:perf). Review dispatched.
+- Task 20: review → Approved (P1 probe confirmed real warmed mountCharts; percentile, doctored-miss, budget arithmetic probed).
+- Task 20: minor (deferred): two §18.1 budget rows (fonts total, SVG embedded) break stated rounding rule; no EXCEPTIONS.md path in perf test (brief Step 4); P4 422 vs 504 accounting uneven, stallRule text omits 422; missing-prereq exit code/cleanup (measure exits 1 not 3, temp dirs leak); perf test doesn't check size.json page count/machine block.
+- Task 20: complete (commits cb5b139..a315e8a, review clean)
+- Task 21: implementer dispatched (sonnet), base a315e8a.
+- Task 21: implementer DONE (1814ce5). Step 4 all run individually: all pass except visual baselines (14 pending owner review). Matrix 18 rows: 16 pass, 2 pending-review. matrix test in own project test:matrix (CI unit job). Review dispatched.
+- Task 21: review → Needs fixes. Important: GC-01/GC-03 claim pass with no test asserting package.json fields; SPEC-7 fixtures don't cover negative values or long labels. Minors 3–5 (GC-07 default timeout assertion; GC-14 checkPrerequisites exit-3 test; parseMatrix silently drops malformed rows / no duplicate-id check) included in fix round 1.
+- Task 21: minor (deferred): PDF/visual row detection keyword-based; package job packs twice; pdf CI job's uv sync of private? dravenpdf git dep may need a token (pre-existing; tell owner).
+- Task 21: fix round 1 implementer DONE (d7f3dd7). unit 489.
+- Task 21: fix round 1/5 (5 addressed, 0 open; commits 1814ce5..d7f3dd7)
+- Task 21: minor (deferred): "negative values" covered only by one clipped point (no negatives inside an auto domain); Step-4 table says test:matrix 8 (now 11); any heading inside "Requirement rows" stops row checking; edited rows unpadded.
+- Task 21: complete (commits a315e8a..d7f3dd7, review clean)
+- Slice-1 implementation tasks 1–21 complete. Final whole-branch review next (c2ac690..HEAD).
+- Final whole-branch review (opus) dispatched on c2ac690..d7f3dd7 with ledger extract (deferred minors + rulings) and handover hardening items.
+- Final review → With fixes. Important I1–I8 (fit:"width" 0-px host resolves ready; ambiguous id scheme ns-chartId-n collides; React Chart readiness unbounded; insecure-context crypto.subtle → misleading RENDER_FAILED; interactive mode drops annotation/reference labels; invalid timezone → raw RangeError/RENDER_FAILED; time labels in table/tooltips omit year/zone; CI browser job permanently red via visual project). Triage: only T9 date-year must-fix (=I7); all other deferred minors OK-TO-DEFER (conditions recorded in final-review-report.md). Hardening items deferred (circle r → slice 3 inline geometry; font error family folded into I4; counts().svgs defer).
+- Ruling R41: R38 execution amended — CI `browser` job runs `--project=browser` as the gating step, then the `visual` project as a separate step that stays red until owner approval; `pnpm test:browser` locally still runs both — keeps real regressions visible while honouring D4 — cost if wrong: one CI step split.
+- Ruling R42: insecure-context fonts (I4): fail early with FONT_LOAD_FAILED naming the secure-context requirement (and document HTTPS/localhost, no file://) rather than ship a pure-JS SHA-256 — integrity verification stays on WebCrypto, smaller surface — cost if wrong: plain-http intranet hosts can't render until served over HTTPS/localhost.
+- Ruling R43: React `<Chart>` gains `timeoutMs` (default 10,000) reporting TIMEOUT via onError exactly once (I3, spec bounded readiness; also fixes T14 double onError) — cost if wrong: an additive prop.
+- Ruling R44: annotation and reference-line labels are always drawn, in interactive mode too; `staticLabels` governs point labels only (I5; §5.2 on-chart text; spec never silently hide) — cost if wrong: label crowding in compact interactive charts (slice-3 collision seam).
+- Queued for slice-2 plan (from final review): relax 250-category cap to bar axes; Theme shape freeze before slice 4 (legend strings); R24 title upper bound before slice 4; T19 cross-mode tolerances must gate by slice 4; slice-3 inline geometry for markers (host circle r).
+- Final fix wave dispatched (sonnet, one implementer) for I1–I8 + Minors 1, 4 + font-error family name.
+- OWNER DECISION (2026-10-01, in chat): "approve all visual candidates" — applies to the 14 candidates as published at https://claude.ai/artifact/C3y5i7hY5EUN5kdma4Kktt (commit cb5b139). Controller applies it (REVIEW.md 'approved by owner on 2026-10-01', PNGs → baselines/approved/) after the final fix wave lands, so it doesn't collide with the running fixer; any candidate the fix wave changes must be re-shown to the owner, not carried over.
+- Final fix wave implementer DONE (e77e10e..368a1e8). unit 500, browser 133, visual structural 14 pass; candidates PNGs unchanged (sha verified). Re-review dispatched.
+- Final fix wave re-review: I1–I8, Minor 1, Minor 4 all ADDRESSED. New: N1 (Important) formatTimeLabel calls assertLocaleAndTimezone per label → buildModel ~10× slower (perf-line-500x4 5.1→49.1 ms), est. P1 p95 ~78 ms > 60 ms budget, evidence/perf + matrix stale; N2 (Minor) docs claim file:// fails FONT_LOAD_FAILED but it fails INVALID_OPTIONS (scheme not allowed; file:// is a secure context); N3 (Minor) stale staticLabels comment.
+- Ruling R45: residual N1 is load-bearing (it makes committed perf evidence and the matrix false and breaches a recorded budget), so instead of parking it the controller sends ONE narrowly scoped residual fix (N1: validate once up front, no per-label assert; N2 doc wording; N3 comment) plus `pnpm measure` re-run, with a scoped re-review — deviates from the SDD "no second fix wave" rule because the fix is a few lines and was introduced by the wave itself — cost if wrong: one extra small review cycle.
+- Out-of-scope (deferred): React Recharts ids come from host identifierPrefix not namespace (documented); toDataTable/renderDataTable on category axes don't validate locale/timezone up front.
+- Residual fix DONE (a16d230). unit 501; P1 p95 47.3 (unchanged), P2 p95 380.1. Re-review dispatched.
+- Residual fix re-review: N1/N2/N3 ADDRESSED, no new breakage (buildModel back to 3.26 ms vs 3.24 baseline; I6 probes all INVALID_OPTIONS; latency.json genuinely regenerated).
+- Residual: minor (deferred): P1 harness didn't register the 10× buildModel regression (frame quantisation / insensitivity) — revisit P1 sensitivity; P4 recorded 2 stalls (6.25 %) with no stall-rate budget.
+- Final review fix wave complete (commits d7f3dd7..a16d230).
+- Owner approval application + end-of-slice doc batch dispatched (sonnet, one implementer).
+- Close-out DONE_WITH_CONCERNS (0238b24): 14/14 hashes OK, approved; visual 28 pass, browser 133; matrix 18 pass. Extra changes: visual project launches full Chromium via PW_CHROMIUM_PATH fallback /opt/pw-browsers (headless shell gave 0.4–2.2 % diffs); harness layoutOf uses candidate theme; generator uses decisionOf. Review dispatched (CI path concern).
+- Close-out review → Needs fixes. Approval application verified (14/14 hashes, decisions, no email, Part B rulings accurate). Critical: CI browser job's visual step will run the headless shell (PW_CHROMIUM_PATH unset, /opt path absent) → 14 baseline failures (probed). Important: design §16.2 + plan note claim full Chromium always. Minors: /opt fallback ignores PLAYWRIGHT_BROWSERS_PATH; generator no longer compares live render to approved PNG / fixed approval-record text; stale comments; evidence/visual/diff not gitignored.
+- Ruling R46: the visual project selects Playwright's full Chromium via `channel: 'chromium'` (works locally and in CI from the active browsers path) instead of a hard-coded path; the matrix marks VISUAL-REFS/GC-13 pass as a container run ("CI unverified until the browser job is green on GitHub") — honest about where it was proven — cost if wrong: baselines may need regenerating on the runner if font rasterization differs there (owner re-approval).
+- Close-out fix round 1 DONE (96df289): channel 'chromium' (probed full binary), docs/matrix honest, generator compares approved, gitignore. visual 28, browser 133. Re-review dispatched.
+- Close-out fix round 1 re-review: all ADDRESSED (Playwright 1.56.1 registry: channel 'chromium' → chromium-1194/chrome-linux/chrome, installed by `install chromium`).
+- Close-out: minor (deferred): generator crashes on approved-PNG size mismatch; calibration block whitespace churn on regeneration; tests/visual/render.ts chromiumPath() still hard-codes /opt fallback (use channel).
+- SLICE 1 COMPLETE (commits c2ac690..96df289). All exit criteria met in the container: spike passed; milestone recorded; Task 21 scripts all run with recorded outcomes; visual references approved by owner (2026-10-01); P1 p95 47.3 ms ≤ 250 ms; test:pdf PASS. Open: CI is unverified until the GitHub run is green (possible DravenPDF token for the private git dependency; visual baselines may need re-approval if runner rasterization differs). Next per exit criteria: write the slice-2 plan.

@@ -19,7 +19,7 @@ function unverified(reason: string): never {
   process.exit(3);
 }
 
-function checkPrerequisites(): void {
+export function checkPrerequisites(): void {
   const uv = spawnSync('uv', ['--version'], { encoding: 'utf8' });
   if (uv.error || uv.status !== 0) unverified('uv is not installed');
   const python = spawnSync('uv', ['python', 'find', '3.12'], { encoding: 'utf8' });
@@ -38,6 +38,26 @@ if (isMain(import.meta.url)) {
   const steps: [string, string[]][] = [
     ['pnpm', ['pack:local']],
     ['uv', ['sync', '--project', project, '--python', '3.12', '--frozen']],
+    // Unit tests of the driver's negative-check logic (retry rule, library fallback); no browser.
+    [
+      'uv',
+      [
+        'run',
+        '--project',
+        project,
+        '--python',
+        '3.12',
+        '--frozen',
+        'python',
+        '-m',
+        'unittest',
+        'discover',
+        '-s',
+        project,
+        '-p',
+        'test_*.py',
+      ],
+    ],
   ];
   for (const [cmd, args] of steps) {
     const status = run(cmd, args);

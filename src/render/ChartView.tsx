@@ -24,6 +24,8 @@ export interface ChartViewProps {
   /** Text measurer layout used; defaults to canvas measurement of `fontFamily`. */
   measure?: TextMeasurer;
   interactive?: InteractionProps;
+  /** Print `fit` option: `"width"` sizes the chart box to its container. Default `"fixed"`. */
+  fit?: 'fixed' | 'width';
 }
 
 /**
@@ -46,6 +48,7 @@ export function ChartView(props: ChartViewProps): ReactElement {
       family={fontFamily}
       measure={measure}
       focus={props.interactive?.focus ?? null}
+      {...(props.fit === undefined ? {} : { fit: props.fit })}
     />
   );
 }

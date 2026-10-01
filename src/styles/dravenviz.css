@@ -22,7 +22,8 @@
   background: #fff5f5;
   color: #1a1a1a;
   font:
-    14px/1.4 'Noto Sans',
+    14px/1.4 'DravenViz Noto Sans',
+    'Noto Sans',
     sans-serif;
 }
 
@@ -53,7 +54,8 @@
 .dravenviz-root .dravenviz-table {
   border-collapse: collapse;
   font:
-    13px/1.25 'Noto Sans',
+    13px/1.25 'DravenViz Noto Sans',
+    'Noto Sans',
     sans-serif;
 }
 
@@ -72,4 +74,21 @@
 .dravenviz-root .dravenviz-table td[data-align='end'],
 .dravenviz-root .dravenviz-table th[data-align='end'] {
   text-align: end;
+}
+
+/*
+ * `fit: "width"` (mountCharts): the chart scales to its container's width with the aspect ratio
+ * kept. The logical layout and the SVG viewBox are unchanged. The chart box itself is sized by
+ * DravenViz through the chart's style prop; here only the `svg` DravenViz marks with
+ * `data-dravenviz-chart` follows its box.
+ */
+.dravenviz-root[data-dv-fit='width'] {
+  display: block;
+  width: 100%;
+}
+
+.dravenviz-root[data-dv-fit='width'] svg[data-dravenviz-chart] {
+  display: block;
+  width: 100%;
+  height: 100%;
 }

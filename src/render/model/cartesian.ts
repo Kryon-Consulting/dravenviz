@@ -1,4 +1,4 @@
-import { formatNumber, formatTime, parseTimeValue } from '../../core/format/index';
+import { formatNumber, formatTimeLabel, parseTimeValue } from '../../core/format/index';
 import type {
   CartesianSpec,
   Dash,
@@ -139,8 +139,7 @@ export function buildCartesianModel(
       timeKind,
       ...(xAxis.label !== undefined ? { label: xAxis.label } : {}),
     };
-    const unit = timeKind === 'date' ? 'day' : 'hour';
-    formatX = (xv) => formatTime(xv, timeKind, unit, locale, timezone);
+    formatX = (xv) => formatTimeLabel(xv, timeKind, locale, timezone, true);
   } else {
     const vs = buildValueScale({
       data: allX,

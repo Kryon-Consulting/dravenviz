@@ -17,6 +17,7 @@ const handle = DravenViz.mountCharts(
     width: 680,
     height: 320,
     theme: 'print',
+    fit: 'width', // scale the 680 x 320 chart to its 178 mm frame
     namespaces: entries.map((e) => e.namespace),
     locale: 'en-US',
     timezone: 'UTC',

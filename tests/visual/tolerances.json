@@ -1,0 +1,36 @@
+{
+  "tolerances": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "sameBrowser": 0.0005,
+    "samePdf": 0.0005,
+    "crossSvgBrowser": 0.00143,
+    "crossPdfBrowser": 0.003633
+  },
+  "calibration": {
+    "runs": 10,
+    "chromium": "141.0.7390.37",
+    "observed": {
+      "sameBrowser": {
+        "max": 0,
+        "pairs": 140,
+        "worst": "line-category-labels-thin@print runs 9/0"
+      },
+      "samePdf": {
+        "max": 0,
+        "pairs": 80,
+        "worst": "wf-b.png runs 9/0"
+      },
+      "crossSvgBrowser": {
+        "max": 0.0004296875,
+        "pairs": 140,
+        "worst": "line-category-labels-rotate@print run 9"
+      },
+      "crossPdfBrowser": {
+        "max": 0.002632927190992192,
+        "pairs": 80,
+        "worst": "wf-b run 9"
+      }
+    }
+  }
+}

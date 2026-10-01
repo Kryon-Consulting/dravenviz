@@ -364,9 +364,7 @@ export function Annotations({ laid, theme, family }: OverlayCtx): ReactElement |
         });
         const staticLabel = laid.staticLabels.find((l) => l.kind === 'annotation' && l.id === a.id);
         const glyph = a.noteNumber === undefined ? '' : noteGlyph(a.noteNumber);
-        const text = [staticLabel === undefined ? '' : a.label, glyph]
-          .filter((s) => s !== '')
-          .join(' ');
+        const text = [a.label, glyph].filter((s) => s !== '').join(' ');
         const labelWidth = staticLabel?.width ?? 0;
         const left = Math.min(x, x2 ?? x);
         const right = Math.max(x, x2 ?? x);

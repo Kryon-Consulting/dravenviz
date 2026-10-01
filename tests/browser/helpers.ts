@@ -24,7 +24,7 @@ export interface Opts {
   namespaces?: string[];
   timeoutMs?: number;
   staticLabels?: boolean;
-  host?: 'visible' | 'hidden';
+  host?: 'visible' | 'hidden' | 'zero-width';
   [k: string]: unknown;
 }
 

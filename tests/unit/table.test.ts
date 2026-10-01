@@ -105,3 +105,57 @@ describe('toDataTable edge cases', () => {
     }
   });
 });
+
+describe('time axis headers (I7) and theme strings (Minor 1)', () => {
+  const timeSpec = (xs: string[], extra: Record<string, unknown> = {}) => ({
+    schemaVersion: 1,
+    id: 'time-labels',
+    kind: 'cartesian',
+    title: 'Time labels',
+    xAxis: { id: 'when', scale: 'time' },
+    yAxes: [{ id: 'v' }],
+    series: [
+      {
+        id: 's',
+        label: 'S',
+        mark: 'line',
+        yAxisId: 'v',
+        points: xs.map((x, i) => ({ id: `p${i}`, x, value: i + 1 })),
+      },
+    ],
+    ...extra,
+  });
+  const headers = (xs: string[], options?: { locale?: string; timezone?: string }) =>
+    toDataTable(validateSpec(timeSpec(xs)), options).rows.map((r) => r.header);
+
+  test("dates a year apart never read alike (the reviewer's Jul 6 / Jan 6 / Jul 6)", () => {
+    const h = headers(['2025-07-06', '2026-01-06', '2026-07-06']);
+    expect(h).toEqual(['Jul 6, 2025', 'Jan 6, 2026', 'Jul 6, 2026']);
+    expect(new Set(h).size).toBe(3);
+  });
+
+  test('instants a year apart differ and the column header names the render timezone', () => {
+    const t = toDataTable(
+      validateSpec(timeSpec(['2025-07-06T10:00:00Z', '2026-07-06T10:00:00Z'])),
+      { timezone: 'Asia/Tokyo' },
+    );
+    expect(t.rows.map((r) => r.header)).toEqual(['Jul 6, 2025, 19:00', 'Jul 6, 2026, 19:00']);
+    expect(t.columns[0]!.label).toBe('Date (Asia/Tokyo)');
+  });
+
+  test('a date-only axis keeps a plain column header', () => {
+    expect(toDataTable(validateSpec(timeSpec(['2026-01-06']))).columns[0]!.label).toBe('Date');
+  });
+
+  test('missing cells use the resolved theme strings, not the print default', () => {
+    const t = toDataTable(
+      validateSpec({
+        ...(loadFixture('line-weekly-flow') as object),
+      }),
+      { theme: 'light', themeOverrides: { strings: { notMeasured: 'Nicht gemessen' } } },
+    );
+    const row = t.rows.find((r) => r.id === '2026-07-13')!;
+    expect(row.cells[0]).toEqual({ text: 'Nicht gemessen', value: null, state: 'missing' });
+    expect(table('line-weekly-flow').rows[1]!.cells[0]!.text).toBe('Not measured');
+  });
+});

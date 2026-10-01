@@ -15,6 +15,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { FIXTURES, specHash } from '../fixtures/index';
 import { ROOT, isMain } from './gen-lib';
 
 /**
@@ -212,6 +213,74 @@ function stageStatic(
   if (walk(stageDir).length < 5) fail('the static stage holds too few files.');
 }
 
+/** Docs-only inputs, copied into the stage so the site reads nothing from the repository at build time. */
+const DOCS_EXAMPLES: Record<string, string> = {
+  'react-main.tsx': 'examples/react/src/main.tsx',
+  'html-basic.html': 'examples/html/basic.html',
+  'html-basic.js': 'examples/html/basic.js',
+  'dravenpdf-README.md': 'examples/dravenpdf/README.md',
+};
+
+/**
+ * `stage docs` extras (design section 14): fixture JSON and an index (with canonical spec hashes)
+ * under `public/fixtures/`, the font files and licence from the INSTALLED tarball under
+ * `public/fonts/`, the sample PDF evidence under `public/evidence/pdf/`, and the example sources
+ * under `src/examples/` for `?raw` imports. Runs after the tarball is installed, before the build.
+ */
+function prepareDocs(stageDir: string): void {
+  const pub = path.join(stageDir, 'public');
+  const fixturesDir = path.join(pub, 'fixtures');
+  mkdirSync(fixturesDir, { recursive: true });
+  const fileHashes = new Map<string, string>();
+  const index = FIXTURES.filter((f) => f.gallery || f.id.startsWith('min-')).map((f) => {
+    const text = readFileSync(path.join(ROOT, f.file), 'utf8');
+    writeFileSync(path.join(fixturesDir, `${f.id}.json`), text);
+    fileHashes.set(f.id, createHash('sha256').update(text).digest('hex'));
+    return {
+      id: f.id,
+      family: f.family,
+      slice: f.slice,
+      gallery: f.gallery,
+      specHash: specHash(JSON.parse(text)),
+    };
+  });
+  writeFileSync(path.join(fixturesDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
+
+  const installedFonts = path.join(stageDir, 'node_modules', '@draven', 'viz', 'assets', 'fonts');
+  const fontsDir = path.join(pub, 'fonts');
+  mkdirSync(fontsDir, { recursive: true });
+  for (const file of ['NotoSans-Regular.woff2', 'NotoSans-SemiBold.woff2', 'OFL.txt']) {
+    const from = path.join(installedFonts, file);
+    if (!existsSync(from)) fail(`the installed package has no assets/fonts/${file}.`);
+    cpSync(from, path.join(fontsDir, file));
+  }
+
+  const pdfDir = path.join(pub, 'evidence', 'pdf');
+  mkdirSync(pdfDir, { recursive: true });
+  for (const file of ['report-slice1.pdf', 'report-slice1.json']) {
+    const from = path.join(ROOT, 'evidence', 'pdf', file);
+    if (!existsSync(from)) fail(`evidence/pdf/${file} is missing; run pnpm test:pdf first.`);
+    cpSync(from, path.join(pdfDir, file));
+  }
+  // The PDF records the SHA-256 of each fixture file it drew. Stale evidence must not be linked.
+  const report = JSON.parse(readFileSync(path.join(pdfDir, 'report-slice1.json'), 'utf8')) as {
+    instances: { fixture: string; specSha256: string }[];
+  };
+  for (const inst of report.instances) {
+    if (fileHashes.get(inst.fixture) !== inst.specSha256) {
+      fail(
+        `evidence/pdf/report-slice1.json is stale for fixture ${inst.fixture}; run pnpm test:pdf.`,
+      );
+    }
+  }
+
+  const examplesDir = path.join(stageDir, 'src', 'examples');
+  mkdirSync(examplesDir, { recursive: true });
+  for (const [to, from] of Object.entries(DOCS_EXAMPLES)) {
+    cpSync(path.join(ROOT, from), path.join(examplesDir, to));
+  }
+}
+
 export function stage(name: Name): string {
   const templateDir = path.join(ROOT, TEMPLATES[name]);
   if (!existsSync(templateDir)) fail(`template ${TEMPLATES[name]} does not exist yet.`);
@@ -239,6 +308,7 @@ export function stage(name: Name): string {
     `${JSON.stringify({ tarball: { file: path.basename(tarball.file), sha256: tarball.sha256 }, installed }, null, 2)}\n`,
   );
   checkInstalled(stageDir, tarball);
+  if (name === 'docs') prepareDocs(stageDir);
   const pkg = JSON.parse(readFileSync(path.join(stageDir, 'package.json'), 'utf8')) as {
     scripts?: Record<string, string>;
   };

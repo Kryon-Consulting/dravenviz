@@ -6,6 +6,7 @@ import {
   type ThemeName,
   type ThemeOverrides,
 } from '../core/index';
+import { assertLocaleAndTimezone } from '../core/format/index';
 import { defaultFontAssets } from '../render/fonts/load';
 import type { FontAsset } from '../render/fonts/registry';
 
@@ -41,6 +42,11 @@ export interface MountOptions extends RenderOptions {
   staticLabels?: boolean;
   /** Per-spec embedding namespaces, same length as `specs`; default: every chart uses `namespace`. */
   namespaces?: string[];
+  /**
+   * `"fixed"` (default): the chart is `width` x `height` CSS pixels. `"width"`: it scales to its
+   * container's width with the aspect ratio kept. Needs `dravenviz.css`; layout is unchanged.
+   */
+  fit?: 'fixed' | 'width';
 }
 
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -59,6 +65,7 @@ export interface ResolvedOptions {
   timeoutMs: number;
   limits: Partial<Limits> | undefined;
   staticLabels: boolean;
+  fit: 'fixed' | 'width';
 }
 
 const invalid = (message: string, path?: string): DravenVizError =>
@@ -102,8 +109,10 @@ export function resolveOptions(options: MountOptions, count: number): ResolvedOp
   }
   const locale = options.locale ?? 'en-US';
   const timezone = options.timezone ?? 'UTC';
-  if (typeof locale !== 'string' || typeof timezone !== 'string') {
-    throw invalid('locale and timezone must be strings.');
+  assertLocaleAndTimezone(locale, timezone);
+  const fit = options.fit ?? 'fixed';
+  if (fit !== 'fixed' && fit !== 'width') {
+    throw invalid('fit must be "fixed" or "width".', '/fit');
   }
   // Same-origin and relative-URL checks happen here, before any request (design section 12).
   const fonts = options.fonts ?? defaultFontAssets(options.assetBaseUrl);
@@ -119,5 +128,6 @@ export function resolveOptions(options: MountOptions, count: number): ResolvedOp
     timeoutMs,
     limits: options.limits,
     staticLabels: options.staticLabels ?? true,
+    fit,
   };
 }

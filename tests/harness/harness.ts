@@ -43,8 +43,8 @@ type Item = string | object;
 interface HarnessOptions extends Omit<MountOptions, 'width' | 'height'> {
   width?: number;
   height?: number;
-  /** `hidden` mounts into a `display: none` host. */
-  host?: 'visible' | 'hidden';
+  /** `hidden` mounts into a `display: none` host; `zero-width` into a rendered host 0 px wide. */
+  host?: 'visible' | 'hidden' | 'zero-width';
 }
 
 interface SerializedError {
@@ -82,6 +82,7 @@ function newHost(kind: HarnessOptions['host']): HTMLElement {
   host.setAttribute('data-test-host', String(++sequence));
   host.style.width = '720px';
   if (kind === 'hidden') host.style.display = 'none';
+  if (kind === 'zero-width') host.style.width = '0px';
   document.body.appendChild(host);
   return host;
 }
@@ -137,9 +138,14 @@ export const harness = {
    * The layout the print mount computes for a chart (print theme, 178 mm, static labels), for the
    * geometry oracle. Loads the default fonts first, like a mount does.
    */
-  async layoutOf(item: Item, width = 680, height = 320): Promise<unknown> {
+  async layoutOf(
+    item: Item,
+    width = 680,
+    height = 320,
+    themeName: 'light' | 'dark' | 'print' = 'print',
+  ): Promise<unknown> {
     const fonts = await loadFonts(defaultFontAssets(), new AbortController().signal);
-    const theme = resolveTheme('print');
+    const theme = resolveTheme(themeName);
     const spec = validateSpec(typeof item === 'string' ? fixture(item) : item);
     const model = buildModel(spec, { theme, locale: 'en-US', timezone: 'UTC' });
     if (model.kind !== 'cartesian') throw new Error('not a cartesian model');

@@ -8,6 +8,9 @@ import { dirname, extname, join, normalize } from 'node:path';
 // Serves a temp directory that holds only what a real consumer would copy: the files named in
 // dist/asset-manifest.json (at their `path`), examples/html/*, and the local React 18 UMD build.
 const ROOT = process.cwd();
+// `pnpm test:package` points DV_PACKAGE_ROOT at the EXTRACTED TARBALL, so the same test proves the
+// packed files (manifest, bundle, fonts) work on a plain page. Default: the repository's own build.
+const PKG = process.env['DV_PACKAGE_ROOT'] ?? ROOT;
 const CSP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'";
 const TYPES: Record<string, string> = {
@@ -25,14 +28,14 @@ let origin = '';
 
 test.beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'dv-html-'));
-  const manifest = JSON.parse(readFileSync(join(ROOT, 'dist/asset-manifest.json'), 'utf8')) as {
+  const manifest = JSON.parse(readFileSync(join(PKG, 'dist/asset-manifest.json'), 'utf8')) as {
     files: { path: string; source: string }[];
   };
   const put = (from: string, to: string): void => {
     mkdirSync(dirname(join(dir, to)), { recursive: true });
     copyFileSync(from, join(dir, to));
   };
-  for (const f of manifest.files) put(join(ROOT, f.source), f.path);
+  for (const f of manifest.files) put(join(PKG, f.source), f.path);
   const ex = join(ROOT, 'examples/html');
   for (const name of readdirSync(ex)) {
     if (/\.(html|json|js)$/.test(name)) put(join(ex, name), name);
