@@ -916,7 +916,7 @@ Fixture IDs are stable file names in `fixtures/valid/` (V) or `fixtures/invalid/
 | 9          | V `text-markup-title`; I `invalid-infinite-value`, `invalid-string-number`, `invalid-unknown-field`, `invalid-oversized` (generated at test time), `invalid-bar-domain`, `invalid-percent-negative`, plus one per semantic rule |
 | 10         | V `composed-remediation-days-counts`, `composed-flow-cumulative`                                              |
 | 11         | V `bar-ranking-horizontal`, `bar-stacked-categories`, `bar-compact-percent`                                   |
-| Extra      | V `area-inventory-stacked`, `area-single-gaps`, `line-sparkline`, `bar-grouped`, `line-irregular-numeric`, `line-irregular-time`, `line-fixed-domain-clipped`, `line-estimated-monotone`, `line-category-labels-wrap`, `line-category-labels-rotate`, `line-category-labels-thin`, `perf-line-500x4` (seeded) |
+| Extra      | V `area-inventory-stacked`, `area-single-gaps`, `line-sparkline`, `bar-grouped`, `bar-fixed-domain-clipped`, `bar-quality-states`, `line-irregular-numeric`, `line-irregular-time`, `line-fixed-domain-clipped`, `line-estimated-monotone`, `line-category-labels-wrap`, `line-category-labels-rotate`, `line-category-labels-thin`, `perf-line-500x4` (seeded) |
 | Reports    | `report-slice1` (line fixtures), `report-multi-family-a4` (one or more of every family, with two instances of `line-weekly-flow`) |
 
 Coverage rows from the brief ("Coverage scenarios derived from platform review") map to fixtures below. Each row must reach reviewed browser, SVG and PDF evidence before V1 acceptance (`evidence/verification-matrix.md`).
