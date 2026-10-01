@@ -97,6 +97,10 @@ only a placeholder `div.dravenviz-root`. The host element must be rendered (not 
 sized when the chart mounts. Fonts are loaded from `assetBaseUrl` (default: `fonts/` next to the
 page); only relative or same-origin URLs are allowed, and no request leaves the origin.
 
+The page must be a secure context, because font files are hashed with `crypto.subtle`: serve it
+over HTTPS or from `localhost`. A page on a plain-http intranet host, or opened from `file://`,
+fails with `FONT_LOAD_FAILED` and a message that names this requirement.
+
 ## Scripts
 
 `pnpm build`, `pnpm pack:local`, `pnpm stage <react|docs|html>`, `pnpm test`, `pnpm test:browser`.

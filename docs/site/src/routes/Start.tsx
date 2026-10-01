@@ -119,6 +119,13 @@ export function Start(): ReactElement {
         in that error state recovers on its next prop change, not automatically when the other
         instance unmounts.
       </p>
+      <h3>Fonts fail to load on a plain-http page (FONT_LOAD_FAILED)</h3>
+      <p>
+        DravenViz hashes every font file with Web Crypto, which browsers expose only in a secure
+        context. Serve the page over HTTPS or from <code>localhost</code>. A page on a plain-http
+        intranet host or opened from <code>file://</code> fails with <code>FONT_LOAD_FAILED</code>{' '}
+        and a message that names this requirement.
+      </p>
       <h3>Charts mounted while hidden (ZERO_SIZE)</h3>
       <p>
         A numeric <code>width</code> creates no resize observer. If the host was hidden (for example

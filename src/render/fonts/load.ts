@@ -307,6 +307,9 @@ function register(css: string, raw: ResolvedFace): Registered {
   return entry;
 }
 
+const SECURE_CONTEXT_MESSAGE =
+  'Fonts cannot be loaded because Web Crypto (crypto.subtle) is unavailable. DravenViz needs a secure context: serve the page over HTTPS or from localhost (file:// pages are not supported).';
+
 /**
  * Loads, hashes and registers the fonts (design section 9, step 2). Faces are registered under
  * the internal `cssFamily`. Rejects with `INVALID_OPTIONS` before any fetch, `FONT_LOAD_FAILED`
@@ -319,6 +322,10 @@ export async function loadFonts(
 ): Promise<ResolvedFontSet> {
   const { family, items } = validate(assets);
   if (signal.aborted) throw disposed();
+  // Font hashing needs Web Crypto, which browsers expose only in secure contexts.
+  if (typeof crypto === 'undefined' || typeof crypto.subtle?.digest !== 'function') {
+    throw new DravenVizError('FONT_LOAD_FAILED', SECURE_CONTEXT_MESSAGE);
+  }
   const acquired = items.map((i) => acquire(i.asset.weight, i.url, i.format));
   // If one weight fails, the sibling weights that did load stay cached by URL for the retry.
   const faces = (await Promise.all(acquired.map((entry) => wait(entry, signal)))).sort(
@@ -345,7 +352,7 @@ export async function loadFonts(
     document.fonts.delete(reg.face);
     registered.delete(`${css}|${raw.weight}`);
     forgetFont(raw.url);
-    failed ??= `Font ${raw.url} loaded but "${family}" ${raw.weight} is not registered with the page.`;
+    failed ??= `Font ${raw.url} loaded but "${css}" ${raw.weight} is not registered with the page.`;
     failedUrl ??= raw.url;
   }
   if (failed !== undefined) {
