@@ -84,6 +84,9 @@ describe('§5 constraints expressed by the schema', () => {
     expect(valid(withTitle('a\nb'))).toBe(false);
     expect(valid(withTitle('a\u0000b'))).toBe(false);
     expect(valid(withTitle('a\u007fb'))).toBe(false);
+    expect(valid(withTitle('a\ud800b'))).toBe(false);
+    expect(valid(withTitle('a\udc00b'))).toBe(false);
+    expect(valid({ ...loadFixture('min-donut'), description: 'a\ud800b' })).toBe(false);
     expect(valid(withTitle('</text><script>'))).toBe(true);
     const d = (description: string) => ({ ...loadFixture('min-donut'), description });
     expect(valid(d('line one\nline two'))).toBe(true);
@@ -265,6 +268,77 @@ describe('§5 constraints expressed by the schema', () => {
     s.series[0].yAxisId = 'does-not-exist';
     s.series.push({ ...s.series[0] });
     expect(valid(s)).toBe(true);
+  });
+});
+
+describe('first error is the real error (discriminated unions)', () => {
+  const first = (spec: unknown) => {
+    expect(schemaValidate(spec)).toBe(false);
+    return schemaValidate.errors![0];
+  };
+
+  test.each(['min-donut', 'min-heatmap', 'min-progress'])(
+    '%s with an unknown field reports additionalProperties at the root',
+    (id) => {
+      expect(first({ ...loadFixture(id), colour: 'red' })).toMatchObject({
+        keyword: 'additionalProperties',
+        instancePath: '',
+        params: { additionalProperty: 'colour' },
+      });
+    },
+  );
+
+  test('donut with a multi-line title reports the title pattern', () => {
+    expect(first(withTitle('a\nb'))).toMatchObject({ keyword: 'pattern', instancePath: '/title' });
+  });
+
+  test('unknown kind is reported on kind', () => {
+    expect(first({ ...line(), kind: 'pie' })).toMatchObject({ instancePath: '' });
+  });
+
+  test('time axis with an invalid domain reports under /xAxis/domain', () => {
+    const s = line();
+    s.xAxis.domain = { min: 'July' };
+    const e = first(s);
+    expect(e?.instancePath).toBe('/xAxis/domain/min');
+    expect(e?.keyword).toBe('pattern');
+  });
+
+  test('fixed domain missing max reports the missing property', () => {
+    const s = line();
+    s.yAxes[0].domain = { policy: 'fixed', min: 0 };
+    expect(first(s)).toMatchObject({
+      keyword: 'required',
+      instancePath: '/yAxes/0/domain',
+      params: { missingProperty: 'max' },
+    });
+  });
+});
+
+describe('SpecBase and the kind defs stay in step', () => {
+  const schema = readJson('schema/viz-spec-v1.schema.json');
+  const base = schema.$defs.SpecBase;
+  const kindDefs = ['CartesianSpec', 'DonutSpec', 'HeatmapSpec', 'ProgressSpec'];
+
+  test('SpecBase is closed', () => {
+    expect(base.additionalProperties).toBe(false);
+  });
+
+  test.each(kindDefs)('%s mirrors SpecBase', (name) => {
+    const def = schema.$defs[name];
+    for (const key of Object.keys(base.properties).filter((k) => k !== 'kind')) {
+      expect(def.properties[key], `${name}.${key}`).toEqual({
+        $ref: `#/$defs/SpecBase/properties/${key}`,
+      });
+    }
+    expect(typeof def.properties.kind.const).toBe('string');
+    expect(base.properties.kind.enum).toContain(def.properties.kind.const);
+    for (const key of base.required) expect(def.required).toContain(key);
+  });
+
+  test('every SpecBase kind has a kind def', () => {
+    const kinds = kindDefs.map((n) => schema.$defs[n].properties.kind.const).sort();
+    expect(kinds).toEqual([...base.properties.kind.enum].sort());
   });
 });
 

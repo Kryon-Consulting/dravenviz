@@ -3,6 +3,9 @@
   "$id": "urn:dravenviz:schema:viz-spec:v1",
   "title": "VizSpec",
   "description": "DravenViz chart specification, schema version 1.",
+  "discriminator": {
+    "propertyName": "kind"
+  },
   "oneOf": [
     {
       "$ref": "#/$defs/CartesianSpec"
@@ -27,14 +30,14 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 500,
-      "pattern": "^\\P{Cc}+$",
+      "pattern": "^[^\\p{Cc}\\p{Cs}]+$",
       "description": "Plain text, 1-500 characters, no control characters. Always rendered as text."
     },
     "MultilineText": {
       "type": "string",
       "minLength": 1,
       "maxLength": 500,
-      "pattern": "^(?:\\P{Cc}|\\n)+$",
+      "pattern": "^(?:[^\\p{Cc}\\p{Cs}]|\\n)+$",
       "description": "Plain text, 1-500 characters; newline is allowed."
     },
     "Color": {
@@ -68,20 +71,20 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "pattern": "^\\P{Cc}+$",
+          "pattern": "^[^\\p{Cc}\\p{Cs}]+$",
           "description": "Chart title, 1-200 characters."
         },
         "description": {
           "type": "string",
           "maxLength": 2000,
-          "pattern": "^(?:\\P{Cc}|\\n)*$",
+          "pattern": "^(?:[^\\p{Cc}\\p{Cs}]|\\n)*$",
           "description": "Chart summary; used for <desc> and the table caption."
         },
         "caption": {
           "type": "string",
           "minLength": 1,
           "maxLength": 500,
-          "pattern": "^(?:\\P{Cc}|\\n)+$",
+          "pattern": "^(?:[^\\p{Cc}\\p{Cs}]|\\n)+$",
           "description": "Printed footnote under the chart (at least 8 pt in print)."
         },
         "roles": {
@@ -98,7 +101,8 @@
           "$ref": "#/$defs/LegendOptions"
         }
       },
-      "required": ["schemaVersion", "id", "kind", "title"]
+      "required": ["schemaVersion", "id", "kind", "title"],
+      "additionalProperties": false
     },
     "RoleDef": {
       "title": "RoleDef",
@@ -188,7 +192,11 @@
         {
           "$ref": "#/$defs/FixedDomain"
         }
-      ]
+      ],
+      "discriminator": {
+        "propertyName": "policy"
+      },
+      "type": "object"
     },
     "IncludeZeroDomain": {
       "title": "IncludeZeroDomain",
@@ -772,6 +780,9 @@
           "enum": ["standard", "sparkline", "compact-stack"]
         },
         "xAxis": {
+          "discriminator": {
+            "propertyName": "scale"
+          },
           "oneOf": [
             {
               "$ref": "#/$defs/CategoryAxis"
@@ -782,7 +793,8 @@
             {
               "$ref": "#/$defs/TimeAxis"
             }
-          ]
+          ],
+          "type": "object"
         },
         "yAxes": {
           "type": "array",
@@ -1065,5 +1077,6 @@
       "required": ["schemaVersion", "id", "kind", "title", "variant", "domain", "items"],
       "additionalProperties": false
     }
-  }
+  },
+  "type": "object"
 }

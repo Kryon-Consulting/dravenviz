@@ -66,6 +66,7 @@ export async function generateValidator(): Promise<Record<string, string>> {
     strict: true,
     allErrors: true,
     allowUnionTypes: true,
+    discriminator: true,
     code: { source: true, esm: true },
   });
   // Annotation-only keywords: `extends` and `tsType` steer json-schema-to-typescript.
