@@ -56,8 +56,8 @@ export interface NoteLine {
 }
 
 /**
- * Static-mode label that is drawn inside the plot at its scaled position. Layout only measures
- * it; positions come from the scales, and collision handling for selected scatter labels is a
+ * Annotation or reference-line label drawn inside the plot at its scaled position, in every mode.
+ * Layout only measures it; positions come from the scales, and collision handling for selected scatter labels is a
  * slice-3 concern (see `StaticLabelPlacer`).
  */
 export interface StaticLabel {

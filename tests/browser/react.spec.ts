@@ -456,3 +456,21 @@ test('an invalid timeoutMs is INVALID_OPTIONS with its path', async ({ page }) =
     'INVALID_OPTIONS',
   ]);
 });
+
+test('interactive mode draws annotation and reference-line labels', async ({ page }) => {
+  await page.evaluate(() =>
+    window.__r.render({
+      fixture: 'line-weekly-flow',
+      theme: 'light',
+      width: 680,
+      height: 320,
+      staticLabels: false,
+    }),
+  );
+  await ready(page);
+  const texts = await page
+    .locator('svg[data-dravenviz-chart="weekly-flow"] text')
+    .allTextContents();
+  expect(texts.some((t) => t.includes('Partial week'))).toBe(true);
+  expect(texts).toContain('Target');
+});

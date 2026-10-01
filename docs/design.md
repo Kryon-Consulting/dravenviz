@@ -638,7 +638,7 @@ Label policies:
 - **Time and linear ticks:** nice ticks with a count of 4–6. Duplicate formatted labels trigger a coarser tick format.
 - **Annotations:** drawn at their scaled position regardless of which ticks are kept.
 - **Minimum plot size:** 80 × 60 logical units. Below that, `LAYOUT_ERROR` is thrown with a message naming the element that did not fit and the minimum size needed.
-- **Static mode:** a label is shown for every point with `staticLabel: true`, every annotation `label`, reference line labels, and `labels.values` selections. Collisions among selected scatter labels are resolved by trying 8 candidate positions in order; if all collide, the label is replaced by a numbered marker plus a numbered row in the notes. No label is dropped silently.
+- **Static mode:** a label is shown for every point with `staticLabel: true` and for `labels.values` selections. Annotation `label`s and reference line labels are on-chart text in every mode (interactive included): they are always measured, reserved and drawn, and `staticLabels` never hides them (Ruling R44). Collisions among selected scatter labels are resolved by trying 8 candidate positions in order; if all collide, the label is replaced by a numbered marker plus a numbered row in the notes. No label is dropped silently.
 - **Text measurement:** a `TextMeasurer` interface `(text, font: {size, weight}) => {width, ascent, descent}`. The browser implementation uses canvas `measureText` after font verification. The Node test implementation uses per-character advance tables for Noto Sans 400/600, generated once by `scripts/fetch-font.ts` into `src/render/layout/noto-metrics.gen.ts`, so layout unit tests are deterministic.
 
 ## 9. Browser and print lifecycle

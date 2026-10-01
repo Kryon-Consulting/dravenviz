@@ -185,13 +185,15 @@ describe('time ticks and annotations', () => {
 });
 
 describe('static mode', () => {
-  test('adds annotation and reference labels; interactive adds none', () => {
+  test('annotation and reference labels are measured in every mode, identically', () => {
     const s = lay('line-weekly-flow', 680, 320, { mode: 'static' });
     expect(s.staticLabels.map((x) => [x.kind, x.text])).toEqual([
       ['annotation', 'Partial week'],
       ['reference', 'Target'],
     ]);
-    expect(lay('line-weekly-flow').staticLabels).toEqual([]);
+    const i = lay('line-weekly-flow', 680, 320, { mode: 'interactive' });
+    expect(i.staticLabels).toEqual(s.staticLabels);
+    expect(i.boxes).toEqual(s.boxes);
   });
 });
 
