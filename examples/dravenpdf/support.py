@@ -34,6 +34,10 @@ EXIT_PREREQ = 3  # a prerequisite is missing: prints "UNVERIFIED: <reason>"
 EXIT_UNVERIFIED = 4  # everything ran, but part of the evidence could not be proven
 
 
+class ServerStartError(RuntimeError):
+    """`dravenpdf serve` did not become ready. The driver then uses the library fallback."""
+
+
 class Unverified(Exception):
     """A prerequisite is missing. The caller prints `UNVERIFIED: <reason>` and exits 3."""
 
@@ -120,25 +124,31 @@ def dravenpdf_server(chromium: Path, log_path: Path | None = None) -> Iterator[t
         deadline = time.monotonic() + 30
         while True:
             if proc.poll() is not None:
-                raise RuntimeError(f"dravenpdf serve exited with {proc.returncode} before it was ready")
+                raise ServerStartError(f"dravenpdf serve exited with {proc.returncode} before it was ready")
             try:
                 if httpx.get(f"{url}/readyz", timeout=2).status_code == 200:
                     break
             except httpx.HTTPError:
                 pass
             if time.monotonic() > deadline:
-                raise RuntimeError("dravenpdf serve was not ready (/readyz 200) within 30 s")
+                raise ServerStartError("dravenpdf serve was not ready (/readyz 200) within 30 s")
             time.sleep(0.25)
-        # Launch Chromium once before the real renders: a cold first launch has taken longer
-        # than the 30 s render budget. The result is discarded.
-        warm = httpx.post(
-            f"{url}/v1/render/html",
-            headers={"X-API-Key": key},
-            json={"html": "<p>warm-up</p>", "options": {"timeout_ms": 120000}},
-            timeout=150,
-        )
-        if warm.status_code != 200:
-            raise RuntimeError(f"warm-up render failed: HTTP {warm.status_code} {warm.text[:200]}")
+        # Launch Chromium once before the real renders and discard the result. A cold first
+        # launch sometimes stalls (seen in a sandboxed environment); the stalled render times out
+        # and the next one works, so retry a few times before giving up on the server.
+        last = ""
+        for _ in range(3):
+            warm = httpx.post(
+                f"{url}/v1/render/html",
+                headers={"X-API-Key": key},
+                json={"html": "<p>warm-up</p>", "options": {"timeout_ms": 20000}},
+                timeout=60,
+            )
+            if warm.status_code == 200:
+                break
+            last = f"HTTP {warm.status_code} {warm.text[:200]}"
+        else:
+            raise ServerStartError(f"warm-up render failed three times: {last}")
         yield url, key
     finally:
         proc.terminate()

@@ -2,8 +2,8 @@
   "method": "link-dest",
   "linkDest": {
     "destOffsetPt": {
-      "dx": -45.6328125,
-      "dy": 45.4356689453125
+      "dx": -45.609375,
+      "dy": 45.0606689453125
     },
     "destTolerancePt": 2.0,
     "edgeTolerancePt": 0.25

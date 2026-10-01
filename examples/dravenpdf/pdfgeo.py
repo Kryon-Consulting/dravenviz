@@ -133,6 +133,7 @@ class TextObj:
     size_pt: float  # effective: font size x sqrt(|det| of the composed matrix)
     quad: list[Point]  # oriented bounds, 4 vertices
     order: int  # content order within the page
+    font: str = ""  # base font name, e.g. "ABCDEF+DravenViz Noto Sans"
 
 
 def _compose(m1: tuple, m2: tuple) -> tuple:
@@ -158,6 +159,18 @@ def _text_of(obj: pdfium.PdfObject, textpage: pdfium.PdfTextPage) -> str:
     return bytes(memoryview(buf)).decode("utf-16-le").rstrip("\x00")
 
 
+def _font_name(obj: pdfium.PdfObject) -> str:
+    font = raw.FPDFTextObj_GetFont(obj.raw)
+    if not font:
+        return ""
+    n = raw.FPDFFont_GetBaseFontName(font, None, 0)
+    if n <= 1:
+        return ""
+    buf = ctypes.create_string_buffer(n)
+    raw.FPDFFont_GetBaseFontName(font, buf, n)
+    return buf.value.decode("latin-1")
+
+
 def text_objects(page: pdfium.PdfPage) -> list[TextObj]:
     """All text objects in content order, descending into form XObjects. The size is the font
     size times the square root of the absolute determinant of the object's matrix composed with
@@ -178,7 +191,7 @@ def text_objects(page: pdfium.PdfPage) -> list[TextObj]:
         quad: list[Point] = []
         if raw.FPDFPageObj_GetRotatedBounds(obj.raw, q):
             quad = [(q.x1, q.y1), (q.x2, q.y2), (q.x3, q.y3), (q.x4, q.y4)]
-        out.append(TextObj(_text_of(obj, textpage), size.value * scale, quad, order))
+        out.append(TextObj(_text_of(obj, textpage), size.value * scale, quad, order, _font_name(obj)))
     return out
 
 

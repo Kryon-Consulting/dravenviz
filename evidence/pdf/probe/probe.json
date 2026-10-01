@@ -3,8 +3,8 @@
   "meta": {
     "chromium": "Chromium 141.0.7390.37",
     "pypdfium2": "5.13.0",
-    "bytes": 84131,
-    "sha256": "371d97d66ca162ae6b2f4c4eb831b23cb52b90117efc3be058b2e91309da9caf"
+    "bytes": 84082,
+    "sha256": "2ca44648fad8bfa6de04497647ff0040de5ca5f6a1a1d5374facb0dcfab3286f"
   },
   "pages": 3,
   "frames": [
@@ -26,13 +26,13 @@
       "edgeErrorPt": 0.17578125,
       "dest": [
         3,
-        33.0,
-        169.91998291015625
+        126.75,
+        526.9199829101562
       ],
-      "literalNs": "p2",
-      "literalDistancePt": 47.944443313767536,
+      "literalNs": "p6",
+      "literalDistancePt": 45.74025355651843,
       "resolvedNs": "p1",
-      "resolvedDistancePt": 0.7499542236328125
+      "resolvedDistancePt": 0.375
     },
     {
       "ns": "p2",
@@ -52,13 +52,13 @@
       "edgeErrorPt": 0.17578125,
       "dest": [
         3,
-        33.0,
-        231.41998291015625
+        126.75,
+        536.6699829101562
       ],
-      "literalNs": "p3",
-      "literalDistancePt": 47.7197043960416,
+      "literalNs": "p7",
+      "literalDistancePt": 45.74025355651843,
       "resolvedNs": "p2",
-      "resolvedDistancePt": 4.57763671875e-05
+      "resolvedDistancePt": 0.375
     },
     {
       "ns": "p3",
@@ -78,13 +78,13 @@
       "edgeErrorPt": 0.17578125,
       "dest": [
         3,
-        33.0,
-        292.16998291015625
+        126.75,
+        546.4199829101562
       ],
-      "literalNs": "p4",
-      "literalDistancePt": 47.94443863290405,
+      "literalNs": "p7",
+      "literalDistancePt": 45.875657116038646,
       "resolvedNs": "p3",
-      "resolvedDistancePt": 6.103515625e-05
+      "resolvedDistancePt": 0.375
     },
     {
       "ns": "p4",
@@ -104,13 +104,13 @@
       "edgeErrorPt": 0.17578125,
       "dest": [
         3,
-        33.0,
-        352.91998291015625
+        126.75,
+        556.9199829101562
       ],
-      "literalNs": "p5",
-      "literalDistancePt": 47.94443863290405,
+      "literalNs": "p7",
+      "literalDistancePt": 48.15054479110189,
       "resolvedNs": "p4",
-      "resolvedDistancePt": 0.74993896484375
+      "resolvedDistancePt": 0.375
     },
     {
       "ns": "p5",
@@ -130,13 +130,13 @@
       "edgeErrorPt": 0.17578125,
       "dest": [
         3,
-        33.0,
-        413.66998291015625
+        126.75,
+        566.6699829101562
       ],
-      "literalNs": "p6",
-      "literalDistancePt": 47.94444799463542,
+      "literalNs": "p7",
+      "literalDistancePt": 52.1011804867558,
       "resolvedNs": "p5",
-      "resolvedDistancePt": 0.74993896484375
+      "resolvedDistancePt": 0.375
     },
     {
       "ns": "p6",
@@ -156,13 +156,13 @@
       "edgeErrorPt": 0.17578125,
       "dest": [
         3,
-        33.0,
-        475.16998291015625
+        126.75,
+        576.4199829101562
       ],
       "literalNs": "p7",
-      "literalDistancePt": 47.71971332222378,
+      "literalDistancePt": 57.45185856477662,
       "resolvedNs": "p6",
-      "resolvedDistancePt": 0.0
+      "resolvedDistancePt": 0.375
     },
     {
       "ns": "p7",
@@ -182,45 +182,45 @@
       "edgeErrorPt": 0.17578125,
       "dest": [
         3,
-        33.0,
-        535.9199829101562
+        126.75,
+        586.9199829101562
       ],
       "literalNs": "p7",
-      "literalDistancePt": 64.3952916692532,
+      "literalDistancePt": 64.3786851403371,
       "resolvedNs": "p7",
-      "resolvedDistancePt": 0.0
+      "resolvedDistancePt": 0.375
     }
   ],
   "linkDest": {
     "edge_error_max": 0.17578125,
     "edge_ok": true,
     "literal_correct": 1,
-    "literal_distance_max": 64.3952916692532,
+    "literal_distance_max": 64.3786851403371,
     "literal_ok": false,
     "dest_offset": {
-      "dx": -45.6328125,
-      "dy": 45.4356689453125
+      "dx": -45.609375,
+      "dy": 45.0606689453125
     },
     "offsets_x": [
-      -45.6328125,
-      -45.6328125,
-      -45.6328125,
-      -45.6328125,
-      -45.6328125,
-      -45.6328125,
-      -45.6328125
+      -45.609375,
+      -45.609375,
+      -45.609375,
+      -45.609375,
+      -45.609375,
+      -45.609375,
+      -45.609375
     ],
     "offsets_y": [
-      44.68571472167969,
-      45.43571472167969,
-      45.43572998046875,
-      44.68572998046875,
-      44.68572998046875,
       45.4356689453125,
+      44.6856689453125,
+      44.6856689453125,
+      45.4356689453125,
+      44.6856689453125,
+      44.6856689453125,
       45.4356689453125
     ],
     "resolved_correct": 7,
-    "resolved_distance_max": 0.7499542236328125,
+    "resolved_distance_max": 0.375,
     "resolved_unique": true,
     "caption_order": [
       "p7",

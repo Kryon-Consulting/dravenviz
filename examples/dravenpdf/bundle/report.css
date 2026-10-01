@@ -82,3 +82,16 @@ h1 {
 .dv-table {
   margin-top: 2mm;
 }
+
+/* The equivalent data table: full width, so a caption never wraps mid-title. */
+.dv-table .dravenviz-root .dravenviz-table {
+  width: 100%;
+  font-size: 8pt;
+  line-height: 1.25;
+}
+
+.dv-table .dravenviz-root .dravenviz-table-notes {
+  margin: 1mm 0 0;
+  padding-left: 4mm;
+  font-size: 8pt;
+}

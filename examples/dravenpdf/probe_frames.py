@@ -97,7 +97,9 @@ def measure(pdf: pdfium.PdfDocument) -> dict:
         # dest is the token's top-left position shifted by a constant: measure the shift.
         offsets_x.append(r["link"].dest_x - tok.box[0])
         offsets_y.append(r["link"].dest_y - tok.box[3])
-    dest_dx, dest_dy = statistics.median(offsets_x), statistics.median(offsets_y)
+    # Mid-range: the shift is constant up to one pixel of layout snapping.
+    dest_dx = (min(offsets_x) + max(offsets_x)) / 2
+    dest_dy = (min(offsets_y) + max(offsets_y)) / 2
     for r in rows:
         cx, cy = r["link"].dest_x - dest_dx, r["link"].dest_y - dest_dy
         same = [c for c in caption_tokens if c.page == r["link"].dest_page]
@@ -230,7 +232,7 @@ def write_markdown(result: dict, method: str, meta: dict) -> None:
         f"- Literal rule (nearest token to the destination, within {DEST_TOL} pt): {ld['literal_correct']} of 7 correct, largest distance {f(ld['literal_distance_max'], 1)} pt: **{'pass' if ld['literal_ok'] else 'fail'}**.",
         "- Why the literal rule fails: Chromium writes the destination of a named anchor shifted by the page",
         "  margin relative to the token's position (x by minus the margin, y by plus the margin; here",
-        f"  16 mm = 45.35 pt). Measured shift, median of 7: dx = {f(ld['dest_offset']['dx'], 2)} pt, dy = {f(ld['dest_offset']['dy'], 2)} pt.",
+        f"  16 mm = 45.35 pt). Measured shift, mid-range of 7: dx = {f(ld['dest_offset']['dx'], 2)} pt, dy = {f(ld['dest_offset']['dy'], 2)} pt.",
         f"  Per-instance dx spread {f(min(ld['offsets_x']), 2)}..{f(max(ld['offsets_x']), 2)}, dy spread {f(min(ld['offsets_y']), 2)}..{f(max(ld['offsets_y']), 2)} (one-pixel snapping).",
         f"- With that constant shift removed: {ld['resolved_correct']} of 7 resolved to the right token, all different"
         f" ({'yes' if ld['resolved_unique'] else 'no'}), largest residual {f(ld['resolved_distance_max'])} pt (limit {DEST_TOL}): **{'pass' if ld['resolved_ok'] else 'fail'}**.",

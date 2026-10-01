@@ -7,7 +7,7 @@ its SVG) in the PDF, by identity and geometry, so that crops are taken from the 
 - Chosen method: `link-dest`
 - Proven: yes
 - DravenPDF commit: `7a249e0`; Chromium: `Chromium 141.0.7390.37`; pypdfium2: `5.13.0`
-- Probe PDF: 84131 bytes, 3 pages, sha256 `371d97d66ca162ae6b2f4c4eb831b23cb52b90117efc3be058b2e91309da9caf`
+- Probe PDF: 84082 bytes, 3 pages, sha256 `2ca44648fad8bfa6de04497647ff0040de5ca5f6a1a1d5374facb0dcfab3286f`
 
 ## Setup
 
@@ -26,21 +26,21 @@ Link annotation rect per frame, identity resolved through the link's destination
 
 | ns | page | link edge error (pt) | dest (page, x, y) | literal token | literal distance (pt) | calibrated token | calibrated residual (pt) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| p1 | 1 | 0.176 | (3, 33.00, 169.92) | p2 | 47.94 | p1 | 0.750 |
-| p2 | 1 | 0.176 | (3, 33.00, 231.42) | p3 | 47.72 | p2 | 0.000 |
-| p3 | 1 | 0.176 | (3, 33.00, 292.17) | p4 | 47.94 | p3 | 0.000 |
-| p4 | 2 | 0.176 | (3, 33.00, 352.92) | p5 | 47.94 | p4 | 0.750 |
-| p5 | 2 | 0.176 | (3, 33.00, 413.67) | p6 | 47.94 | p5 | 0.750 |
-| p6 | 2 | 0.176 | (3, 33.00, 475.17) | p7 | 47.72 | p6 | 0.000 |
-| p7 | 3 | 0.176 | (3, 33.00, 535.92) | p7 | 64.40 | p7 | 0.000 |
+| p1 | 1 | 0.176 | (3, 126.75, 526.92) | p6 | 45.74 | p1 | 0.375 |
+| p2 | 1 | 0.176 | (3, 126.75, 536.67) | p7 | 45.74 | p2 | 0.375 |
+| p3 | 1 | 0.176 | (3, 126.75, 546.42) | p7 | 45.88 | p3 | 0.375 |
+| p4 | 2 | 0.176 | (3, 126.75, 556.92) | p7 | 48.15 | p4 | 0.375 |
+| p5 | 2 | 0.176 | (3, 126.75, 566.67) | p7 | 52.10 | p5 | 0.375 |
+| p6 | 2 | 0.176 | (3, 126.75, 576.42) | p7 | 57.45 | p6 | 0.375 |
+| p7 | 3 | 0.176 | (3, 126.75, 586.92) | p7 | 64.38 | p7 | 0.375 |
 
 - Link rect edge error, maximum over 7 frames: 0.176 pt (limit 0.25): **pass**.
 - Literal rule (nearest token to the destination, within 2.0 pt): 1 of 7 correct, largest distance 64.4 pt: **fail**.
 - Why the literal rule fails: Chromium writes the destination of a named anchor shifted by the page
   margin relative to the token's position (x by minus the margin, y by plus the margin; here
-  16 mm = 45.35 pt). Measured shift, median of 7: dx = -45.63 pt, dy = 45.44 pt.
-  Per-instance dx spread -45.63..-45.63, dy spread 44.69..45.44 (one-pixel snapping).
-- With that constant shift removed: 7 of 7 resolved to the right token, all different (yes), largest residual 0.750 pt (limit 2.0): **pass**.
+  16 mm = 45.35 pt). Measured shift, mid-range of 7: dx = -45.61 pt, dy = 45.06 pt.
+  Per-instance dx spread -45.61..-45.61, dy spread 44.69..45.44 (one-pixel snapping).
+- With that constant shift removed: 7 of 7 resolved to the right token, all different (yes), largest residual 0.375 pt (limit 2.0): **pass**.
 - Caption order in the PDF (top to bottom): p7, p6, p5, p4, p3, p2, p1; frame order: p1, p2, p3, p4, p5, p6, p7.
 - Verdict `link-dest`: **pass** (identity needs the recorded destination offset; the frame rect is the link rect itself, no calibration).
 
