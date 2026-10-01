@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -27,6 +28,7 @@ import pypdfium2.raw as raw
 from PIL import Image
 
 import client
+import negative
 import pdfgeo
 import support
 from support import ROOT, EXIT_FAIL, EXIT_PASS, EXIT_PREREQ, EXIT_UNVERIFIED
@@ -83,16 +85,18 @@ class Check:
     name: str
     status: str  # pass | fail | unverified
     detail: str = ""
+    attempts: int | None = None  # renders made, for checks that call DravenPDF
 
 
 @dataclass
 class Run:
     checks: list[Check] = field(default_factory=list)
 
-    def add(self, name: str, ok: bool | None, detail: str = "") -> bool:
+    def add(self, name: str, ok: bool | None, detail: str = "", attempts: int | None = None) -> bool:
         status = "unverified" if ok is None else ("pass" if ok else "fail")
-        self.checks.append(Check(name, status, detail))
-        print(f"  [{status.upper():10}] {name}" + (f": {detail}" if detail else ""))
+        self.checks.append(Check(name, status, detail, attempts))
+        suffix = f" ({attempts} attempt{'s' if attempts != 1 else ''})" if attempts else ""
+        print(f"  [{status.upper():10}] {name}" + (f": {detail}" if detail else "") + suffix)
         return ok is not False
 
 
@@ -170,6 +174,10 @@ class Frame:
     ns: str
     page: int  # 0-based
     rect: pdfgeo.Rect
+    # How the link's destination was tied to this namespace's token (ruling R35): distance from the
+    # offset-corrected destination to the winning token, and to the next-nearest token on that page.
+    residual_pt: float | None = None
+    runner_up_pt: float | None = None
 
 
 def locate_frames(
@@ -190,12 +198,14 @@ def locate_frames(
         if not near:
             problems.append(f"link on page {lk.page + 1} points to page {lk.dest_page + 1} without tokens")
             continue
-        best = min(near, key=lambda t: math.hypot(cx - t.box[0], cy - t.box[3]))
+        ranked = sorted(near, key=lambda t: math.hypot(cx - t.box[0], cy - t.box[3]))
+        best = ranked[0]
         residual = math.hypot(cx - best.box[0], cy - best.box[3])
+        runner_up = math.hypot(cx - ranked[1].box[0], cy - ranked[1].box[3]) if len(ranked) > 1 else None
         if residual > tol:
             problems.append(f"link on page {lk.page + 1}: nearest token {best.text} is {residual:.2f} pt away")
             continue
-        found[best.ns].append(Frame(best.ns, lk.page, lk.rect))
+        found[best.ns].append(Frame(best.ns, lk.page, lk.rect, residual, runner_up))
     for ns, frames in found.items():
         if len(frames) != 1:
             problems.append(f"{ns}: found {len(frames)} frames, expected exactly 1")
@@ -510,75 +520,87 @@ def run_compare(bundle: Path, crops_dir: Path, out: Path) -> tuple[dict, dict]:
     return json.loads((out / "browser.json").read_text()), json.loads((out / "comparison.json").read_text())
 
 
-def render_retry(url: str, key: str, bundle: Path, options: dict, attempts: int = 2) -> tuple[bytes, int]:
-    """Render the bundle; retry once on a 504. A cold Chromium launch in a sandbox has stalled for
-    the whole render budget (the pool then recovers), which says nothing about the report."""
-    for attempt in range(1, attempts + 1):
-        try:
-            return client.render_bundle(url, key, bundle, options), attempt
-        except client.RenderRejected as exc:
-            if exc.status != 504 or attempt == attempts:
-                raise
-            print(f"  render timed out (HTTP 504); retrying (attempt {attempt + 1} of {attempts})")
-    raise AssertionError("unreachable")
+RenderFn = Callable[[Path, dict], bytes]
 
 
-def negative_checks(run: Run, url: str, key: str, bundle: Path, work: Path) -> None:
-    """Strict mode: a missing font or stylesheet must fail the render and write no PDF."""
+def http_render(url: str, key: str) -> RenderFn:
+    return lambda bundle, options: client.render_bundle(url, key, bundle, options)
+
+
+def library_render(chromium: Path) -> RenderFn:
+    import library_fallback
+
+    return lambda bundle, options: library_fallback.render_bundle_library_checked(bundle, options, chromium)
+
+
+def render_report(run: Run, chromium: Path, bundle: Path, work: Path) -> tuple[bytes, str, int]:
+    """The main render through the HTTP service, or through the library when the service cannot
+    start, then the negative checks through the same path. Returns (pdf, path used, attempts).
+
+    A stalled Chromium launch in a sandbox answers 504 for the whole budget and then recovers, so
+    the main render retries once on a 504 (and only then). Raises `client.RenderRejected` /
+    `RuntimeError` when the report render itself fails.
+    """
+    try:
+        with support.dravenpdf_server(chromium, work / "server.log") as (url, key):
+            render = http_render(url, key)
+            data, attempts, detail = negative.expect_success(lambda: render(bundle, client.PDF_OPTIONS))
+            if data is None:
+                raise RuntimeError(detail)
+            negative_checks(run, render, bundle, work, "http")
+            return data, "http", attempts
+    except support.ServerStartError as exc:
+        print(f"server could not start ({exc}); using the library fallback")
+    render = library_render(chromium)
+    data, attempts, detail = negative.expect_success(lambda: render(bundle, client.PDF_OPTIONS))
+    if data is None:
+        raise RuntimeError(f"the library fallback failed too: {detail}")
+    # The negative checks run through DravenPDF's Python API: a missing font raises
+    # RenderTimeoutError, a missing stylesheet IncompleteRenderError.
+    negative_checks(run, render, bundle, work, "library")
+    return data, "library", attempts
+
+
+def negative_checks(run: Run, render: RenderFn, bundle: Path, work: Path, path_used: str) -> None:
+    """Strict mode: a missing font or stylesheet must fail the render and return no PDF."""
     options = {**client.PDF_OPTIONS, "timeout_ms": NEGATIVE_TIMEOUT_MS}
     started = time.monotonic()
-    try:
-        render_retry(url, key, bundle, options)
-        control = True
-        control_detail = f"{time.monotonic() - started:.1f} s"
-    except Exception as exc:  # noqa: BLE001
-        control = False
-        control_detail = str(exc)
-    run.add(f"control: the intact bundle renders within {NEGATIVE_TIMEOUT_MS} ms", control, control_detail)
+    data, attempts, detail = negative.expect_success(lambda: render(bundle, options))
+    run.add(
+        f"control: the intact bundle renders within {NEGATIVE_TIMEOUT_MS} ms ({path_used})",
+        data is not None,
+        f"{time.monotonic() - started:.1f} s" if data is not None else detail,
+        attempts,
+    )
     broken = work / "bundle-missing-font"
     shutil.copytree(bundle, broken)
     (broken / MISSING_FONT).unlink()
-    written = EVIDENCE / "missing-font.pdf"
-    outcome = "a PDF was returned"
-    ok = False
-    attempt = 0
-    for attempt in (1, 2):  # noqa: B007
-        try:
-            client.render_bundle(url, key, broken, options)
-            outcome = "a PDF was returned"
-        except client.RenderRejected as exc:
-            # DravenPDF waits for window.__DRAVENPDF_READY__. The bootstrap throws on the font 404
-            # and never sets it, so the wait runs out: 504 render_timeout (not the 422
-            # render_incomplete that a strict check on a page that did set the flag would give).
-            ok = exc.status == 504 and exc.code == "render_timeout" and not written.exists()
-            outcome = f"HTTP {exc.status} {exc.code}: {exc.message[:120]}"
-        if ok:
-            break
-        print(f"  unexpected outcome ({outcome}); trying once more")
+    # DravenPDF waits for window.__DRAVENPDF_READY__. The bootstrap throws on the font 404 and never
+    # sets it, so the wait runs out: 504 render_timeout (ruling R36), not the 422 render_incomplete
+    # that a strict check on a page that did set the flag would give. DravenPDF checks page errors
+    # only after that wait and does not log them when it times out, so the page error itself is
+    # proven by the browser check below, not by the server log.
+    font = negative.expect_rejection(
+        lambda: render(broken, options), "render_timeout", 504 if path_used == "http" else None
+    )
     run.add(
-        "missing font fails the PDF render (504 render_timeout, no PDF written)",
-        ok,
-        outcome if attempt == 1 else f"{outcome} (second attempt)",
+        f"missing font fails the PDF render ({'504 ' if path_used == 'http' else 'RenderTimeoutError, '}render_timeout, no PDF returned) ({path_used})",
+        font.ok,
+        font.detail,
+        font.attempts,
     )
     run_browser_failure(run, broken)
     broken_css = work / "bundle-missing-css"
     shutil.copytree(bundle, broken_css)
     (broken_css / "dravenviz.css").unlink()
-    result = None
-    for _ in range(2):  # a stalled Chromium launch answers 504; retry once
-        try:
-            client.render_bundle(url, key, broken_css, client.PDF_OPTIONS)
-            result = "a PDF was returned"
-            break
-        except client.RenderRejected as exc:
-            result = exc
-            if exc.status != 504:
-                break
-    ok = isinstance(result, client.RenderRejected) and result.status == 422 and result.code == "render_incomplete"
+    css = negative.expect_rejection(
+        lambda: render(broken_css, client.PDF_OPTIONS), "render_incomplete", 422 if path_used == "http" else None
+    )
     run.add(
-        "missing stylesheet fails strict resource checking (422 render_incomplete)",
-        ok,
-        f"HTTP {result.status} {result.code}" if isinstance(result, client.RenderRejected) else str(result),
+        f"missing stylesheet fails strict resource checking ({'422 ' if path_used == 'http' else 'IncompleteRenderError, '}render_incomplete) ({path_used})",
+        css.ok,
+        css.detail,
+        css.attempts,
     )
 
 
@@ -630,26 +652,10 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="dv-pdf-") as tmp:
         work = Path(tmp)
         bundle, manifest = build_bundle(work, entries)
-        path_used = "http"
-        attempts = 1
-        data: bytes
         try:
-            with support.dravenpdf_server(chromium, work / "server.log") as (url, key):
-                data, attempts = render_retry(url, key, bundle, client.PDF_OPTIONS)
-                negative_checks(run, url, key, bundle, work)
-        except support.ServerStartError as exc:
-            print(f"server could not start ({exc}); using the library fallback")
-            import library_fallback
-
-            path_used = "library"
-            try:
-                data = library_fallback.render_bundle_library(bundle, client.PDF_OPTIONS, chromium)
-            except Exception as lib_exc:  # noqa: BLE001
-                print(f"FAIL: the library fallback failed too: {type(lib_exc).__name__}: {lib_exc}")
-                return EXIT_FAIL
-            attempts = 1
-        except client.RenderRejected as exc:
-            print(f"FAIL: the report render was rejected: {exc}")
+            data, path_used, attempts = render_report(run, chromium, bundle, work)
+        except (client.RenderRejected, RuntimeError) as exc:
+            print(f"FAIL: the report render failed: {exc}")
             return EXIT_FAIL
 
         EVIDENCE.mkdir(parents=True, exist_ok=True)
@@ -737,6 +743,16 @@ def main() -> int:
                     "rectMm": [round(v * pdfgeo.MM_PER_PT, 3) for v in frames[e["namespace"]].rect] if frames else None,
                     "method": method if frames else None,
                     "cropSha256": crops[e["namespace"]]["sha256"] if frames else None,
+                    "identity": {
+                        "residualPt": round(frames[e["namespace"]].residual_pt, 3)
+                        if frames[e["namespace"]].residual_pt is not None
+                        else None,
+                        "runnerUpPt": round(frames[e["namespace"]].runner_up_pt, 1)
+                        if frames[e["namespace"]].runner_up_pt is not None
+                        else None,
+                    }
+                    if frames
+                    else None,
                     "mismatchRatio": next(
                         (c["ratio"] for c in (comparison or {}).get("comparisons", []) if c["namespace"] == e["namespace"]),
                         None,
