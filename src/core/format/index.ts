@@ -1,2 +1,2 @@
 export { formatNumber } from './number';
-export { formatTime, parseTimeValue, type TimeTickUnit } from './time';
+export { assertLocaleAndTimezone, formatTime, parseTimeValue, type TimeTickUnit } from './time';

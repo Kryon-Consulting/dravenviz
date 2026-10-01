@@ -134,6 +134,20 @@ test('a host rule that gives the svg no rendered size fails readiness', async ({
   expect(await h(page).counts()).toEqual({ roots: 0, observers: 0, svgs: 0 });
 });
 
+test('a bad timezone or locale is INVALID_OPTIONS with its path, on time and category axes', async ({
+  page,
+}) => {
+  for (const fixture of ['line-estimated-monotone', 'line-category-labels-rotate']) {
+    const tz = await h(page).mountError([fixture], { ...opts, timezone: 'Mars/Base' });
+    expect(tz).toMatchObject({ code: 'INVALID_OPTIONS', path: '/timezone' });
+    const off = await h(page).mountError([fixture], { ...opts, timezone: '+05:00' });
+    expect(off).toMatchObject({ code: 'INVALID_OPTIONS', path: '/timezone' });
+    const loc = await h(page).mountError([fixture], { ...opts, locale: 'not a locale' });
+    expect(loc).toMatchObject({ code: 'INVALID_OPTIONS', path: '/locale' });
+  }
+  expect(await h(page).counts()).toEqual({ roots: 0, observers: 0, svgs: 0 });
+});
+
 test('second batch with same embedding identity is rejected', async ({ page }) => {
   await h(page).mount(['line-weekly-flow'], opts);
   const err = await h(page).mountError(['line-weekly-flow'], opts);

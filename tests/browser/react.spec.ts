@@ -474,3 +474,26 @@ test('interactive mode draws annotation and reference-line labels', async ({ pag
   expect(texts.some((t) => t.includes('Partial week'))).toBe(true);
   expect(texts).toContain('Target');
 });
+
+test('a bad timezone or locale shows INVALID_OPTIONS before anything renders', async ({ page }) => {
+  for (const bad of [{ timezone: 'Mars/Base' }, { locale: 'not a locale' }]) {
+    await page.evaluate(
+      (extra) =>
+        window.__r.render({
+          fixture: 'line-category-labels-rotate',
+          theme: 'light',
+          width: 600,
+          height: 320,
+          ...extra,
+        }),
+      bad,
+    );
+    await page.waitForFunction(() => window.__r.errorCalls.length > 0);
+    expect(await page.evaluate(() => window.__r.errorCalls.map((e) => e.code))).toEqual([
+      'INVALID_OPTIONS',
+    ]);
+    expect(await page.evaluate(() => window.__r.readyCalls.length)).toBe(0);
+    await page.reload();
+    await page.waitForFunction(() => typeof window.__r !== 'undefined');
+  }
+});

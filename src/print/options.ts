@@ -6,6 +6,7 @@ import {
   type ThemeName,
   type ThemeOverrides,
 } from '../core/index';
+import { assertLocaleAndTimezone } from '../core/format/index';
 import { defaultFontAssets } from '../render/fonts/load';
 import type { FontAsset } from '../render/fonts/registry';
 
@@ -108,9 +109,7 @@ export function resolveOptions(options: MountOptions, count: number): ResolvedOp
   }
   const locale = options.locale ?? 'en-US';
   const timezone = options.timezone ?? 'UTC';
-  if (typeof locale !== 'string' || typeof timezone !== 'string') {
-    throw invalid('locale and timezone must be strings.');
-  }
+  assertLocaleAndTimezone(locale, timezone);
   const fit = options.fit ?? 'fixed';
   if (fit !== 'fixed' && fit !== 'width') {
     throw invalid('fit must be "fixed" or "width".', '/fit');

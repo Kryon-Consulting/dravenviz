@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parseTimeValue } from '../../src/core/format/time';
+import { assertLocaleAndTimezone, parseTimeValue } from '../../src/core/format/time';
 import { InvalidSpecError } from '../../src/core/index';
 
 function rule(value: string): string | undefined {
@@ -80,5 +80,42 @@ describe('parseTimeValue', () => {
   test('is independent of the machine timezone (no Date.parse, no local getters)', async () => {
     const src = (await import('node:fs')).readFileSync('src/core/format/time.ts', 'utf8');
     expect(src).not.toMatch(/Date\.parse|new Date\(\s*value|getTimezoneOffset|getHours|getDate\(/);
+  });
+});
+
+describe('assertLocaleAndTimezone', () => {
+  const code = (fn: () => void): { code?: string; path?: string } | undefined => {
+    try {
+      fn();
+    } catch (e) {
+      return e as { code?: string; path?: string };
+    }
+    return undefined;
+  };
+  test('accepts IANA names and BCP 47 tags', () => {
+    expect(() => assertLocaleAndTimezone('en-US', 'UTC')).not.toThrow();
+    expect(() => assertLocaleAndTimezone('de-DE', 'Asia/Tokyo')).not.toThrow();
+  });
+  test('rejects an unknown timezone with INVALID_OPTIONS at /timezone', () => {
+    expect(code(() => assertLocaleAndTimezone('en-US', 'Mars/Base'))).toMatchObject({
+      code: 'INVALID_OPTIONS',
+      path: '/timezone',
+    });
+  });
+  test('rejects raw offsets (R15) and empty or non-string values', () => {
+    for (const tz of ['+05:00', '-0800', '', 5]) {
+      expect(code(() => assertLocaleAndTimezone('en-US', tz))).toMatchObject({
+        code: 'INVALID_OPTIONS',
+        path: '/timezone',
+      });
+    }
+  });
+  test('rejects a malformed locale with INVALID_OPTIONS at /locale', () => {
+    for (const l of ['not a locale', 'en_US', '', 7]) {
+      expect(code(() => assertLocaleAndTimezone(l, 'UTC'))).toMatchObject({
+        code: 'INVALID_OPTIONS',
+        path: '/locale',
+      });
+    }
   });
 });

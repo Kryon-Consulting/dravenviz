@@ -12,6 +12,7 @@ import {
   type PointerEvent,
   type ReactElement,
 } from 'react';
+import { assertLocaleAndTimezone } from '../core/format/index';
 import { DUPLICATE_CHART_EMBEDDING } from '../core/validate/index';
 import {
   DravenVizError,
@@ -267,6 +268,7 @@ export function Chart(props: ChartProps): ReactElement {
           },
         );
       }
+      assertLocaleAndTimezone(locale, timezone);
       const theme = resolveTheme(
         callbacks.current.theme ?? 'light',
         callbacks.current.themeOverrides,
