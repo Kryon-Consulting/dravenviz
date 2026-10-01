@@ -98,7 +98,8 @@ export function layoutChart(
   let last: Pass | undefined;
   // Rotated labels can overhang the viewBox edge; widen that side and lay out again.
   let hint: number | undefined;
-  for (let attempt = 0; attempt < 8; attempt++) {
+  let converged = false;
+  for (let attempt = 0; attempt < 12; attempt++) {
     last = pass(model, opts, measure, fontScale, leftExtra, rightExtra, hint);
     if (!last.stable) {
       hint = last.plotH;
@@ -106,9 +107,21 @@ export function layoutChart(
     }
     const needL = last.minX < 0 ? -last.minX : 0;
     const needR = last.maxX > width ? last.maxX - width : 0;
-    if (needL < 1e-6 && needR < 1e-6) break;
+    if (needL < 1e-6 && needR < 1e-6) {
+      converged = true;
+      break;
+    }
     leftExtra += needL;
     rightExtra += needR;
+  }
+  if (!converged) {
+    throw new DravenVizError(
+      'LAYOUT_ERROR',
+      'The layout did not converge; adjust the chart size or the label text.',
+      {
+        chartId: model.chartId,
+      },
+    );
   }
   return last!.chart;
 }
@@ -197,11 +210,15 @@ function pass(
       : axis.unit !== undefined
         ? `(${axis.unit})`
         : '';
-  const titleColumns = (axis: CartesianModel['yAxes'][number], span: number): string[] => {
+  const titleColumns = (
+    axis: CartesianModel['yAxes'][number],
+    span: number,
+    enforce: boolean,
+  ): string[] => {
     const text = yTitleText(axis);
     if (text === '') return [];
     const cols = wrapWords(text, Math.max(1, span), measure, fLabel);
-    if (cols.length > MAX_Y_TITLE_COLUMNS) {
+    if (enforce && cols.length > MAX_Y_TITLE_COLUMNS) {
       throw new DravenVizError(
         'LAYOUT_ERROR',
         `The y axis title for "${axis.id}" needs ${cols.length} columns along a plot height of ${Math.floor(span)} units, more than the maximum of ${MAX_Y_TITLE_COLUMNS}. Shorten the title or unit, or enlarge the chart.`,
@@ -213,7 +230,7 @@ function pass(
   // The plot height is not known until the widths are; start from an upper bound and let
   // `layoutChart` rerun with the real height when a title needed more columns than assumed.
   const spanHint = plotHeightHint ?? height - 2 * sp.padding - tickGap - lh(sizeLabel);
-  const yCols = model.yAxes.map((axis) => titleColumns(axis, spanHint));
+  const yCols = model.yAxes.map((axis) => titleColumns(axis, spanHint, false));
   const yWidths = model.yAxes.map((axis, i) => {
     const tickW = Math.max(0, ...axis.ticks.map((t) => measure(t.label, fLabel).width));
     const cols = yCols[i]!.length;
@@ -409,6 +426,9 @@ function pass(
       xLabelStage: stage,
     },
   };
-  const stable = model.yAxes.every((a, i) => titleColumns(a, plotH).length === yCols[i]!.length);
+  // Final only when every stored column is what wrapping at the real plot height gives.
+  const stable = model.yAxes.every(
+    (a, i) => JSON.stringify(titleColumns(a, plotH, true)) === JSON.stringify(yCols[i]),
+  );
   return { chart, minX: plan.minX, maxX: plan.maxX, plotH, stable };
 }

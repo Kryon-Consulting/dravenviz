@@ -329,4 +329,63 @@ describe('fix round 1', () => {
     const e = fail(() => createCanvasMeasurer("'Noto Sans', sans-serif"));
     expect(e.code).toBe('RENDER_FAILED');
   });
+
+  const yUnitCase = (unit: string, w: number, h: number): LaidOutChart | DravenVizError => {
+    const spec = loadFixture('line-weekly-flow');
+    spec.yAxes[0].unit = unit;
+    try {
+      return layoutChart(
+        buildModel(validateSpec(spec), ctx) as CartesianModel,
+        opts(w, h),
+        notoMeasurer,
+      );
+    } catch (e) {
+      return e as DravenVizError;
+    }
+  };
+  const assertTitleInside = (r: LaidOutChart | DravenVizError): void => {
+    if (r instanceof DravenVizError) {
+      expect(r.code).toBe('LAYOUT_ERROR');
+      return;
+    }
+    const cols = r.yAxisTitles['count']!;
+    const lineH = theme.text.label * theme.text.lineHeight * r.fontScale;
+    const ax = r.boxes.axes['count']!;
+    expect(cols.length).toBeLessThanOrEqual(3);
+    for (const c of cols)
+      expect(
+        notoMeasurer(c, { size: theme.text.label * r.fontScale, weight: 400 }).width,
+      ).toBeLessThanOrEqual(r.boxes.plot.height + 1e-6);
+    // the rotated extent (columns side by side, each at most plot height) sits in the plot span
+    expect(ax.y).toBeGreaterThanOrEqual(r.boxes.plot.y - 1e-6);
+    expect(ax.y + ax.height).toBeLessThanOrEqual(r.boxes.plot.y + r.boxes.plot.height + 1e-6);
+    expect(cols.length * lineH).toBeLessThanOrEqual(ax.width);
+  };
+
+  test.each([
+    ['items per engineer per working week', 680, 320],
+    ['items per engineer per working week', 680, 400],
+    ['items per engineer per working week and partners', 680, 320],
+    ['items per engineer per working week and partners', 680, 400],
+    ['items per engineer per working week across all regional teams', 680, 400],
+  ])('y title columns fit the final plot height: %s at %d x %d', (unit, w, h) => {
+    assertTitleInside(yUnitCase(unit, w, h));
+  });
+
+  test('a y title that fits in one column uses one column', () => {
+    const r = yUnitCase('items', 1200, 320) as LaidOutChart;
+    expect(r.yAxisTitles['count']!.length).toBe(1);
+  });
+
+  test('y title error reports the real plot height, not the hint', () => {
+    const r = yUnitCase(
+      'items per engineer per working week across all regional teams '.repeat(6),
+      680,
+      320,
+    );
+    expect(r).toBeInstanceOf(DravenVizError);
+    expect((r as DravenVizError).message).toMatch(/plot height of (\d+) units/);
+    const m = /plot height of (\d+) units/.exec((r as DravenVizError).message)!;
+    expect(Number(m[1])).toBeLessThan(250);
+  });
 });

@@ -47,9 +47,9 @@ export interface PlacedTick {
 
 export interface NoteLine {
   kind: 'annotation' | 'clip' | 'caption';
-  /** Annotation notes only: the 1-based number shown as a circled digit. */
+  /** Annotation notes only: the 1-based number shown as a parenthesised numeral, e.g. "(1)". */
   number?: number;
-  /** The full note text, e.g. "① Partial week — Collection paused…". */
+  /** The full note text, e.g. "(1) Partial week — Collection paused…". */
   text: string;
   /** `text` wrapped to the notes width. Joined with a space it equals `text`. */
   lines: string[];
