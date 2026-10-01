@@ -157,7 +157,6 @@ test('without crypto.subtle (insecure context) loading fails early naming the re
   expect(out.code).toBe('FONT_LOAD_FAILED');
   expect(out.message).toMatch(/secure context/);
   expect(out.message).toMatch(/HTTPS or from localhost/);
-  expect(out.message).toMatch(/file:\/\//);
 });
 
 test('a 404 rejects with FONT_LOAD_FAILED naming the URL', async ({ page }) => {

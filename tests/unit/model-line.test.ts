@@ -341,3 +341,31 @@ describe('time point labels are unambiguous (I7)', () => {
     expect(labels[0]).toMatch(/GMT\+9|JST/);
   });
 });
+
+describe('label formatting does not build Intl formatters per point (N1)', () => {
+  test('buildModel on perf-line-500x4 constructs a bounded number of formatters', () => {
+    const spec = validateSpec(loadFixture('perf-line-500x4'));
+    const RealDtf = Intl.DateTimeFormat;
+    let built = 0;
+    let canonical = 0;
+    const realCanonical = Intl.getCanonicalLocales;
+    Intl.DateTimeFormat = new Proxy(RealDtf, {
+      construct(target, args, newTarget) {
+        built++;
+        return Reflect.construct(target, args, newTarget);
+      },
+    });
+    Intl.getCanonicalLocales = (...a: Parameters<typeof realCanonical>) => {
+      canonical++;
+      return realCanonical(...a);
+    };
+    try {
+      buildModel(spec, ctx);
+    } finally {
+      Intl.DateTimeFormat = RealDtf;
+      Intl.getCanonicalLocales = realCanonical;
+    }
+    expect(canonical).toBe(0);
+    expect(built).toBeLessThan(40);
+  });
+});

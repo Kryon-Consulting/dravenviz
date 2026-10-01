@@ -47,7 +47,7 @@ Run on 2026-10-01 in the development container (Node 22.22.0, Chromium 141.0.739
 | `pnpm test:package`                                | pass: "all checks passed" (React 18.3.1 and 19.3.0 consumers, Vite, publint, attw, plain HTML)       |
 | `pnpm build:docs`, `pnpm test:docs`                | pass: stage ok, 13 passed                                                                            |
 | `pnpm test:pdf`                                    | pass: PASS, path http, 6 pages A4, 114 labels in 8 frames, worst crop diff 0.263 % (limit 0.363 %)   |
-| `pnpm test:perf`                                   | pass: 5 passed (P1 p95 47.3 ms against the 250 ms target)                                            |
+| `pnpm test:perf`                                   | pass: 5 passed (re-measured after R45: P1 p95 47.3 ms against the 250 ms target; P2 p95 380.1 ms)                                            |
 | `pnpm test:dist`                                   | pass: 18 passed                                                                                      |
 
 The `browser` CI job is red until the owner approves the baselines (ruling R38, D4); no row above treats a

@@ -123,8 +123,9 @@ export function Start(): ReactElement {
       <p>
         DravenViz hashes every font file with Web Crypto, which browsers expose only in a secure
         context. Serve the page over HTTPS or from <code>localhost</code>. A page on a plain-http
-        intranet host or opened from <code>file://</code> fails with <code>FONT_LOAD_FAILED</code>{' '}
-        and a message that names this requirement.
+        intranet host fails with <code>FONT_LOAD_FAILED</code> and a message that names this
+        requirement. A page opened from <code>file://</code> is not supported: font URLs must be
+        relative or same-origin http(s), so it fails with <code>INVALID_OPTIONS</code>.
       </p>
       <h3>Charts mounted while hidden (ZERO_SIZE)</h3>
       <p>

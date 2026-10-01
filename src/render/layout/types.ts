@@ -96,7 +96,7 @@ export interface LaidOutChart {
   yAxisTitles: Record<string, string[]>;
   xTicks: PlacedTick[];
   notes: NoteLine[];
-  /** Static mode only; empty in interactive mode. */
+  /** Annotation and reference-line labels, measured in every mode. */
   staticLabels: StaticLabel[];
   metrics: {
     /** Present only when `printWidthMm` is set. Effective printed pt after `fontScale`. */

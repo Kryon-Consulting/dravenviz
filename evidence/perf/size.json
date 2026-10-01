@@ -1,19 +1,19 @@
 {
   "measuredFrom": ".pack/draven-viz-0.1.0.tgz (extracted)",
-  "tarballBytes": 640165,
+  "tarballBytes": 642349,
   "bundle": {
     "file": "dist/dravenviz.browser.js",
-    "rawBytes": 822332,
-    "gzipBytes": 219540
+    "rawBytes": 824174,
+    "gzipBytes": 220005
   },
   "esm": {
     ".": 234,
-    "./react": 17310,
-    "./print": 35350
+    "./react": 18614,
+    "./print": 34725
   },
   "esmSharedChunks": {
-    "dist/chunk-CWYFILQO.js": 372519,
-    "dist/chunk-YWSFPU7B.js": 98565
+    "dist/chunk-7UIZCN6W.js": 100352,
+    "dist/chunk-M7Q7RPOG.js": 374415
   },
   "fonts": [
     {
@@ -116,7 +116,7 @@
   ],
   "pdf": {
     "fixture": "report-slice1",
-    "bytes": 84748,
+    "bytes": 75970,
     "pages": 6
   },
   "machine": {

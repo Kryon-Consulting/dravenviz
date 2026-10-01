@@ -158,13 +158,20 @@ export function formatTimeLabel(
   if (!Number.isFinite(epochMs)) {
     throw new DravenVizError('INVALID_OPTIONS', 'A time format needs a finite epoch value.');
   }
-  assertLocaleAndTimezone(locale, timezone);
+  // Options are validated once up front (resolveOptions, the React run, toDataTable); here only the
+  // cached formatter below can reject a bad name, so a label costs no formatter construction.
   if (kind === 'date') {
     return dateTimeFormat(locale, 'UTC', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     }).format(epochMs);
+  }
+  if (/^[+-]\d/.test(timezone)) {
+    throw new DravenVizError(
+      'INVALID_OPTIONS',
+      'The timezone must be an IANA name, not an offset.',
+    );
   }
   return dateTimeFormat(locale, timezone, {
     year: 'numeric',

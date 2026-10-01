@@ -308,7 +308,7 @@ function register(css: string, raw: ResolvedFace): Registered {
 }
 
 const SECURE_CONTEXT_MESSAGE =
-  'Fonts cannot be loaded because Web Crypto (crypto.subtle) is unavailable. DravenViz needs a secure context: serve the page over HTTPS or from localhost (file:// pages are not supported).';
+  'Fonts cannot be loaded because Web Crypto (crypto.subtle) is unavailable. DravenViz needs a secure context: serve the page over HTTPS or from localhost.';
 
 /**
  * Loads, hashes and registers the fonts (design section 9, step 2). Faces are registered under

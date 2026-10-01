@@ -8,7 +8,12 @@
  */
 import { DravenVizError } from '../errors';
 import { formatNumber } from '../format/number';
-import { formatTimeLabel, parseTimeValue, type TimeKind } from '../format/time';
+import {
+  assertLocaleAndTimezone,
+  formatTimeLabel,
+  parseTimeValue,
+  type TimeKind,
+} from '../format/time';
 import type { CartesianSpec, Point, Quality, Series, ValueAxis, VizSpec } from '../spec/index';
 import { resolveTheme } from '../theme/resolve';
 import type { Theme, ThemeName, ThemeOverrides } from '../theme/index';
@@ -79,6 +84,7 @@ function qualityState(q: Quality | undefined): CellState {
 function cartesianTable(spec: CartesianSpec, options: DataTableOptions): DataTable {
   const locale = options.locale ?? 'en-US';
   const timezone = options.timezone ?? 'UTC';
+  assertLocaleAndTimezone(locale, timezone);
   const notMeasured = resolveTheme(options.theme ?? 'print', options.themeOverrides).strings
     .notMeasured;
   const axis = spec.xAxis;
