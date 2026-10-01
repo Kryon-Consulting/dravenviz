@@ -104,3 +104,6 @@ fails with `FONT_LOAD_FAILED` and a message that names this requirement.
 ## Scripts
 
 `pnpm build`, `pnpm pack:local`, `pnpm stage <react|docs|html>`, `pnpm test`, `pnpm test:browser`.
+`pnpm test:browser` runs both Playwright projects. The gating command is
+`pnpm exec playwright test --project=browser`; the `visual` project fails with `pending owner
+review` until the baselines are approved in `tests/visual/REVIEW.md`.

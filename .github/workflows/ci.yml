@@ -63,10 +63,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
-      # Includes the `visual` project: it fails with `pending owner review` until the owner approves
-      # baselines in tests/visual/REVIEW.md (D4, R38). Red is intended until then.
       - run: pnpm build
-      - run: pnpm test:browser
+      # The gating step: every browser regression fails here, whatever the visual state.
+      - run: pnpm exec playwright test --project=browser
+      # The `visual` project fails with `pending owner review` until the owner approves baselines
+      # in tests/visual/REVIEW.md (D4, R38, R41). Red here, with the step above green, means only
+      # that the baselines are still pending.
+      - run: pnpm exec playwright test --project=visual
 
   # Packs the library and checks it as a consumer: test:package (React 18/19/core consumers, Vite,
   # publint, attw) and test:dist (dist declarations, no eval, asset manifest, Node import and

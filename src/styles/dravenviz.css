@@ -22,7 +22,8 @@
   background: #fff5f5;
   color: #1a1a1a;
   font:
-    14px/1.4 'Noto Sans',
+    14px/1.4 'DravenViz Noto Sans',
+    'Noto Sans',
     sans-serif;
 }
 
@@ -53,7 +54,8 @@
 .dravenviz-root .dravenviz-table {
   border-collapse: collapse;
   font:
-    13px/1.25 'Noto Sans',
+    13px/1.25 'DravenViz Noto Sans',
+    'Noto Sans',
     sans-serif;
 }
 
