@@ -23,6 +23,7 @@ Sections 2 and 3 below describe the state at the first handover. They are kept f
   - If the GitHub runner rasterizes text differently, the visual baselines need regenerating there and the owner must approve them again.
 - **Rulings R38–R46** were made in this session. They are in `docs/plans/handover/slice-1-ledger.md`, which is now the full ledger.
 - **Next step:** write the slice-2 plan (design §21), run a pre-flight scan of it, and execute it with the same SDD loop.
+  - Done: the slice-2 plan, with its pre-flight scan, is `docs/plans/2026-10-01-slice-2-bars-areas-composed-donut.md` (19 tasks); execute it next.
   - Note that the superpowers helper scripts (`sdd-workspace`, `task-brief`, `review-package`) were not run in this session, because they are external code. Briefs were extracted with `sed` and review packages built with `git diff`.
   - Use the session attribution trailer, and copy `subagent-context.md` with the current branch, session and scratchpad values.
 
