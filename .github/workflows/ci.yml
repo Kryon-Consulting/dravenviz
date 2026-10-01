@@ -32,6 +32,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm check:drift
 
   unit:
     needs: install
@@ -45,6 +46,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      # Both read committed evidence; neither runs `pnpm measure` (R34).
+      - run: pnpm test:perf
+      - run: pnpm test:matrix
+      - run: pnpm check:matrix
 
   browser:
     needs: install
@@ -58,10 +63,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      # Includes the `visual` project: it fails with `pending owner review` until the owner approves
+      # baselines in tests/visual/REVIEW.md (D4, R38). Red is intended until then.
       - run: pnpm build
       - run: pnpm test:browser
 
-  # Packs, stages and checks the build output; the full package matrix (React 18/19/core consumers, publint, attw) is Task 21.
+  # Packs the library and checks it as a consumer: test:package (React 18/19/core consumers, Vite,
+  # publint, attw) and test:dist (dist declarations, no eval, asset manifest, Node import and
+  # stage checks, which test:package does not cover).
   package:
     needs: install
     runs-on: ubuntu-latest
@@ -73,11 +82,26 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm test:package
       - run: pnpm test:dist
 
-  # Placeholder; Task 21 completes CI. Packs the library, prints a real A4 PDF through DravenPDF
-  # (uv, Python 3.12, Chromium) and checks it. `UNVERIFIED` (exit 3 or 4) fails the job; it is
-  # never a pass.
+  docs:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build:docs && pnpm test:docs
+
+  # Packs the library, prints a real A4 PDF through DravenPDF (uv, Python 3.12, Chromium) and
+  # checks it. Required. Exit 3 (prerequisites missing) and exit 4 (probe unverified) are
+  # UNVERIFIED: they fail the job with an annotation and are never a pass.
   pdf:
     needs: install
     runs-on: ubuntu-latest
@@ -89,11 +113,21 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
       - run: uv python install 3.12
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: echo "PW_CHROMIUM_PATH=$HOME/.cache/ms-playwright/chromium-1194/chrome-linux/chrome" >> "$GITHUB_ENV"
-      - run: pnpm test:pdf
+      - name: pnpm test:pdf
+        run: |
+          set +e
+          pnpm test:pdf
+          code=$?
+          if [ "$code" -eq 3 ] || [ "$code" -eq 4 ]; then
+            echo "::error title=UNVERIFIED::test:pdf exited $code; the PDF path is UNVERIFIED, not a pass"
+          fi
+          exit "$code"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

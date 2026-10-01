@@ -8,6 +8,9 @@ const DOM_FILES = ['tests/unit/svg-validate.test.ts'];
 // Reads committed measurement evidence and enforces the P1 target; run by `pnpm test:perf`, not by
 // `pnpm test` (R34: no dependence on measured evidence, and a P1 miss must not turn `pnpm test` red).
 const PERF_FILES = ['tests/unit/perf-report.test.ts'];
+// Verifies evidence/verification-matrix.md against committed evidence; run by `pnpm test:matrix`
+// (R34: `pnpm test` stays Node-unit only and independent of committed evidence).
+const MATRIX_FILES = ['tests/unit/matrix.test.ts'];
 
 export default defineConfig({
   test: {
@@ -17,11 +20,14 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
-          exclude: [...TZ_FILES, ...DOM_FILES, ...PERF_FILES],
+          exclude: [...TZ_FILES, ...DOM_FILES, ...PERF_FILES, ...MATRIX_FILES],
         },
       },
       {
         test: { name: 'perf-report', environment: 'node', include: PERF_FILES },
+      },
+      {
+        test: { name: 'matrix', environment: 'node', include: MATRIX_FILES },
       },
       {
         // Reads build output and installs from the registry: run by `pnpm test:dist` only (R34).
