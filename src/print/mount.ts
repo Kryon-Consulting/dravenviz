@@ -98,6 +98,21 @@ export function mountCharts(
   specs: unknown[],
   options: MountOptions,
 ): MountHandle {
+  return mountBatch(target, specs, options);
+}
+
+/**
+ * The one mount path, shared by `mountCharts` and `renderToSvg` so readiness, verification,
+ * timeout and disposal behave identically. `namespaces`, when given, replaces the validated
+ * per-spec namespaces; the export uses it with reserved names that cannot match the public
+ * namespace pattern, so a temporary export mount never collides with a live chart.
+ */
+export function mountBatch(
+  target: Element | Element[],
+  specs: unknown[],
+  options: MountOptions,
+  namespaces?: string[],
+): MountHandle {
   if (!Array.isArray(specs)) {
     throw new DravenVizError('INVALID_OPTIONS', 'specs must be an array.');
   }
@@ -126,6 +141,7 @@ export function mountCharts(
 
   const run = async (): Promise<ReadyInfo[]> => {
     const resolved = resolveOptions(options, specs.length);
+    if (namespaces !== undefined) resolved.namespaces = namespaces;
     for (const t of targets) {
       if (!(t instanceof Element)) {
         throw new DravenVizError(

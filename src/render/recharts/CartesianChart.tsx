@@ -7,7 +7,7 @@ import { AxisTitles } from '../primitives/AxisTitles';
 import { EmptyState } from '../primitives/EmptyState';
 import { Legend } from '../primitives/Legend';
 import { Notes } from '../primitives/Notes';
-import { baselineCentred } from '../primitives/style';
+import { baselineCentred, cssFamily } from '../primitives/style';
 import { DvText } from '../primitives/Text';
 import { Title } from '../primitives/Title';
 import { planIds } from './ids';
@@ -209,7 +209,8 @@ export function CartesianChart(props: CartesianChartProps): ReactElement {
       data-dravenviz-ns={namespace}
       data-dravenviz-chart={model.chartId}
       role="img"
-      style={{ opacity: 1 }}
+      // font-family on the root makes the live SVG self-describing: export states the same family on its root.
+      style={{ opacity: 1, fontFamily: cssFamily(family) }}
       title={model.title}
       {...(model.description === undefined ? {} : { desc: model.description })}
     >

@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { liveObserverCount } from './observers';
+import { liveObserverCount, liveResizeObserverCount } from './observers';
 import { defaultFontAssets, loadFonts } from '../../src/render/fonts/load';
 import {
   __resetFontRegistry,
@@ -7,6 +7,7 @@ import {
   fontRegistry,
 } from '../../src/render/fonts/registry';
 import { __testHooks, liveRootCount } from '../../src/print/lifecycle';
+import { renderToSvgWithAssets, type ExportOptions } from '../../src/print/export';
 import { mountCharts, type MountHandle, type ReadyInfo } from '../../src/print/mount';
 import type { MountOptions } from '../../src/print/options';
 import { renderDataTable } from '../../src/print/table-dom';
@@ -15,10 +16,6 @@ import { createCanvasMeasurer } from '../../src/render/layout/canvas-measure';
 import { layoutChart } from '../../src/render/layout/index';
 import { buildModel } from '../../src/render/model/index';
 import { verifyCommitted } from '../../src/render/verify';
-
-const notYet = (task: string) => (): never => {
-  throw new Error(`not implemented until ${task}`);
-};
 
 const valid = import.meta.glob('../../fixtures/valid/*.json', {
   eager: true,
@@ -152,7 +149,39 @@ export const harness = {
     );
   },
   verifyCommitted,
-  exportSvg: notYet('Task 13'),
+  /**
+   * Exports a fixture (or spec) through the real `renderToSvgWithAssets`. `inject` is SVG markup
+   * appended to the live chart just before export, to exercise the normalizer on markup the chart
+   * itself never draws.
+   */
+  async exportSvg(
+    item: Item,
+    opts: Partial<ExportOptions> = {},
+    inject?: string,
+  ): Promise<{ ok: true; svg: string; fonts: unknown[] } | { ok: false; error: SerializedError }> {
+    const spec = typeof item === 'string' ? fixture(item) : item;
+    if (inject !== undefined) {
+      __testHooks.beforeExport = (svg) => {
+        const doc = new DOMParser().parseFromString(
+          `<svg xmlns="http://www.w3.org/2000/svg">${inject}</svg>`,
+          'image/svg+xml',
+        );
+        for (const child of Array.from(doc.documentElement.children)) {
+          svg.appendChild(document.importNode(child, true));
+        }
+      };
+    }
+    try {
+      const out = await renderToSvgWithAssets(spec, { width: 680, height: 320, ...opts });
+      return { ok: true, svg: out.svg, fonts: out.fonts };
+    } catch (e) {
+      return { ok: false, error: serialize(e) };
+    } finally {
+      __testHooks.beforeExport = undefined;
+    }
+  },
+  /** Live ResizeObservers only (`counts().observers` also counts MutationObservers). */
+  resizeObservers: liveResizeObserverCount,
   counts(): { roots: number; observers: number; svgs: number } {
     return {
       roots: liveRootCount(),

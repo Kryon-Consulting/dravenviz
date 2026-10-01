@@ -16,4 +16,28 @@ class CountingResizeObserver extends Native {
 
 window.ResizeObserver = CountingResizeObserver;
 
-export const liveObserverCount = (): number => live.size;
+// A MutationObserver is live from its first observe() until disconnect(). Observers on the document
+// itself belong to the test tool (Playwright's injected script watches it), not to DravenViz.
+const NativeMutation = window.MutationObserver;
+const liveMutation = new Set<object>();
+
+class CountingMutationObserver extends NativeMutation {
+  override observe(target: Node, options?: MutationObserverInit): void {
+    if (target.nodeType !== Node.DOCUMENT_NODE && target !== document.documentElement) {
+      liveMutation.add(this);
+    }
+    super.observe(target, options);
+  }
+  override disconnect(): void {
+    liveMutation.delete(this);
+    super.disconnect();
+  }
+}
+
+window.MutationObserver = CountingMutationObserver;
+
+/** Live ResizeObservers only. */
+export const liveResizeObserverCount = (): number => live.size;
+
+/** Live ResizeObservers plus live MutationObservers. */
+export const liveObserverCount = (): number => live.size + liveMutation.size;

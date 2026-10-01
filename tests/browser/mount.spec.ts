@@ -218,7 +218,7 @@ test('title markup renders as text', async ({ page }) => {
 
 test('mountCharts creates no ResizeObserver', async ({ page }) => {
   await h(page).mount(['line-weekly-flow'], opts);
-  expect((await h(page).counts()).observers).toBe(0);
+  expect(await page.evaluate(() => window.__h.resizeObservers())).toBe(0);
 });
 
 test('host CSS cannot restyle the chart (host-style isolation)', async ({ page }) => {

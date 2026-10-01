@@ -264,16 +264,12 @@ test('concurrent loads of the same URL share one request', async ({ page }) => {
   expect(requests).toHaveLength(2);
 });
 
-test('exportSvg is a stub until Task 13', async ({ page }) => {
-  const msg = await page.evaluate(() => {
-    try {
-      (window.__h.exportSvg as () => unknown)();
-      return '';
-    } catch (e) {
-      return (e as Error).message;
-    }
+test('exportSvg is the real exporter (no longer a Task 13 stub)', async ({ page }) => {
+  const out = await page.evaluate(async () => {
+    const r = await window.__h.exportSvg('line-weekly-flow', { namespace: 'f' });
+    return r.ok ? r.svg.slice(0, 40) : r.error.message;
   });
-  expect(msg).toBe('not implemented until Task 13');
+  expect(out).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
 });
 
 test('verification fails when the registered faces are gone (negative control)', async ({

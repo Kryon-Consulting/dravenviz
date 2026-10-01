@@ -20,10 +20,16 @@ export function liveRootCount(): number {
 /**
  * Test-only seam. It is exported from this module for the harness and is NOT re-exported from
  * `src/print/index.ts`, so no public entry can reach it. `failRender` makes the render step of
- * the named chart throw, to exercise batch cleanup on a render failure.
+ * the named chart throw, to exercise batch cleanup on a render failure. `beforeExport` lets a
+ * test add markup to the live SVG that the exporter then has to handle.
  */
-export const __testHooks = {
+export const __testHooks: {
+  failRender: Set<string>;
+  /** Runs on the live SVG after readiness and before export normalizes it (tests inject markup here). */
+  beforeExport: ((svg: SVGSVGElement) => void) | undefined;
+} = {
   failRender: new Set<string>(),
+  beforeExport: undefined,
 };
 
 export interface MountedChart {
