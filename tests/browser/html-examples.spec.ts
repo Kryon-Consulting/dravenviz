@@ -135,6 +135,8 @@ test('basic.html becomes ready and its SVG matches renderToSvg geometry', async 
   expect(result.w).toBeGreaterThan(100);
   const live = result.live.filter(Boolean);
   const exported = pathData(result.exported);
+  expect(exported.length).toBeGreaterThan(0);
+  expect(live.length).toBe(exported.length);
   expect(live.length).toBeGreaterThan(0);
   // The export rounds coordinates to 2 decimals; the live SVG keeps 3. Same geometry within 0.01.
   const nums = (d: string): number[] => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
@@ -162,7 +164,8 @@ test('host-isolation.html: hostile CSS and a host React 18 do not affect the cha
   // The print theme's `color.text` is #1a1a1a (src/core/theme/print-theme.ts).
   const rgb = 'rgb(26, 26, 26)';
   const info = await page.evaluate(() => {
-    const out: { family: string; fill: string; ns: string | null; ids: string[] }[] = [];
+    const out: { family: string; fill: string; size: string; ns: string | null; ids: string[] }[] =
+      [];
     for (const svg of document.querySelectorAll('svg[data-dravenviz-chart]')) {
       const texts = [...svg.querySelectorAll('text')];
       const title = svg.querySelector('[data-dv-text-role="title"]') as Element;
@@ -171,6 +174,7 @@ test('host-isolation.html: hostile CSS and a host React 18 do not affect the cha
           family: getComputedStyle(t).fontFamily,
           fill: t === title || title.contains(t) ? getComputedStyle(t).fill : '',
           ns: svg.getAttribute('data-dravenviz-ns'),
+          size: t === title || title.contains(t) ? getComputedStyle(t).fontSize : '',
           ids: [],
         });
       }
@@ -190,6 +194,9 @@ test('host-isolation.html: hostile CSS and a host React 18 do not affect the cha
   const titleFills = info.rows.map((r) => r.fill).filter(Boolean);
   expect(titleFills.length).toBeGreaterThanOrEqual(2);
   for (const f of titleFills) expect(f).toBe(rgb);
+  const titleSizes = info.rows.map((r) => r.size).filter(Boolean);
+  expect(titleSizes.length).toBeGreaterThanOrEqual(2);
+  for (const z of titleSizes) expect(z).not.toBe('20px');
   // The hostile `text { font-size: 20px }` and `path { stroke-width: 5 }` rules must not win.
   const hostile = await page.evaluate(() => ({
     strokeWidths: [...document.querySelectorAll('svg[data-dravenviz-chart] path')].map(

@@ -1,4 +1,6 @@
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -160,5 +162,16 @@ describe('packed tarball', () => {
     expect(recorded).toBe(createHash('sha256').update(readFileSync(tgz)).digest('hex'));
     expect(statSync(tgz).size).toBeGreaterThan(1000);
     expect(relative(ROOT, tgz)).toBe('.pack/draven-viz-0.1.0.tgz');
+  });
+});
+
+describe('third-party notices', () => {
+  test('THIRD_PARTY_NOTICES.md is current (regenerated into a temp dir and compared)', () => {
+    const out = join(mkdtempSync(join(tmpdir(), 'dv-notices-')), 'notices.md');
+    execFileSync('pnpm', ['exec', 'tsx', 'scripts/build-manifest.ts', '--notices', '--out', out], {
+      cwd: ROOT,
+      stdio: 'pipe',
+    });
+    expect(readFileSync(out, 'utf8')).toBe(readFileSync(join(ROOT, 'THIRD_PARTY_NOTICES.md'), 'utf8'));
   });
 });

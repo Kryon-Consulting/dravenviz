@@ -43,7 +43,7 @@
     "build": "pnpm gen && tsup && tsx scripts/build-browser.ts && tsx scripts/build-manifest.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json --noEmit && tsc -p tsconfig.build.json --noEmit",
     "lint": "eslint . && prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run --project unit --project unit-jsdom --project unit-tz-new-york",
     "test:browser": "playwright test",
     "check:drift": "tsx scripts/check-drift.ts",
     "gen": "tsx scripts/gen-types.ts && tsx scripts/gen-validator.ts",
@@ -56,7 +56,8 @@
     "test:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
     "measure": "sh -c 'echo \"not implemented until Task 20\" >&2; exit 1'",
     "stage": "tsx scripts/stage-consumer.ts",
-    "notices": "tsx scripts/build-manifest.ts --notices"
+    "notices": "tsx scripts/build-manifest.ts --notices",
+    "test:dist": "pnpm pack:local && vitest run --project dist"
   },
   "dependencies": {
     "recharts": "3.10.1"

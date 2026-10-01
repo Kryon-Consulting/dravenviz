@@ -654,7 +654,7 @@ License: MIT
 
 License: MIT AND ISC
 
-(No license file ships with this package; the license above is the SPDX expression declared in its package.json. Its bundled d3 modules are listed separately.)
+(No license file ships with this package; the license above is the SPDX expression declared in its package.json.)
 
 ## Noto Sans (font files in assets/fonts)
 

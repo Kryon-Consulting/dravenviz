@@ -116,7 +116,7 @@ async function bundledPackages(): Promise<BundledPackage[]> {
 }
 
 /** Writes THIRD_PARTY_NOTICES.md: bundled npm packages plus the Noto Sans font (OFL-1.1). */
-export async function writeNotices(): Promise<void> {
+export async function writeNotices(out = path.join(ROOT, 'THIRD_PARTY_NOTICES.md')): Promise<void> {
   const packages = await bundledPackages();
   const ofl = readFileSync(path.join(ROOT, 'assets/fonts/OFL.txt'), 'utf8').trim();
   const lines: string[] = [
@@ -139,7 +139,7 @@ export async function writeNotices(): Promise<void> {
     lines.push(`## ${p.name} ${p.version}`, '', `License: ${p.license}`, '');
     lines.push(
       p.licenseText === ''
-        ? '(No license file ships with this package; the license above is the SPDX expression declared in its package.json. Its bundled d3 modules are listed separately.)'
+        ? '(No license file ships with this package; the license above is the SPDX expression declared in its package.json.)'
         : indent(p.licenseText),
       '',
     );
@@ -152,7 +152,7 @@ export async function writeNotices(): Promise<void> {
     indent(ofl),
     '',
   );
-  writeFileSync(path.join(ROOT, 'THIRD_PARTY_NOTICES.md'), lines.join('\n'));
+  writeFileSync(out, lines.join('\n'));
 }
 
 const indent = (text: string): string =>
@@ -163,7 +163,8 @@ const indent = (text: string): string =>
 
 if (isMain(import.meta.url)) {
   if (process.argv.includes('--notices')) {
-    await writeNotices();
+    const at = process.argv.indexOf('--out');
+    await (at === -1 ? writeNotices() : writeNotices(path.resolve(process.argv[at + 1] as string)));
   } else {
     if (!existsSync(path.join(ROOT, 'dist/dravenviz.browser.js'))) {
       throw new Error('Run the browser bundle step first (dist/dravenviz.browser.js is missing).');

@@ -10,7 +10,7 @@ import { expect, test } from 'vitest';
 const ROOT = process.cwd();
 
 test('importing @draven/viz exits 0 and loads neither react nor recharts', () => {
-  const trace = pathToFileURL(join(ROOT, 'tests/unit/helpers/register-trace.mjs')).href;
+  const trace = pathToFileURL(join(ROOT, 'tests/dist/register-trace.mjs')).href;
   const r = spawnSync(
     process.execPath,
     [

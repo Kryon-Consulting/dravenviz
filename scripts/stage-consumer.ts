@@ -163,11 +163,53 @@ export function checkResolution(stageDir: string): void {
     set.add(packageDirOf(e.real, name));
     dirs.set(name, set);
   }
+  for (const name of WATCHED_PACKAGES) {
+    if (!dirs.has(name)) fail(`${name} does not appear in the resolution report.`);
+  }
   for (const name of ['react', 'react-is']) {
-    const set = dirs.get(name);
-    if (set === undefined) fail(`${name} does not appear in the resolution report.`);
+    const set = dirs.get(name) as Set<string>;
     if (set.size > 1) fail(`${name} resolves to more than one real path: ${[...set].join(', ')}`);
   }
+}
+
+/**
+ * Static templates (no package.json): copies the template's pages and data, then every manifest
+ * asset from the EXTRACTED TARBALL to its manifest `path`. Fails on an empty stage or a missing
+ * or mismatching file.
+ */
+function stageStatic(
+  templateDir: string,
+  stageDir: string,
+  tarball: ReturnType<typeof findTarball>,
+): void {
+  for (const name of readdirSync(templateDir)) {
+    if (/\.(html|js|json)$/.test(name) || name === 'README.md') {
+      cpSync(path.join(templateDir, name), path.join(stageDir, name), { dereference: true });
+    }
+  }
+  const tmp = mkdtempSync(path.join(tmpdir(), 'dv-stage-tgz-'));
+  try {
+    run('tar', ['-xzf', tarball.file, '-C', tmp], ROOT);
+    const pkg = path.join(tmp, 'package');
+    const manifestFile = path.join(pkg, 'dist', 'asset-manifest.json');
+    if (!existsSync(manifestFile)) fail('the tarball has no dist/asset-manifest.json.');
+    const manifest = JSON.parse(readFileSync(manifestFile, 'utf8')) as {
+      files: { path: string; source: string; sha256: string }[];
+    };
+    if (manifest.files.length === 0) fail('the asset manifest lists no files.');
+    for (const f of manifest.files) {
+      const from = path.join(pkg, f.source);
+      if (!existsSync(from)) fail(`manifest file ${f.source} is missing from the tarball.`);
+      if (sha256(from) !== f.sha256) fail(`manifest file ${f.source} does not match its sha256.`);
+      const to = path.join(stageDir, f.path);
+      mkdirSync(path.dirname(to), { recursive: true });
+      cpSync(from, to);
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+  if (!existsSync(path.join(stageDir, 'dravenviz.browser.js'))) fail('the static stage is empty.');
+  if (walk(stageDir).length < 5) fail('the static stage holds too few files.');
 }
 
 export function stage(name: Name): string {
@@ -177,11 +219,12 @@ export function stage(name: Name): string {
   const tarball = findTarball();
   rmSync(stageDir, { recursive: true, force: true });
   mkdirSync(stageDir, { recursive: true });
-  copyTemplate(templateDir, stageDir);
-  if (!existsSync(path.join(stageDir, 'package.json'))) {
-    console.log(`stage ${name}: static template copied to ${path.relative(ROOT, stageDir)}`);
+  if (!existsSync(path.join(templateDir, 'package.json'))) {
+    stageStatic(templateDir, stageDir, tarball);
+    console.log(`stage ${name}: ok, static (${path.relative(ROOT, stageDir)})`);
     return stageDir;
   }
+  copyTemplate(templateDir, stageDir);
   run('pnpm', ['install', '--frozen-lockfile', '--ignore-workspace'], stageDir);
   run('pnpm', ['add', '--ignore-workspace', tarball.file], stageDir);
   const listing = run(

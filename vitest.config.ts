@@ -18,6 +18,16 @@ export default defineConfig({
         },
       },
       {
+        // Reads build output and installs from the registry: run by `pnpm test:dist` only (R34).
+        test: {
+          name: 'dist',
+          environment: 'node',
+          include: ['tests/dist/**/*.test.ts'],
+          testTimeout: 600_000,
+          hookTimeout: 600_000,
+        },
+      },
+      {
         test: {
           name: 'unit-jsdom',
           environment: 'jsdom',
