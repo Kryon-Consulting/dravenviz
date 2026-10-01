@@ -70,7 +70,6 @@ export function renderChart(input: RenderInput): MountedChart {
   element.setAttribute('data-dravenviz-chart', chartId);
   if (input.fit === 'width') {
     element.setAttribute('data-dv-fit', 'width');
-    element.style.setProperty('--dv-aspect', `${laid.width} / ${laid.height}`);
   }
   target.appendChild(element);
   // The identifier prefix namespaces every id React and Recharts generate for this chart.
@@ -96,6 +95,7 @@ export function renderChart(input: RenderInput): MountedChart {
             fontFamily: input.fontFamily,
             theme: input.theme,
             measure: input.measure,
+            ...(input.fit === undefined ? {} : { fit: input.fit }),
           }),
         ),
       );

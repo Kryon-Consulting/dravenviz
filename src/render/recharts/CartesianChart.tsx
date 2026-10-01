@@ -35,6 +35,8 @@ export interface CartesianChartProps {
   measure: TextMeasurer;
   /** Keyboard focus ring position; interactive (React) charts only. */
   focus?: { x: number; y: number } | null;
+  /** `"width"`: the chart box fills its container, aspect kept (print `fit` option). */
+  fit?: 'fixed' | 'width';
 }
 
 /** The part of Recharts' tick render props DravenViz reads. */
@@ -233,7 +235,6 @@ export function CartesianChart(props: CartesianChartProps): ReactElement {
 
   return (
     <ComposedChart
-      className="dravenviz-chart-box"
       width={laid.width}
       height={laid.height}
       margin={margin}
@@ -245,7 +246,12 @@ export function CartesianChart(props: CartesianChartProps): ReactElement {
       role="img"
       // The root states every inherited property with chart-defined values (theme and layout), so
       // neither a host rule nor a viewer default reaches the chart or its export (design section 10).
-      style={rootStyle(family, theme, laid.fontScale)}
+      style={{
+        ...rootStyle(family, theme, laid.fontScale),
+        ...(props.fit === 'width'
+          ? { width: '100%', height: 'auto', aspectRatio: `${laid.width} / ${laid.height}` }
+          : {}),
+      }}
       title={model.title}
       {...(model.description === undefined ? {} : { desc: model.description })}
     >
