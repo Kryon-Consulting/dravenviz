@@ -6,7 +6,7 @@ import { ROOT, isMain } from './gen-lib';
 /**
  * `pnpm dev:docs | preview:docs | test:docs` (design section 14). The docs site is a consumer
  * template: it is staged from the packed tarball by `pnpm stage docs`, which also builds it into
- * `.stage/docs/dist`. This script only runs what is already staged:
+ * `.stage/docs/dist`. `preview` and `test` rebuild first (`pnpm build:docs`), then serve it:
  *
  * - `dev`:     mirrors template changes into the stage and starts the Vite dev server there.
  * - `preview`: serves `.stage/docs/dist` and prints the actual URL (the port is the first free one).
@@ -51,16 +51,25 @@ const run = (cmd: string, args: string[]): Promise<number> =>
     child.on('exit', (code) => resolve(code ?? 1));
   });
 
+/**
+ * Design section 16.1: preview and test depend on `stage docs`, which depends on `pack:local`.
+ * Always run the whole chain, so a served bundle can never be older than the sources or the library.
+ */
+async function rebuild(): Promise<void> {
+  const code = await run('pnpm', ['build:docs']);
+  if (code !== 0 || !existsSync(DIST)) {
+    console.error('docs: build:docs failed; not serving a stale build.');
+    process.exit(code === 0 ? 1 : code);
+  }
+}
+
 const startPreview = (): ChildProcess =>
   pnpm(['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', '4174'], STAGE, {
     FORCE_COLOR: '0',
   });
 
 async function preview(): Promise<void> {
-  if (!existsSync(DIST)) {
-    console.error('docs: .stage/docs/dist is missing; run pnpm build:docs first.');
-    process.exit(1);
-  }
+  await rebuild();
   const child = startPreview();
   const url = await waitForUrl(child);
   console.log(`docs preview: ${url}`);
@@ -92,11 +101,7 @@ async function dev(): Promise<void> {
 }
 
 async function test(extra: string[]): Promise<void> {
-  if (!existsSync(DIST)) {
-    console.error('docs: no staged build found; running pnpm build:docs first.');
-    const code = await run('pnpm', ['build:docs']);
-    if (code !== 0) process.exit(code);
-  }
+  await rebuild();
   const server = startPreview();
   let code = 1;
   try {

@@ -87,7 +87,9 @@ export function Playground(): ReactElement {
   const [busy, setBusy] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [currentHash, setCurrentHash] = useState<string | null | undefined>(undefined);
-  const sequence = useRef(0);
+  // Separate counters: a newer Render supersedes older Renders; option re-renders never discard a Render.
+  const renderSeq = useRef(0);
+  const settingsSeq = useRef(0);
 
   // Leak evidence for the browser tests: live chart roots and offscreen export hosts.
   useEffect(() => {
@@ -103,21 +105,22 @@ export function Playground(): ReactElement {
   /** Validates, proves the chart renders, then (and only then) replaces the preview. */
   const render = useCallback(
     async (source: string, using: RenderSettings, fresh: boolean): Promise<boolean> => {
-      const mine = ++sequence.current;
+      const mine = ++renderSeq.current;
       const checked = check(source);
       if ('problems' in checked) {
-        if (mine !== sequence.current) return false;
+        if (mine !== renderSeq.current) return false;
         setInputProblems(checked.problems);
         if (fresh) setApplied(null);
         return false;
       }
       const failures = await preflight(checked.spec, using);
-      if (mine !== sequence.current) return false;
+      if (mine !== renderSeq.current) return false;
       if (failures.length > 0) {
         setInputProblems(failures);
         if (fresh) setApplied(null);
         return false;
       }
+      settingsSeq.current += 1; // a pending option re-render targets the old spec
       setInputProblems([]);
       setOptionProblems([]);
       setMessage('Rendered.');
@@ -131,7 +134,13 @@ export function Playground(): ReactElement {
     async (id: string): Promise<void> => {
       setFixtureId(id);
       setMessage('');
-      const source = await loadFixtureText(id);
+      let source: string;
+      try {
+        source = await loadFixtureText(id);
+      } catch (e) {
+        setMessage(`Could not load fixture ${id}: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+      }
       setOriginal(source);
       setText(source);
       await render(source, settings, true);
@@ -161,16 +170,19 @@ export function Playground(): ReactElement {
   useEffect(() => {
     if (applied === null) return;
     if (JSON.stringify(applied.settings) === JSON.stringify(settings)) return;
-    const mine = ++sequence.current;
     const timer = window.setTimeout(() => {
+      const mine = ++settingsSeq.current;
       void preflight(applied.spec, settings).then((failures) => {
-        if (mine !== sequence.current) return;
+        if (mine !== settingsSeq.current) return;
         if (failures.length > 0) {
           setOptionProblems(failures);
           return;
         }
         setOptionProblems([]);
-        setApplied({ spec: applied.spec, settings });
+        // Only if the preview still shows the spec this check was for.
+        setApplied((prev) =>
+          prev?.spec === applied.spec ? { spec: applied.spec, settings } : prev,
+        );
       });
     }, 150);
     return () => window.clearTimeout(timer);

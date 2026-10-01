@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -19,7 +19,17 @@ const sha = (b: Buffer): string => createHash('sha256').update(b).digest('hex');
 /** The chart the playground draws: the live SVG, never the data table or a hidden export host. */
 const liveSvg = (page: Page) => page.locator('[data-testid="preview"] svg[data-dv-render-id]').first();
 const editor = (page: Page) => page.locator('.cm-content');
-const SAMPLE_HASH = 'a285f9e5cdab9a5976134963db8035418eed3db20a5164e9caeab7d7f162c5ee';
+const SAMPLE_HASH = (
+  JSON.parse(readFileSync('evidence/pdf/report-slice1.json', 'utf8')) as {
+    instances: { fixture: string; specSha256: string }[];
+  }
+).instances.find((i) => i.fixture === 'line-weekly-flow')?.specSha256 as string;
+/** Screenshots are evidence, refreshed on request (DV_SCREENSHOTS=1) so a normal run leaves the tree clean. */
+const shot = async (page: Page, name: string): Promise<void> => {
+  if (process.env['DV_SCREENSHOTS'] === '1') {
+    await page.screenshot({ path: `evidence/screenshots/${name}.png`, fullPage: true });
+  }
+};
 
 async function openPlayground(page: Page, fixture = 'line-weekly-flow'): Promise<void> {
   await page.goto('#/playground');
@@ -153,7 +163,7 @@ test('start page shows install and all three quickstarts', async ({ page }) => {
   ]) {
     expect(body, needle).toContain(needle);
   }
-  await page.screenshot({ path: 'evidence/screenshots/docs-start.png', fullPage: true });
+  await shot(page, 'docs-start');
 });
 
 test('valid edit renders; invalid edit shows path and keeps input', async ({ page }) => {
@@ -177,7 +187,7 @@ test('valid edit renders; invalid edit shows path and keeps input', async ({ pag
   await page.getByRole('button', { name: 'Render' }).click();
   await expect(errors).toContainText('/colour');
   await expect(editor(page)).toContainText('"colour"');
-  await page.screenshot({ path: 'evidence/screenshots/docs-playground-error.png', fullPage: true });
+  await shot(page, 'docs-playground-error');
 });
 
 test('unimplemented kinds show not-implemented-in-slice', async ({ page }) => {
@@ -227,7 +237,7 @@ test('theme and size changes re-render', async ({ page }) => {
   expect(frame?.width).toBeCloseTo((178 / 25.4) * 96, 0);
   await expect(print.locator('svg[data-dv-render-id]')).toHaveAttribute('viewBox', '0 0 480 300');
   await expect(page.getByRole('table').first()).toBeVisible();
-  await page.screenshot({ path: 'evidence/screenshots/docs-playground.png', fullPage: true });
+  await shot(page, 'docs-playground');
 });
 
 test('svg download matches current validated spec and options', async ({ page }) => {
@@ -409,5 +419,13 @@ test('sample PDF link present with hash and labelled when edited', async ({ page
   await page.getByRole('button', { name: 'Render' }).click();
   await expect(page.getByText('Original fixture sample')).toBeVisible();
   await expect(page.getByTestId('pdf-sample')).toContainText(SAMPLE_HASH);
-  mkdirSync('evidence/screenshots', { recursive: true });
+});
+
+test('a Render is not dropped when a setting changes while it is in flight', async ({ page }) => {
+  await openPlayground(page);
+  await editTitle(page, ' RACE');
+  await page.getByRole('button', { name: 'Render' }).click();
+  await page.getByLabel('Width').fill('500');
+  await expect(liveSvg(page).locator('title')).toHaveText('Items opened and closed RACE');
+  await expect(liveSvg(page)).toHaveAttribute('viewBox', '0 0 500 320');
 });
