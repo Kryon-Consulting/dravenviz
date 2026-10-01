@@ -9,3 +9,4 @@ spikes
 docs
 .superpowers
 pnpm-lock.yaml
+src/core/validate/ajv.gen.js

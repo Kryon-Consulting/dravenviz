@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "id": "min-composed",
+  "kind": "cartesian",
+  "title": "Revenue and margin",
+  "xAxis": {
+    "id": "q",
+    "scale": "category",
+    "categories": ["q1", "q2"],
+    "labels": ["Q1", "Q2"]
+  },
+  "yAxes": [
+    {
+      "id": "usd",
+      "label": "Revenue",
+      "unit": "USD",
+      "format": {
+        "style": "currency",
+        "currency": "USD"
+      }
+    },
+    {
+      "id": "pct",
+      "label": "Margin",
+      "unit": "%",
+      "format": {
+        "style": "percent"
+      },
+      "domain": {
+        "policy": "fixed",
+        "min": 0,
+        "max": 100
+      }
+    }
+  ],
+  "series": [
+    {
+      "id": "rev",
+      "label": "Revenue",
+      "mark": "bar",
+      "yAxisId": "usd",
+      "points": [
+        {
+          "id": "r1",
+          "x": "q1",
+          "value": 120000
+        },
+        {
+          "id": "r2",
+          "x": "q2",
+          "value": 135000
+        }
+      ]
+    },
+    {
+      "id": "mar",
+      "label": "Margin",
+      "mark": "line",
+      "yAxisId": "pct",
+      "points": [
+        {
+          "id": "m1",
+          "x": "q1",
+          "value": 18.5
+        },
+        {
+          "id": "m2",
+          "x": "q2",
+          "value": 21
+        }
+      ]
+    }
+  ],
+  "referenceLines": [
+    {
+      "id": "goal",
+      "axisId": "pct",
+      "value": 20,
+      "label": "Margin goal"
+    }
+  ]
+}

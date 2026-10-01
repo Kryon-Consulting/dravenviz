@@ -50,6 +50,8 @@ export default tseslint.config(
       'spikes/**',
       'docs/**',
       '.superpowers/**',
+      // Ajv standalone output bundled by scripts/gen-validator.ts; machine-written, drift-checked.
+      'src/core/validate/ajv.gen.js',
     ],
   },
   js.configs.recommended,

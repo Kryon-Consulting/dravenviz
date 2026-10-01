@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { NOTO_METRICS } from '../../src/render/layout/noto-metrics.gen';
 import { NOTO_SERIF_METRICS } from '../assets/fonts/noto-serif-metrics.gen';
-import { read, readProvenance, sha256File } from './helpers/provenance';
+import { read } from './helpers/files';
+import { readProvenance, sha256File } from './helpers/provenance';
 
 describe('Noto Sans (shipped)', () => {
   test('shipped font files match PROVENANCE hashes', () => {

@@ -1,0 +1,1069 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dravenviz:schema:viz-spec:v1",
+  "title": "VizSpec",
+  "description": "DravenViz chart specification, schema version 1.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/CartesianSpec"
+    },
+    {
+      "$ref": "#/$defs/DonutSpec"
+    },
+    {
+      "$ref": "#/$defs/HeatmapSpec"
+    },
+    {
+      "$ref": "#/$defs/ProgressSpec"
+    }
+  ],
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+      "description": "Identifier; unique within its collection."
+    },
+    "Text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": "^\\P{Cc}+$",
+      "description": "Plain text, 1-500 characters, no control characters. Always rendered as text."
+    },
+    "MultilineText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": "^(?:\\P{Cc}|\\n)+$",
+      "description": "Plain text, 1-500 characters; newline is allowed."
+    },
+    "Color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "#RRGGBB only."
+    },
+    "IsoTime": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,9})?)?(?:Z|[+-]\\d{2}:\\d{2}))?$",
+      "description": "ISO calendar day, or date-time carrying Z or an offset."
+    },
+    "SpecBase": {
+      "title": "SpecBase",
+      "type": "object",
+      "description": "Fields shared by every chart kind.",
+      "properties": {
+        "schemaVersion": {
+          "const": 1,
+          "type": "integer",
+          "description": "Schema major version."
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": ["cartesian", "donut", "heatmap", "progress"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^\\P{Cc}+$",
+          "description": "Chart title, 1-200 characters."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "pattern": "^(?:\\P{Cc}|\\n)*$",
+          "description": "Chart summary; used for <desc> and the table caption."
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "^(?:\\P{Cc}|\\n)+$",
+          "description": "Printed footnote under the chart (at least 8 pt in print)."
+        },
+        "roles": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/Id"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/RoleDef"
+          },
+          "description": "Caller-defined semantic roles."
+        },
+        "legend": {
+          "$ref": "#/$defs/LegendOptions"
+        }
+      },
+      "required": ["schemaVersion", "id", "kind", "title"]
+    },
+    "RoleDef": {
+      "title": "RoleDef",
+      "type": "object",
+      "properties": {
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "pattern": {
+          "enum": ["none", "diagonal", "dots", "crosshatch"]
+        },
+        "shape": {
+          "$ref": "#/$defs/MarkerShape"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Caller-defined semantic role; no business meaning in core."
+    },
+    "MarkerShape": {
+      "title": "MarkerShape",
+      "enum": ["circle", "square", "triangle", "diamond", "cross", "none"]
+    },
+    "Dash": {
+      "title": "Dash",
+      "enum": ["solid", "dashed", "dotted"]
+    },
+    "Quality": {
+      "title": "Quality",
+      "enum": ["measured", "partial", "lagging", "estimated"]
+    },
+    "NumberFormat": {
+      "title": "NumberFormat",
+      "type": "object",
+      "properties": {
+        "style": {
+          "enum": ["decimal", "percent", "currency", "compact"],
+          "description": "Default \"decimal\". \"percent\" treats raw values as percentage points."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "ISO 4217 code; required when style is \"currency\"."
+        },
+        "minimumFractionDigits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "maximumFractionDigits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "signDisplay": {
+          "enum": ["auto", "always", "exceptZero"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "LegendOptions": {
+      "title": "LegendOptions",
+      "type": "object",
+      "properties": {
+        "show": {
+          "enum": ["auto", "always", "never"],
+          "description": "auto: shown when there is more than one series, slice or role."
+        },
+        "position": {
+          "enum": ["top", "bottom"],
+          "description": "Default \"bottom\"."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Domain": {
+      "title": "Domain",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/IncludeZeroDomain"
+        },
+        {
+          "$ref": "#/$defs/FitDomain"
+        },
+        {
+          "$ref": "#/$defs/FixedDomain"
+        }
+      ]
+    },
+    "IncludeZeroDomain": {
+      "title": "IncludeZeroDomain",
+      "type": "object",
+      "properties": {
+        "policy": {
+          "const": "include-zero"
+        }
+      },
+      "required": ["policy"],
+      "additionalProperties": false
+    },
+    "FitDomain": {
+      "title": "FitDomain",
+      "type": "object",
+      "properties": {
+        "policy": {
+          "const": "fit"
+        }
+      },
+      "required": ["policy"],
+      "additionalProperties": false
+    },
+    "FixedDomain": {
+      "title": "FixedDomain",
+      "type": "object",
+      "properties": {
+        "policy": {
+          "const": "fixed"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "overflow": {
+          "enum": ["error", "clip-indicated"],
+          "description": "Default \"error\"."
+        }
+      },
+      "required": ["policy", "min", "max"],
+      "additionalProperties": false
+    },
+    "CategoryAxis": {
+      "title": "CategoryAxis",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scale": {
+          "const": "category"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Text"
+          },
+          "minItems": 1,
+          "maxItems": 250,
+          "description": "Unique keys in display order."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Text"
+          },
+          "minItems": 1,
+          "maxItems": 250,
+          "description": "Same length as categories; displayed verbatim."
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "labelPolicy": {
+          "enum": ["auto", "wrap", "rotate"]
+        }
+      },
+      "required": ["id", "scale", "categories"],
+      "additionalProperties": false
+    },
+    "LinearAxis": {
+      "title": "LinearAxis",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scale": {
+          "const": "linear"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "unit": {
+          "$ref": "#/$defs/Text"
+        },
+        "format": {
+          "$ref": "#/$defs/NumberFormat"
+        },
+        "domain": {
+          "$ref": "#/$defs/Domain"
+        }
+      },
+      "required": ["id", "scale"],
+      "additionalProperties": false
+    },
+    "TimeAxis": {
+      "title": "TimeAxis",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scale": {
+          "const": "time"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "domain": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "$ref": "#/$defs/IsoTime"
+            },
+            "max": {
+              "$ref": "#/$defs/IsoTime"
+            }
+          },
+          "additionalProperties": false
+        },
+        "tickFormat": {
+          "enum": ["auto", "day", "week", "month", "quarter", "year", "hour"]
+        }
+      },
+      "required": ["id", "scale"],
+      "additionalProperties": false
+    },
+    "ValueAxis": {
+      "title": "ValueAxis",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "unit": {
+          "$ref": "#/$defs/Text"
+        },
+        "format": {
+          "$ref": "#/$defs/NumberFormat"
+        },
+        "position": {
+          "enum": ["left", "right"]
+        },
+        "domain": {
+          "$ref": "#/$defs/Domain"
+        },
+        "ticks": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 10
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": false
+    },
+    "Point": {
+      "title": "Point",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "x": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Text"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "value": {
+          "type": ["number", "null"],
+          "description": "y value; null means missing."
+        },
+        "displayValue": {
+          "$ref": "#/$defs/Text"
+        },
+        "quality": {
+          "$ref": "#/$defs/Quality"
+        },
+        "renderHint": {
+          "enum": ["line", "marker-only", "gap"]
+        },
+        "role": {
+          "$ref": "#/$defs/Id"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "shape": {
+          "$ref": "#/$defs/MarkerShape"
+        },
+        "size": {
+          "type": ["number", "null"],
+          "description": "Scatter only; requires `bubble`."
+        },
+        "datumLabel": {
+          "$ref": "#/$defs/Text"
+        },
+        "staticLabel": {
+          "type": "boolean"
+        },
+        "note": {
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "required": ["id", "x", "value"],
+      "additionalProperties": false
+    },
+    "Series": {
+      "title": "Series",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "mark": {
+          "enum": ["bar", "line", "area", "scatter"]
+        },
+        "yAxisId": {
+          "$ref": "#/$defs/Id"
+        },
+        "role": {
+          "$ref": "#/$defs/Id"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "stackId": {
+          "$ref": "#/$defs/Id"
+        },
+        "interpolation": {
+          "enum": ["linear", "monotone"]
+        },
+        "dash": {
+          "$ref": "#/$defs/Dash"
+        },
+        "marker": {
+          "type": "object",
+          "properties": {
+            "shape": {
+              "$ref": "#/$defs/MarkerShape"
+            },
+            "show": {
+              "enum": ["all", "none", "quality"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Point"
+          }
+        }
+      },
+      "required": ["id", "label", "mark", "yAxisId", "points"],
+      "additionalProperties": false
+    },
+    "BubbleEncoding": {
+      "title": "BubbleEncoding",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": ["area", "radius"]
+        },
+        "domain": {
+          "tsType": "[number, number]",
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Size values mapped; 0 <= min < max."
+        },
+        "range": {
+          "tsType": "[number, number]",
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Logical px radius at domain min and max."
+        },
+        "minVisibleRadius": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": ["mode", "domain", "range"],
+      "additionalProperties": false
+    },
+    "ReferenceLine": {
+      "title": "ReferenceLine",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "axisId": {
+          "$ref": "#/$defs/Id"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Text"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "dash": {
+          "$ref": "#/$defs/Dash"
+        },
+        "role": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": ["id", "axisId", "value"],
+      "additionalProperties": false
+    },
+    "Annotation": {
+      "title": "Annotation",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "x": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Text"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "x2": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Text"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "yAxisId": {
+          "$ref": "#/$defs/Id"
+        },
+        "y": {
+          "type": "number"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "detail": {
+          "$ref": "#/$defs/MultilineText"
+        }
+      },
+      "required": ["id", "x", "label"],
+      "additionalProperties": false
+    },
+    "Slice": {
+      "title": "Slice",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "value": {
+          "type": ["number", "null"],
+          "description": ">= 0; null means missing."
+        },
+        "displayValue": {
+          "$ref": "#/$defs/Text"
+        },
+        "role": {
+          "$ref": "#/$defs/Id"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": ["id", "label", "value"],
+      "additionalProperties": false
+    },
+    "HeatmapAxisItem": {
+      "title": "HeatmapAxisItem",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "required": ["id", "label"],
+      "additionalProperties": false
+    },
+    "HeatmapCell": {
+      "title": "HeatmapCell",
+      "type": "object",
+      "properties": {
+        "row": {
+          "$ref": "#/$defs/Id"
+        },
+        "column": {
+          "$ref": "#/$defs/Id"
+        },
+        "value": {
+          "type": ["number", "null"]
+        },
+        "displayValue": {
+          "$ref": "#/$defs/Text"
+        },
+        "note": {
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "required": ["row", "column", "value"],
+      "additionalProperties": false
+    },
+    "HeatmapScale": {
+      "title": "HeatmapScale",
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["sequential", "diverging", "threshold"]
+        },
+        "domain": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "sequential: [min, max]; diverging: [min, mid, max]; threshold: ascending breakpoints."
+        },
+        "colors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Color"
+          },
+          "minItems": 2,
+          "description": "sequential: 2+ stops; diverging: 3+; threshold: n + 1."
+        }
+      },
+      "required": ["type", "domain", "colors"],
+      "additionalProperties": false
+    },
+    "ProgressItem": {
+      "title": "ProgressItem",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "label": {
+          "$ref": "#/$defs/Text"
+        },
+        "value": {
+          "type": ["number", "null"]
+        },
+        "displayValue": {
+          "$ref": "#/$defs/Text"
+        },
+        "target": {
+          "type": ["number", "null"]
+        },
+        "targetLabel": {
+          "$ref": "#/$defs/Text"
+        },
+        "role": {
+          "$ref": "#/$defs/Id"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": ["id", "label", "value"],
+      "additionalProperties": false
+    },
+    "CartesianSpec": {
+      "title": "CartesianSpec",
+      "description": "Cartesian chart: bar, line, area and scatter series on shared axes.",
+      "extends": [
+        {
+          "$ref": "#/$defs/SpecBase"
+        }
+      ],
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/SpecBase/properties/schemaVersion"
+        },
+        "id": {
+          "$ref": "#/$defs/SpecBase/properties/id"
+        },
+        "kind": {
+          "const": "cartesian"
+        },
+        "title": {
+          "$ref": "#/$defs/SpecBase/properties/title"
+        },
+        "description": {
+          "$ref": "#/$defs/SpecBase/properties/description"
+        },
+        "caption": {
+          "$ref": "#/$defs/SpecBase/properties/caption"
+        },
+        "roles": {
+          "$ref": "#/$defs/SpecBase/properties/roles"
+        },
+        "legend": {
+          "$ref": "#/$defs/SpecBase/properties/legend"
+        },
+        "orientation": {
+          "enum": ["vertical", "horizontal"]
+        },
+        "preset": {
+          "enum": ["standard", "sparkline", "compact-stack"]
+        },
+        "xAxis": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CategoryAxis"
+            },
+            {
+              "$ref": "#/$defs/LinearAxis"
+            },
+            {
+              "$ref": "#/$defs/TimeAxis"
+            }
+          ]
+        },
+        "yAxes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ValueAxis"
+          },
+          "minItems": 1,
+          "maxItems": 2
+        },
+        "series": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Series"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "stacking": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "enum": ["absolute", "percent"]
+            },
+            "valueUnit": {
+              "$ref": "#/$defs/Text"
+            },
+            "segmentLabels": {
+              "enum": ["none", "share", "value", "value-and-share"]
+            }
+          },
+          "required": ["mode"],
+          "additionalProperties": false
+        },
+        "bubble": {
+          "$ref": "#/$defs/BubbleEncoding"
+        },
+        "referenceLines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReferenceLine"
+          },
+          "minItems": 0,
+          "maxItems": 16
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Annotation"
+          },
+          "minItems": 0,
+          "maxItems": 16
+        },
+        "labels": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "enum": ["none", "totals", "all"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["schemaVersion", "id", "kind", "title", "xAxis", "yAxes", "series"],
+      "additionalProperties": false
+    },
+    "DonutSpec": {
+      "title": "DonutSpec",
+      "description": "Donut chart.",
+      "extends": [
+        {
+          "$ref": "#/$defs/SpecBase"
+        }
+      ],
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/SpecBase/properties/schemaVersion"
+        },
+        "id": {
+          "$ref": "#/$defs/SpecBase/properties/id"
+        },
+        "kind": {
+          "const": "donut"
+        },
+        "title": {
+          "$ref": "#/$defs/SpecBase/properties/title"
+        },
+        "description": {
+          "$ref": "#/$defs/SpecBase/properties/description"
+        },
+        "caption": {
+          "$ref": "#/$defs/SpecBase/properties/caption"
+        },
+        "roles": {
+          "$ref": "#/$defs/SpecBase/properties/roles"
+        },
+        "legend": {
+          "$ref": "#/$defs/SpecBase/properties/legend"
+        },
+        "slices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Slice"
+          },
+          "minItems": 1,
+          "maxItems": 32
+        },
+        "unit": {
+          "$ref": "#/$defs/Text"
+        },
+        "format": {
+          "$ref": "#/$defs/NumberFormat"
+        },
+        "center": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "#/$defs/Text",
+              "description": "\"total\", \"none\" or literal text."
+            },
+            "label": {
+              "$ref": "#/$defs/Text"
+            }
+          },
+          "additionalProperties": false
+        },
+        "legendValues": {
+          "enum": ["none", "value", "value-share"]
+        }
+      },
+      "required": ["schemaVersion", "id", "kind", "title", "slices"],
+      "additionalProperties": false
+    },
+    "HeatmapSpec": {
+      "title": "HeatmapSpec",
+      "description": "Heatmap.",
+      "extends": [
+        {
+          "$ref": "#/$defs/SpecBase"
+        }
+      ],
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/SpecBase/properties/schemaVersion"
+        },
+        "id": {
+          "$ref": "#/$defs/SpecBase/properties/id"
+        },
+        "kind": {
+          "const": "heatmap"
+        },
+        "title": {
+          "$ref": "#/$defs/SpecBase/properties/title"
+        },
+        "description": {
+          "$ref": "#/$defs/SpecBase/properties/description"
+        },
+        "caption": {
+          "$ref": "#/$defs/SpecBase/properties/caption"
+        },
+        "roles": {
+          "$ref": "#/$defs/SpecBase/properties/roles"
+        },
+        "legend": {
+          "$ref": "#/$defs/SpecBase/properties/legend"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HeatmapAxisItem"
+          },
+          "minItems": 1,
+          "maxItems": 100
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HeatmapAxisItem"
+          },
+          "minItems": 1,
+          "maxItems": 100
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HeatmapCell"
+          }
+        },
+        "scale": {
+          "$ref": "#/$defs/HeatmapScale"
+        },
+        "unit": {
+          "$ref": "#/$defs/Text"
+        },
+        "format": {
+          "$ref": "#/$defs/NumberFormat"
+        },
+        "cellLabels": {
+          "enum": ["all", "none"]
+        },
+        "rowAxisLabel": {
+          "$ref": "#/$defs/Text"
+        },
+        "columnAxisLabel": {
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "required": ["schemaVersion", "id", "kind", "title", "rows", "columns", "cells", "scale"],
+      "additionalProperties": false
+    },
+    "ProgressSpec": {
+      "title": "ProgressSpec",
+      "description": "Progress bars or rings.",
+      "extends": [
+        {
+          "$ref": "#/$defs/SpecBase"
+        }
+      ],
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/SpecBase/properties/schemaVersion"
+        },
+        "id": {
+          "$ref": "#/$defs/SpecBase/properties/id"
+        },
+        "kind": {
+          "const": "progress"
+        },
+        "title": {
+          "$ref": "#/$defs/SpecBase/properties/title"
+        },
+        "description": {
+          "$ref": "#/$defs/SpecBase/properties/description"
+        },
+        "caption": {
+          "$ref": "#/$defs/SpecBase/properties/caption"
+        },
+        "roles": {
+          "$ref": "#/$defs/SpecBase/properties/roles"
+        },
+        "legend": {
+          "$ref": "#/$defs/SpecBase/properties/legend"
+        },
+        "variant": {
+          "enum": ["bar", "ring"]
+        },
+        "domain": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "required": ["min", "max"],
+          "additionalProperties": false
+        },
+        "overflow": {
+          "enum": ["error", "clip-indicated"]
+        },
+        "unit": {
+          "$ref": "#/$defs/Text"
+        },
+        "format": {
+          "$ref": "#/$defs/NumberFormat"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProgressItem"
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": ["schemaVersion", "id", "kind", "title", "variant", "domain", "items"],
+      "additionalProperties": false
+    }
+  }
+}

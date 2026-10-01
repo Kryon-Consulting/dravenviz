@@ -17,7 +17,7 @@ function toPosix(p: string): string {
 }
 
 /** Source files under `dir` (repo-relative or absolute), as repo-relative POSIX paths. */
-function listFiles(dir: string): string[] {
+export function listFiles(dir: string): string[] {
   const abs = path.resolve(ROOT, dir);
   if (!existsSync(abs)) return [];
   const out: string[] = [];

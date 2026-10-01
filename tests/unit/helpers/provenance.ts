@@ -1,17 +1,11 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+import { ROOT, read } from './files';
 
 export interface ProvenanceEntry {
   file: string;
   sha256: string;
-}
-
-export function read(repoRelative: string): string {
-  return readFileSync(path.join(ROOT, repoRelative), 'utf8');
 }
 
 export function sha256File(repoRelative: string): string {
