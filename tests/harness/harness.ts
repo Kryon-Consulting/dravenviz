@@ -138,9 +138,14 @@ export const harness = {
    * The layout the print mount computes for a chart (print theme, 178 mm, static labels), for the
    * geometry oracle. Loads the default fonts first, like a mount does.
    */
-  async layoutOf(item: Item, width = 680, height = 320): Promise<unknown> {
+  async layoutOf(
+    item: Item,
+    width = 680,
+    height = 320,
+    themeName: 'light' | 'dark' | 'print' = 'print',
+  ): Promise<unknown> {
     const fonts = await loadFonts(defaultFontAssets(), new AbortController().signal);
-    const theme = resolveTheme('print');
+    const theme = resolveTheme(themeName);
     const spec = validateSpec(typeof item === 'string' ? fixture(item) : item);
     const model = buildModel(spec, { theme, locale: 'en-US', timezone: 'UTC' });
     if (model.kind !== 'cartesian') throw new Error('not a cartesian model');

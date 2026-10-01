@@ -163,6 +163,7 @@ async function main(): Promise<void> {
     c: Candidate;
     hash: string;
     themeVersion: string;
+    decision: string;
     pngBytes: number;
     svgBytes: number;
     svgRatio: number;
@@ -182,7 +183,12 @@ async function main(): Promise<void> {
       const spec = loadFixture(c.fixture);
       const png = await renderBrowser(page, c);
       const svg = await renderSvg(page, c);
-      writeFileSync(path.join(CANDIDATE_DIR, `${c.id}.png`), png);
+      const decision = decisionOf(c.id);
+      // An approved reference lives in baselines/approved/ (only the owner's approval puts it there);
+      // the generator never re-creates a candidate copy of it.
+      if (!decision.startsWith('approved by ')) {
+        writeFileSync(path.join(CANDIDATE_DIR, `${c.id}.png`), png);
+      }
       writeFileSync(
         path.join(EVIDENCE_DIR, 'svg', `${c.id}.svg`),
         await exportSvgExternal(page, c),
@@ -220,8 +226,8 @@ async function main(): Promise<void> {
             ]
           : []),
       ].join('');
-      const card = `<section class="card" id="${id}"><header><h3>${id}</h3><span class="pill">decision: pending</span>${fl.map((f) => `<span class="pill flag">${f.code}</span>`).join('')}</header>
-<dl><dt>Fixture</dt><dd><code>${esc(c.fixture)}</code></dd><dt>Theme</dt><dd>${c.theme} (theme version ${esc(themeVersion)})</dd><dt>Size</dt><dd>${WIDTH} &times; ${HEIGHT} logical units, PNG at ${SCALE}&times; (${WIDTH * SCALE} &times; ${HEIGHT * SCALE})</dd><dt>Spec hash</dt><dd><code>${hash}</code></dd><dt>Decision</dt><dd><strong>pending</strong> (reply &ldquo;approve ${id}&rdquo; or &ldquo;changes requested on ${id}: &hellip;&rdquo;)</dd></dl>
+      const card = `<section class="card" id="${id}"><header><h3>${id}</h3><span class="pill">decision: ${esc(decision)}</span>${fl.map((f) => `<span class="pill flag">${f.code}</span>`).join('')}</header>
+<dl><dt>Fixture</dt><dd><code>${esc(c.fixture)}</code></dd><dt>Theme</dt><dd>${c.theme} (theme version ${esc(themeVersion)})</dd><dt>Size</dt><dd>${WIDTH} &times; ${HEIGHT} logical units, PNG at ${SCALE}&times; (${WIDTH * SCALE} &times; ${HEIGHT * SCALE})</dd><dt>Spec hash</dt><dd><code>${hash}</code></dd><dt>Decision</dt><dd><strong>${esc(decision)}</strong>${decision === 'pending' ? ` (reply &ldquo;approve ${id}&rdquo; or &ldquo;changes requested on ${id}: &hellip;&rdquo;)` : ''}</dd></dl>
 ${fl.length > 0 ? `<ul class="flags attn">${fl.map((f) => `<li><strong>${f.code}.</strong> ${esc(f.text)}</li>`).join('')}</ul>` : ''}
 <div class="figs">${figs}</div>
 <details><summary>Data table</summary>${tableHtml(table)}</details></section>`;
@@ -229,6 +235,7 @@ ${fl.length > 0 ? `<ul class="flags attn">${fl.map((f) => `<li><strong>${f.code}
         c,
         hash,
         themeVersion,
+        decision,
         pngBytes: png.length,
         svgBytes: svg.svg.length,
         svgRatio,
@@ -264,7 +271,7 @@ ${fl.length > 0 ? `<ul class="flags attn">${fl.map((f) => `<li><strong>${f.code}
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DravenViz Slice 1 Visual Review</title><style>${CSS}</style></head><body><main>
 <h1>DravenViz slice 1: visual reference review</h1>
-<p class="banner"><strong>Decision: pending for all ${rows.length} candidates.</strong> Nothing here is approved. Under design D4 only the owner approves a baseline; until then the visual tests fail with &ldquo;pending owner review&rdquo; by design. Reply per candidate id: &ldquo;approve &lt;id&gt;&rdquo; or &ldquo;changes requested on &lt;id&gt;: &hellip;&rdquo;.</p>
+<p class="banner"><strong>Decisions: ${rows.filter((r) => r.decision.startsWith('approved by ')).length} approved, ${rows.filter((r) => r.decision === 'pending').length} pending, ${rows.filter((r) => r.decision === 'changes requested').length} changes requested (of ${rows.length}).</strong> Under design D4 only the owner approves a baseline, in tests/visual/REVIEW.md; the visual tests fail with &ldquo;pending owner review&rdquo; for any candidate without an approved baseline. Reply per candidate id: &ldquo;approve &lt;id&gt;&rdquo; or &ldquo;changes requested on &lt;id&gt;: &hellip;&rdquo;.</p>
 <h2>Please look at these first</h2>
 <div class="attn"><ul>
 <li><strong>R29, half-clipped stroke at a fit-domain plot edge.</strong> A line or marker at the lowest or highest value of a fit domain can be cut in half by the plot boundary. Candidates where a value sits on the domain edge: ${flagged('R29')}. line-weekly-flow was checked too: its domain is include-zero and none of its values lies on an edge, so it is not flagged, but its first points are on the page for you to confirm.</li>
@@ -300,7 +307,14 @@ ${rows.map((r) => r.card).join('\n')}
       `- **Spec hash (canonical SHA-256):** \`${r.hash}\``,
       `- **Theme:** ${r.c.theme}, theme version ${r.themeVersion}`,
       `- **Dimensions:** ${WIDTH} x ${HEIGHT} logical units; PNG ${WIDTH * SCALE} x ${HEIGHT * SCALE} (${SCALE}x)`,
-      `- **Candidate PNG:** \`tests/visual/baselines/candidates/${r.c.id}.png\` (${r.pngBytes} bytes); standalone SVG \`evidence/visual/svg/${r.c.id}.svg\``,
+      ...(r.decision.startsWith('approved by ')
+        ? [
+            `- **Approved PNG:** \`tests/visual/baselines/approved/${r.c.id}.png\` (${r.pngBytes} bytes); standalone SVG \`evidence/visual/svg/${r.c.id}.svg\``,
+            '- **Approval record:** owner approval in chat after reviewing the published review page; SHA-256 verified against the approved-candidates list.',
+          ]
+        : [
+            `- **Candidate PNG:** \`tests/visual/baselines/candidates/${r.c.id}.png\` (${r.pngBytes} bytes); standalone SVG \`evidence/visual/svg/${r.c.id}.svg\``,
+          ]),
       `- **PDF crop:** ${pdf}`,
       `- **Intentional mode differences:** ${modeDiff}`,
       ...(r.flags.length > 0
@@ -319,7 +333,7 @@ ${rows.map((r) => r.card).join('\n')}
     '',
     '## Notes for the owner',
     '',
-    'Nothing below is approved. Look at these on `evidence/visual/index.html` (one page, candidate ids as anchors):',
+    'Items the owner was asked to look at (decisions are recorded per candidate below). Look at these on `evidence/visual/index.html` (one page, candidate ids as anchors):',
     '',
     `- **R29, half-clipped stroke at a fit-domain plot edge.** A stroke or marker whose value is the extreme of the plot domain can be half cut by the plot boundary. line-weekly-flow was checked as well: include-zero domain, no value on an edge, so not flagged. Candidates: ${
       rows

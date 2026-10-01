@@ -51,15 +51,18 @@ interface Laid {
 const POSITION_TOLERANCE = 0.5;
 const options = (c: Candidate) => ({ ...DEFAULT_OPTS, theme: c.theme, namespace: 'r' });
 
-const layoutOf = (page: Page, fixture: string): Promise<Laid> =>
-  page.evaluate((f) => window.__h.layoutOf(f, 680, 320), fixture) as Promise<Laid>;
+const layoutOf = (page: Page, c: Candidate): Promise<Laid> =>
+  page.evaluate(([f, t]) => window.__h.layoutOf(f, 680, 320, t), [
+    c.fixture,
+    c.theme,
+  ] as const) as Promise<Laid>;
 
 for (const c of CANDIDATES) {
   test.describe(c.id, () => {
     test('structure', async ({ page }) => {
       await openHarness(page);
       await h(page).mount([c.fixture], options(c));
-      const laid = await layoutOf(page, c.fixture);
+      const laid = await layoutOf(page, c);
       const { model } = laid;
 
       // Mark counts: every manifest group is drawn with exactly that many items, and no other
