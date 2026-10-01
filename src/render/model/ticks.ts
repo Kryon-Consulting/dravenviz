@@ -82,14 +82,18 @@ function wallEpoch(epochMs: number, timeZone: string): number {
   return d.getTime();
 }
 
-/** The instant whose wall-clock fields in `timeZone` equal the UTC fields of `wall`. */
+/**
+ * The instant whose wall-clock fields in `timeZone` equal the UTC fields of `wall`. A wall time
+ * that falls in a spring-forward gap does not exist: it maps forward to the next existing instant
+ * (the first moment after the gap). An ambiguous fall-back time takes the earlier instant.
+ */
 function fromWall(wall: number, timeZone: string): number {
   if (timeZone === 'UTC') return wall;
-  const off1 = wallEpoch(wall, timeZone) - wall;
-  let t = wall - off1;
-  const off2 = wallEpoch(t, timeZone) - t;
-  if (off2 !== off1) t = wall - off2;
-  return t;
+  const t1 = wall - (wallEpoch(wall, timeZone) - wall);
+  const t2 = wall - (wallEpoch(t1, timeZone) - t1);
+  const valid = [t1, t2].filter((t) => wallEpoch(t, timeZone) === wall);
+  if (valid.length > 0) return Math.min(...valid);
+  return Math.max(t1, t2);
 }
 
 function utcParts(wall: number): { y: number; m: number; d: number } {
@@ -112,7 +116,7 @@ function generate(rung: Rung, min: number, max: number, timeZone: string): numbe
   const push = (wall: number): boolean => {
     const t = fromWall(wall, timeZone);
     if (t > max) return false;
-    if (t >= min) out.push(t);
+    if (t >= min && t !== out[out.length - 1]) out.push(t);
     return true;
   };
   const guard = 400;

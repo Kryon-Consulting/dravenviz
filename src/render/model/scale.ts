@@ -11,7 +11,9 @@ import { formatNumber } from '../../core/format/index';
 import type { Domain, NumberFormat } from '../../core/index';
 import type { TickModel } from './types';
 
-const MANTISSAS = [1, 2, 2.5, 5] as const;
+/** Classic Heckbert mantissas, tried first; the fallback search adds 2.5. */
+const HECKBERT = [1, 2, 5] as const;
+const FALLBACK = [1, 2, 2.5, 5] as const;
 const TARGET = 5;
 const EPS = 1e-9;
 
@@ -87,18 +89,40 @@ interface Candidate {
   missingEnds: number;
 }
 
-function stepsFor(range: number): number[] {
+/** Heckbert's `nicenum`: round (or ceil) x to 1, 2, 5 or 10 times a power of ten. */
+function niceNum(x: number, round: boolean): number {
+  const exp = Math.floor(Math.log10(x));
+  const f = x / 10 ** exp;
+  const nf = round
+    ? f < 1.5
+      ? 1
+      : f < 3
+        ? 2
+        : f < 7
+          ? 5
+          : 10
+    : f <= 1
+      ? 1
+      : f <= 2
+        ? 2
+        : f <= 5
+          ? 5
+          : 10;
+  return clean(nf * 10 ** exp);
+}
+
+function stepsFor(range: number, mantissas: readonly number[]): number[] {
   const e0 = Math.floor(Math.log10(range));
   const steps: number[] = [];
   for (let e = e0 - 2; e <= e0 + 1; e++) {
-    for (const m of MANTISSAS) steps.push(clean(m * 10 ** e));
+    for (const m of mantissas) steps.push(clean(m * 10 ** e));
   }
   return steps;
 }
 
-function candidates(lo: number, hi: number, fixed: boolean): Candidate[] {
+function candidates(lo: number, hi: number, fixed: boolean, steps: number[]): Candidate[] {
   const out: Candidate[] = [];
-  for (const step of stepsFor(hi - lo)) {
+  for (const step of steps) {
     if (fixed) {
       const k0 = Math.ceil(lo / step - EPS);
       const k1 = Math.floor(hi / step + EPS);
@@ -135,11 +159,10 @@ function pickNice(
   locale: string,
 ): Candidate {
   const target = want ?? TARGET;
-  const all = candidates(lo, hi, fixed);
   const score = (c: Candidate): number[] => {
     const n = c.ticks.length;
     const outside = want === undefined ? (n >= 4 && n <= 6 ? 0 : 1) : n === want ? 0 : 1;
-    return [outside, Math.abs(n - target), c.missingEnds, c.extension, -c.step];
+    return [outside, c.missingEnds, Math.abs(n - target), c.extension, -c.step];
   };
   const better = (a: Candidate, b: Candidate): boolean => {
     const sa = score(a);
@@ -158,6 +181,23 @@ function pickNice(
   };
   const labelOk = (c: Candidate): boolean =>
     distinct(labelsOf(c.ticks, deriveFormat(format, c.ticks, data, locale), locale));
+  const inBand = (c: Candidate): boolean =>
+    want === undefined ? c.ticks.length >= 4 && c.ticks.length <= 6 : c.ticks.length === want;
+
+  // 1. Classic Heckbert. Fit: the single step nicenum gives. Fixed: the {1, 2, 5} steps, keeping
+  //    those with 4-6 ticks and distinct labels, preferring both domain ends (so [0, 7] may still
+  //    give 0|2|4|6 when no step covers both ends).
+  const range = hi - lo;
+  const classicSteps = fixed
+    ? stepsFor(range, HECKBERT)
+    : [niceNum(niceNum(range, false) / (target - 1), true)];
+  const classic = best(
+    candidates(lo, hi, fixed, classicSteps).filter((c) => inBand(c) && labelOk(c)),
+  );
+  if (classic) return classic;
+
+  // 2. Fallback: {1, 2, 2.5, 5} search closest to the target with distinct labels.
+  const all = candidates(lo, hi, fixed, stepsFor(range, FALLBACK));
   const found = best(all.filter(labelOk)) ?? best(all);
   if (found) return found;
   // No nice step fits (an extremely narrow fixed domain): show the two ends.
@@ -176,9 +216,7 @@ export function buildValueScale(input: ValueScaleInput): ValueScale {
     const fx = domain as Extract<Domain, { policy: 'fixed' }>;
     dom = [fx.min, fx.max];
     tickValues = tickSpec?.values
-      ? [...new Set(tickSpec.values)]
-          .filter((v) => v >= fx.min && v <= fx.max)
-          .sort((a, b) => a - b)
+      ? [...new Set(tickSpec.values)].sort((a, b) => a - b)
       : pickNice(fx.min, fx.max, true, wantCount, data, input.format, locale).ticks;
   } else {
     let lo: number;

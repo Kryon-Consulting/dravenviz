@@ -67,7 +67,8 @@ export function variantOf(quality: PointModel['quality']): MarkerVariant {
 
 /**
  * One marker per point, in point order. Priority when reasons overlap: marker-only > isolated >
- * quality > all. `show: "none"` still marks isolated points (design 5.2) and marker-only points
+ * quality > all. Only partial (hollow) and lagging (ringed) are marker qualities: an estimated
+ * point is drawn by its dashed segment, and gets a marker only as marker-only, isolated or "all". `show: "none"` still marks isolated points (design 5.2) and marker-only points
  * (their only mark). Clipped points get no marker: they get a clip indicator instead.
  */
 export function buildMarkers(
@@ -84,7 +85,7 @@ export function buildMarkers(
     if (p.renderHint === 'marker-only') out.push({ pointId: p.id, reason: 'marker-only', variant });
     else if (p.renderHint === 'gap') continue;
     else if (isolated.has(p.id)) out.push({ pointId: p.id, reason: 'isolated', variant });
-    else if (show !== 'none' && p.quality !== 'measured')
+    else if (show !== 'none' && (p.quality === 'partial' || p.quality === 'lagging'))
       out.push({ pointId: p.id, reason: 'quality', variant });
     else if (show === 'all') out.push({ pointId: p.id, reason: 'all', variant });
   }

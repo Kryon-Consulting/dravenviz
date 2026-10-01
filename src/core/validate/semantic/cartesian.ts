@@ -2,6 +2,7 @@ import type { CartesianSpec } from '../../spec/index';
 import { type IssueSink, ptr } from '../issues';
 import {
   checkDomainShapes,
+  checkTickValues,
   checkXDomainData,
   checkYDomains,
   checkYOverlayDomains,
@@ -119,6 +120,7 @@ export function checkCartesian(spec: CartesianSpec, sink: IssueSink): void {
   checkOrientationAndPreset(spec, sink);
   const x = makeXChecker(spec, sink);
   checkDomainShapes(spec, sink, x);
+  checkTickValues(spec, sink);
   checkSeriesPoints(spec, sink, x);
   checkOverlays(spec, sink, x);
   checkStackMembers(spec, sink);

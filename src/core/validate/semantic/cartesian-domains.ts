@@ -242,3 +242,33 @@ export function checkYOverlayDomains(spec: CartesianSpec, sink: IssueSink): void
     }
   });
 }
+
+/**
+ * Explicit tick values: an empty list is `empty-tick-values`; with a fixed domain every value
+ * must lie inside it (`tick-outside-domain`), so the model never silently drops a tick.
+ */
+export function checkTickValues(spec: CartesianSpec, sink: IssueSink): void {
+  spec.yAxes.forEach((axis, a) => {
+    const values = axis.ticks?.values;
+    if (values === undefined) return;
+    if (values.length === 0) {
+      sink.add(
+        'empty-tick-values',
+        ptr('yAxes', a, 'ticks', 'values'),
+        'ticks.values is empty; list at least one value or remove it to use nice ticks.',
+      );
+      return;
+    }
+    const d = axis.domain;
+    if (d?.policy !== 'fixed') return;
+    values.forEach((v, j) => {
+      if (v < d.min || v > d.max) {
+        sink.add(
+          'tick-outside-domain',
+          ptr('yAxes', a, 'ticks', 'values', j),
+          `Tick value ${v} lies outside the fixed domain [${d.min}, ${d.max}]; use a value inside it or widen the domain.`,
+        );
+      }
+    });
+  });
+}

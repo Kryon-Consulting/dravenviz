@@ -275,10 +275,7 @@ export function buildCartesianModel(
 
   for (const axis of yAxes) {
     if (axis.overflow !== 'clip-indicated') continue;
-    const num = (v: number): string =>
-      axis.format.style === 'percent'
-        ? `${formatNumber(v, { ...axis.format, style: 'decimal' }, locale)} %`
-        : formatNumber(v, axis.format, locale);
+    const num = (v: number): string => formatNumber(v, axis.format, locale);
     const above: number[] = [];
     const below: number[] = [];
     for (const s of series) {
@@ -311,8 +308,17 @@ export function buildCartesianModel(
     dash: s.style.dash,
     shape: s.style.shape,
   }));
+  // A quality is listed only when it draws a mark: partial/lagging through an emitted marker,
+  // estimated through a non-empty dashed range.
+  const markerQuality = (q: Quality): boolean =>
+    series.some((s) =>
+      s.markers.some((m) => s.points.find((p) => p.id === m.pointId)?.quality === q),
+    );
+  const hasEstimatedRange = series.some((s) =>
+    s.segments.some((g) => g.estimatedRanges.length > 0),
+  );
   const present = (q: Quality): boolean =>
-    series.some((s) => s.points.some((p) => p.value !== null && p.quality === q));
+    q === 'estimated' ? hasEstimatedRange : markerQuality(q);
   if (present('partial'))
     legend.push({
       kind: 'quality',

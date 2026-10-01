@@ -65,8 +65,8 @@ describe('line model', () => {
     ]);
     expect(m.notes).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/1 value above 100 .*clipped/),
-        expect.stringMatching(/1 value below 0 .*clipped/),
+        expect.stringMatching(/1 value above 100%? .*clipped/),
+        expect.stringMatching(/1 value below 0%? .*clipped/),
       ]),
     );
     expect(m.manifest.groups).toContainEqual({ key: 'series:s:clip-indicator', count: 2 });
@@ -120,7 +120,7 @@ describe('line model', () => {
     expect(first.label).toBe('Feb 2026');
   });
 
-  test('duplicate time labels coarsen the unit', () => {
+  test('an explicit tick unit coarsens until at most six distinct ticks', () => {
     const spec = loadFixture('line-irregular-time');
     spec.xAxis.tickFormat = 'day';
     spec.series[0].points = [
@@ -199,5 +199,68 @@ describe('line model', () => {
     expect(
       (buildModel(validateSpec(loadFixture('min-area')), ctx) as { reason: string }).reason,
     ).toMatch(/slice 2/);
+  });
+
+  const labels = (m: CartesianModel, axis = 0) => m.yAxes[axis]!.ticks.map((t) => t.label);
+
+  test('Heckbert nice ticks, hand-computed', () => {
+    // weekly-flow include-zero [0, 21]: nicenum(21, ceil) = 50, nicenum(50 / 4 = 12.5, round) = 10,
+    // so the step is 10 and the domain [0, 30] with 4 ticks (inside 4-6).
+    const weekly = model('line-weekly-flow').yAxes[0]!;
+    expect(weekly.domain).toEqual([0, 30]);
+    expect(labels(model('line-weekly-flow'))).toEqual(['0', '10', '20', '30']);
+    // fit [10, 35]: nicenum(25, ceil) = 50, nicenum(12.5, round) = 10, ticks 10..40.
+    expect(model('line-category-labels-thin').yAxes[0]!.domain).toEqual([10, 40]);
+    // flat 7 -> [6, 8]: nicenum(2) = 2, nicenum(0.5, round) = 0.5: 6, 6.5, ..., 8.
+    expect(labels(model('line-all-equal'))).toEqual(['6', '6.5', '7', '7.5', '8']);
+    // fit [3, 6]: nicenum(3, ceil) = 5, nicenum(1.25, round) = 1: 3, 4, 5, 6.
+    expect(labels(model('line-irregular-time'))).toEqual(['3', '4', '5', '6']);
+    // fixed [0, 100]: steps {1,2,5}: only 20 gives 4-6 ticks covering both ends.
+    expect(labels(model('line-fixed-domain-clipped'))).toEqual([
+      '0%',
+      '20%',
+      '40%',
+      '60%',
+      '80%',
+      '100%',
+    ]);
+  });
+
+  test('estimated points get no quality marker; the legend lists only drawn qualities', () => {
+    const m = model('line-estimated-monotone');
+    expect(m.series[0]!.markers).toEqual([]);
+    expect(m.manifest.groups.some((g) => g.key === 'series:forecast:marker')).toBe(false);
+    expect(m.legend.map((l) => l.label)).toContain('Estimated');
+    const spec = loadFixture('line-estimated-monotone');
+    spec.series[0].marker = { show: 'all' };
+    expect(model2(spec).series[0]!.markers.map((k) => k.reason)).toEqual(Array(6).fill('all'));
+    // A partial point clipped away draws no marker, so its quality is not listed.
+    const clipped = loadFixture('line-fixed-domain-clipped');
+    clipped.series[0].points[1].quality = 'partial';
+    expect(model2(clipped).legend.map((l) => l.label)).toEqual(['Coverage']);
+  });
+
+  test('clip notes print the formatted value naturally', () => {
+    expect(model('line-fixed-domain-clipped').notes).toEqual([
+      '1 value above 100% is clipped at the top edge (max 130%)',
+      '1 value below 0% is clipped at the bottom edge (min -10%)',
+    ]);
+  });
+
+  test('hourly ticks across a spring-forward gap are distinct', () => {
+    const spec = loadFixture('line-irregular-time');
+    spec.xAxis.tickFormat = 'hour';
+    spec.series[0].points = [
+      { id: 'a', x: '2026-03-08T01:00:00-05:00', value: 1 },
+      { id: 'b', x: '2026-03-08T05:30:00-04:00', value: 2 },
+    ];
+    const m = buildModel(validateSpec(spec), {
+      ...ctx,
+      timezone: 'America/New_York',
+    }) as CartesianModel;
+    const ticks = (m.x as { ticks: TickModel[] }).ticks;
+    expect(new Set(ticks.map((t) => t.value)).size).toBe(ticks.length);
+    expect(ticks.length).toBeGreaterThanOrEqual(3);
+    expect(ticks.map((t) => t.label)).not.toContain('Mar 8, 02:00');
   });
 });
