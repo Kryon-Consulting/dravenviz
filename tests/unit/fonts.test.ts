@@ -27,7 +27,8 @@ describe('Noto Sans (shipped)', () => {
   test('provenance pins the tag, commit and source zip', () => {
     const md = read('assets/fonts/PROVENANCE.md');
     expect(md).toContain('NotoSans-v2.015');
-    expect(md).toContain('c4a321e123e4d4ff315f57f4e0adf294fe3a95be');
+    expect(md).toContain('Tag object: `0aabc14885f9edaf467f05a2499a1a00c09f0b56`');
+    expect(md).toContain('Tag commit: `c4a321e123e4d4ff315f57f4e0adf294fe3a95be`');
     expect(md).toContain('0c34df072a3fa7efbb7cbf34950e1f971a4447cffe365d3a359e2d4089b958f5');
   });
 
@@ -61,9 +62,9 @@ describe('Noto Serif (test fixture)', () => {
     for (const { file, sha256 } of entries)
       expect(sha256File(`tests/assets/fonts/${file}`)).toBe(sha256);
     expect(read('tests/assets/fonts/OFL.txt')).toMatch(/SIL OPEN FONT LICENSE Version 1.1/);
-    expect(read('tests/assets/fonts/PROVENANCE.md')).toContain(
-      '1eee5de7230d240118f8ad8d1e5fe4c91acae943',
-    );
+    const md = read('tests/assets/fonts/PROVENANCE.md');
+    expect(md).toContain('Tag object: `1eee5de7230d240118f8ad8d1e5fe4c91acae943`');
+    expect(md).toContain('Tag commit: `c4a321e123e4d4ff315f57f4e0adf294fe3a95be`');
   });
 
   test('metrics cover ASCII and differ from Noto Sans', () => {

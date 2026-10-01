@@ -2,7 +2,8 @@
 
 Source: https://github.com/notofonts/latin-greek-cyrillic
 Tag: `NotoSerif-v2.015`
-Tag commit: `1eee5de7230d240118f8ad8d1e5fe4c91acae943`
+Tag object: `1eee5de7230d240118f8ad8d1e5fe4c91acae943`
+Tag commit: `c4a321e123e4d4ff315f57f4e0adf294fe3a95be`
 Zip URL: https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSerif-v2.015/NotoSerif-v2.015.zip
 Licence: SIL Open Font License 1.1 (OFL.txt, taken from the zip)
 Role: test fixture for custom-font tests only; not shipped.

@@ -2,6 +2,7 @@
 
 Source: https://github.com/notofonts/latin-greek-cyrillic
 Tag: `NotoSans-v2.015`
+Tag object: `0aabc14885f9edaf467f05a2499a1a00c09f0b56`
 Tag commit: `c4a321e123e4d4ff315f57f4e0adf294fe3a95be`
 Zip URL: https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSans-v2.015/NotoSans-v2.015.zip
 Licence: SIL Open Font License 1.1 (OFL.txt, taken from the zip)
