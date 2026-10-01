@@ -78,4 +78,19 @@ describe('checkMatrix rules', () => {
     expect(checkMatrix(row(cells), opts).join('\n')).toMatch(/pending/);
     expect(checkMatrix(row(cells), { ...opts, visualPending: false })).toEqual([]);
   });
+
+  test('reports a malformed row (unescaped pipe) instead of dropping it', () => {
+    const p = checkMatrix(row('- | `pnpm a | b` | `package.json` | pass'), opts);
+    expect(p.join('\n')).toMatch(/malformed/);
+  });
+
+  test('reports a duplicate row id', () => {
+    const one = '| X | req | - | `pnpm test` | `package.json` | pass |\n';
+    expect(checkMatrix(HEAD + one + one, opts).join('\n')).toMatch(/duplicate row id X/);
+  });
+
+  test('ignores tables outside the requirement section', () => {
+    const text = `${HEAD}| X | req | - | \`c\` | \`package.json\` | pass |\n\n## Step 4 runs\n\n| a | b |\n|---|---|\n| c | d |\n`;
+    expect(checkMatrix(text, opts)).toEqual([]);
+  });
 });
