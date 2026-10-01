@@ -17,3 +17,10 @@ export {
   type ThemeName,
   type ThemeOverrides,
 } from './theme/index';
+export {
+  toDataTable,
+  type CellState,
+  type DataTable,
+  type DataTableCell,
+  type DataTableOptions,
+} from './table/index';
