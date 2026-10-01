@@ -1,4 +1,4 @@
-import { InvalidSpecError } from '../errors';
+import { DravenVizError, InvalidSpecError } from '../errors';
 
 export type TimeKind = 'date' | 'instant';
 
@@ -74,4 +74,66 @@ export function parseTimeValue(value: string): ParsedTime {
   const r = parseTime(value);
   if (!r.ok) throw new InvalidSpecError([{ rule: r.rule, path: '', message: r.message }]);
   return { epochMs: r.epochMs, kind: r.kind };
+}
+
+export type TimeTickUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+const dtfCache = new Map<string, Intl.DateTimeFormat>();
+
+function dateTimeFormat(
+  locale: string,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  const key = `${locale}|${timeZone}|${JSON.stringify(options)}`;
+  let dtf = dtfCache.get(key);
+  if (!dtf) {
+    try {
+      dtf = new Intl.DateTimeFormat(locale, { ...options, timeZone });
+    } catch (e) {
+      throw new DravenVizError(
+        'INVALID_OPTIONS',
+        'The locale or IANA timezone name is not supported.',
+        { cause: e },
+      );
+    }
+    dtfCache.set(key, dtf);
+  }
+  return dtf;
+}
+
+const UNIT_OPTIONS: Record<Exclude<TimeTickUnit, 'quarter'>, Intl.DateTimeFormatOptions> = {
+  hour: { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+  day: { month: 'short', day: 'numeric' },
+  week: { month: 'short', day: 'numeric' },
+  month: { month: 'short', year: 'numeric' },
+  year: { year: 'numeric' },
+};
+
+/**
+ * Format a tick or label time. The zone is always explicit: `UTC` for a calendar day
+ * (`kind: "date"`), otherwise the given IANA `timezone`. The machine timezone is never used.
+ * Quarter labels ("Q3 2026") are computed from the zoned month, not the Intl output.
+ * Throws `DravenVizError` `INVALID_OPTIONS` for an unknown timezone or locale.
+ */
+export function formatTime(
+  epochMs: number,
+  kind: TimeKind,
+  unit: TimeTickUnit,
+  locale: string,
+  timezone: string,
+): string {
+  // Validate the zone name even when a date-only value will format in UTC.
+  dateTimeFormat(locale, timezone, {});
+  const timeZone = kind === 'date' ? 'UTC' : timezone;
+  if (unit === 'quarter') {
+    const parts = dateTimeFormat('en-US', timeZone, {
+      year: 'numeric',
+      month: 'numeric',
+    }).formatToParts(epochMs);
+    const month = Number(parts.find((p) => p.type === 'month')?.value);
+    const year = parts.find((p) => p.type === 'year')?.value ?? '';
+    return `Q${Math.floor((month - 1) / 3) + 1} ${year}`;
+  }
+  return dateTimeFormat(locale, timeZone, UNIT_OPTIONS[unit]).format(epochMs);
 }
