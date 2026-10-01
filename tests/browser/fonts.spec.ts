@@ -365,3 +365,32 @@ test('the harness refuses traversal in font names', async ({ page }) => {
   const res = await page.request.get('/fonts/..%2Fpackage.json');
   expect(res.status()).toBe(400);
 });
+
+test('aborting a caller of an already-resolved entry does not evict the cached font', async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().endsWith('.woff2')) requests.push(r.url());
+  });
+  expect((await load(page, serif)).ok).toBe(true);
+  // Abort synchronously after the call, before the resolved entry's microtask runs.
+  const code = await page.evaluate(async (assets) => {
+    const ac = new AbortController();
+    const p = window.__h.loadFonts(assets as never, ac.signal).then(
+      () => 'ok',
+      (e: { code?: string }) => e.code,
+    );
+    ac.abort();
+    return p;
+  }, serif);
+  expect(code).toBe('DISPOSED');
+  expect(
+    await page.evaluate(
+      () => window.__h.fontRegistry.get('/test-fonts/NotoSerif-Regular.woff2') !== undefined,
+    ),
+  ).toBe(true);
+  expect((await load(page, serif)).ok).toBe(true);
+  expect(requests).toHaveLength(2);
+  expect(await faces(page, 'Noto Serif')).toHaveLength(2);
+});

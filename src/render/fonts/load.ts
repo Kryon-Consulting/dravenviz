@@ -199,6 +199,7 @@ function acquire(
       entry.face = f;
     }).then(
       (face) => {
+        entry.settled = true;
         recordResolved(face);
         return face;
       },
@@ -217,6 +218,12 @@ function wait(entry: RegistryEntry, signal: AbortSignal): Promise<ResolvedFace> 
   entry.waiters += 1;
   return new Promise<ResolvedFace>((resolve, reject) => {
     const onAbort = (): void => {
+      // A settled entry is cached for everyone; an abort only rejects this caller.
+      if (entry.settled) {
+        signal.removeEventListener('abort', onAbort);
+        reject(disposed());
+        return;
+      }
       entry.waiters -= 1;
       // Only cancel the shared network load when nobody else is waiting for it. The entry is
       // dropped first (synchronously) so a caller that never aborted can start a fresh load

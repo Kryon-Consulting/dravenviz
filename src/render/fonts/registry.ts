@@ -40,6 +40,8 @@ export interface RegistryEntry {
   weight: 400 | 600;
   /** The `FontFace` added to `document.fonts`, set once created. */
   face?: FontFace;
+  /** True once the load resolved; a settled entry is never cancelled or evicted by an abort. */
+  settled?: boolean;
   promise: Promise<ResolvedFace>;
   controller: AbortController;
   waiters: number;
