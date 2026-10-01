@@ -50,6 +50,8 @@ export interface RenderInput {
   renderId: number;
   fontFamily: string;
   measure: TextMeasurer;
+  /** `"width"` scales the chart to its container (rules in dravenviz.css). */
+  fit?: 'fixed' | 'width';
 }
 
 /**
@@ -66,6 +68,10 @@ export function renderChart(input: RenderInput): MountedChart {
   element.style.opacity = '1';
   element.setAttribute('data-dravenviz-ns', namespace);
   element.setAttribute('data-dravenviz-chart', chartId);
+  if (input.fit === 'width') {
+    element.setAttribute('data-dv-fit', 'width');
+    element.style.setProperty('--dv-aspect', `${laid.width} / ${laid.height}`);
+  }
   target.appendChild(element);
   // The identifier prefix namespaces every id React and Recharts generate for this chart.
   const root = createRoot(element, { identifierPrefix: `${namespace}-${chartId}-` });

@@ -233,6 +233,7 @@ export function CartesianChart(props: CartesianChartProps): ReactElement {
 
   return (
     <ComposedChart
+      className="dravenviz-chart-box"
       width={laid.width}
       height={laid.height}
       margin={margin}

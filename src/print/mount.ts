@@ -175,6 +175,7 @@ export function mountBatch(
             renderId: nextRenderId(),
             fontFamily: fontStack(fonts),
             measure,
+            fit: resolved.fit,
           }),
         );
       });

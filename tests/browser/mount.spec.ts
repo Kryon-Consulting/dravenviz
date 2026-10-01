@@ -437,3 +437,59 @@ test('a category with no point draws two separate paths (cat-absent)', async ({ 
   await h(page).mount([spec], opts);
   expect(await page.locator('[data-dv-mark="series:A:segment"] path').count()).toBe(2);
 });
+
+test('fit "width" scales the chart to its container and keeps the aspect ratio', async ({
+  page,
+}) => {
+  await page.addStyleTag({ path: 'src/styles/dravenviz.css' });
+  const [info] = await h(page).mount(['line-weekly-flow'], { ...opts, fit: 'width' });
+  expect(info).toEqual(
+    expect.objectContaining({ chartId: 'weekly-flow', width: 680, height: 320 }),
+  );
+  const measure = () =>
+    page.evaluate(() => {
+      const svg = document.querySelector('svg[data-dravenviz-chart="weekly-flow"]')!;
+      const host = svg.closest('[data-test-host]') as HTMLElement;
+      const mark = svg.querySelector('[data-dv-mark="series:closed:segment"] path')!;
+      const r = svg.getBoundingClientRect();
+      return {
+        w: r.width,
+        h: r.height,
+        host: host.getBoundingClientRect().width,
+        markW: mark.getBoundingClientRect().width,
+        viewBox: svg.getAttribute('viewBox'),
+      };
+    });
+  // A 178 mm wide container (the harness host is 720 px wide until resized).
+  await page.evaluate(() => {
+    (document.querySelector('[data-test-host]') as HTMLElement).style.width = '178mm';
+  });
+  const a = await measure();
+  expect(a.viewBox).toBe('0 0 680 320');
+  expect(a.w).toBeCloseTo(a.host, 1);
+  expect(a.w).toBeCloseTo((178 / 25.4) * 96, 0);
+  expect(a.h / a.w).toBeCloseTo(320 / 680, 3);
+  // The plot geometry scales with the box: halving the container halves the mark.
+  await page.evaluate(() => {
+    (document.querySelector('[data-test-host]') as HTMLElement).style.width = '89mm';
+  });
+  const b = await measure();
+  expect(b.w).toBeCloseTo(a.w / 2, 0);
+  expect(b.h / b.w).toBeCloseTo(320 / 680, 3);
+  expect(b.markW / a.markW).toBeCloseTo(0.5, 2);
+  expect(b.viewBox).toBe('0 0 680 320');
+});
+
+test('the default fit leaves the chart at its logical size', async ({ page }) => {
+  await page.addStyleTag({ path: 'src/styles/dravenviz.css' });
+  await h(page).mount(['line-weekly-flow'], opts);
+  const w = await page
+    .locator('svg[data-dravenviz-chart="weekly-flow"]')
+    .evaluate((el) => el.getBoundingClientRect().width);
+  expect(w).toBeCloseTo(680, 1);
+});
+
+test('an invalid fit option is INVALID_OPTIONS', async ({ page }) => {
+  const err = await h(page).mountError(['line-weekly-flow'], { ...opts, fit: 'stretch' });
+  expect(err.code).toBe('INVALID_OPTIONS');
+});

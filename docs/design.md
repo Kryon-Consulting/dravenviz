@@ -666,6 +666,8 @@ interface MountOptions extends RenderOptions {
   staticLabels?: boolean;                   // default true
   namespaces?: string[];                    // per-spec embedding namespaces, same length as specs;
                                             // default: every chart uses `namespace`
+  fit?: "fixed" | "width";                  // default "fixed"; "width" scales each chart to its
+                                            // container's width, aspect kept (needs dravenviz.css)
 }
 interface MountHandle {
   readonly ready: Promise<ReadyInfo[]>;     // one entry per spec, in order
