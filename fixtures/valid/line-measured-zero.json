@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "line-measured-zero",
+  "kind": "cartesian",
+  "title": "Measured zero",
+  "xAxis": {
+    "id": "week",
+    "scale": "category",
+    "categories": ["2026-07-06", "2026-07-13", "2026-07-20", "2026-07-27"],
+    "labels": ["6 Jul", "13 Jul", "20 Jul", "27 Jul"]
+  },
+  "yAxes": [
+    {
+      "id": "count",
+      "label": "Items",
+      "unit": "count",
+      "domain": {
+        "policy": "include-zero"
+      }
+    }
+  ],
+  "series": [
+    {
+      "id": "s",
+      "label": "Items",
+      "mark": "line",
+      "yAxisId": "count",
+      "points": [
+        {
+          "id": "p1",
+          "x": "2026-07-06",
+          "value": 0
+        },
+        {
+          "id": "p2",
+          "x": "2026-07-13",
+          "value": 0
+        },
+        {
+          "id": "p3",
+          "x": "2026-07-20",
+          "value": 0
+        },
+        {
+          "id": "p4",
+          "x": "2026-07-27",
+          "value": 0
+        }
+      ]
+    }
+  ]
+}

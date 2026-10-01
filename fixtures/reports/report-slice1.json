@@ -1,0 +1,10 @@
+[
+  { "fixture": "line-weekly-flow", "namespace": "wf-a" },
+  { "fixture": "line-weekly-flow", "namespace": "wf-b" },
+  { "fixture": "line-thinned-annotation", "namespace": "ta" },
+  { "fixture": "line-singleton", "namespace": "sg" },
+  { "fixture": "line-measured-zero", "namespace": "mz" },
+  { "fixture": "line-all-missing", "namespace": "am" },
+  { "fixture": "line-fixed-domain-clipped", "namespace": "fc" },
+  { "fixture": "line-estimated-monotone", "namespace": "em" }
+]

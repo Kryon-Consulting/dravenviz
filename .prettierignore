@@ -11,3 +11,4 @@ docs
 pnpm-lock.yaml
 src/core/validate/ajv.gen.js
 src/core/validate/allowed.gen.ts
+fixtures/valid/perf-line-500x4.json

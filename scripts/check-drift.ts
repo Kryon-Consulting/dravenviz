@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { GENERATED_FILES, ROOT, isMain } from './gen-lib';
+import { PERF_FILE, generatePerfLine500x4 } from './gen-fixtures';
 
 export interface DriftResult {
   ok: boolean;
@@ -41,6 +42,10 @@ export function runDriftCheck(): DriftResult {
       else if (committed === null) diffs.push(`${rel}: missing in the repository`);
       else if (!fresh.equals(committed)) diffs.push(`${rel}: differs from regenerated output`);
     }
+    const perf = readOrNull(path.join(ROOT, PERF_FILE));
+    if (perf === null) diffs.push(`${PERF_FILE}: missing in the repository`);
+    else if (!perf.equals(Buffer.from(generatePerfLine500x4())))
+      diffs.push(`${PERF_FILE}: differs from regenerated output (run scripts/gen-fixtures.ts)`);
     return { ok: diffs.length === 0, diffs };
   } finally {
     rmSync(scratch, { recursive: true, force: true });

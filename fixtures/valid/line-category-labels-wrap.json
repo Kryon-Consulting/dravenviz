@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "line-category-labels-wrap",
+  "kind": "cartesian",
+  "title": "Load by site (6 sites)",
+  "xAxis": {
+    "id": "site",
+    "scale": "category",
+    "categories": [
+      "Northgate Warehouse",
+      "Lakeshore Warehouse",
+      "Westbrook Distribution",
+      "Riverside Logistics",
+      "Stonebridge Logistics",
+      "Southmere Terminal"
+    ]
+  },
+  "yAxes": [
+    {
+      "id": "count",
+      "label": "Load",
+      "unit": "count"
+    }
+  ],
+  "series": [
+    {
+      "id": "s",
+      "label": "Load",
+      "mark": "line",
+      "yAxisId": "count",
+      "points": [
+        {
+          "id": "p1",
+          "x": "Northgate Warehouse",
+          "value": 10
+        },
+        {
+          "id": "p2",
+          "x": "Lakeshore Warehouse",
+          "value": 17
+        },
+        {
+          "id": "p3",
+          "x": "Westbrook Distribution",
+          "value": 24
+        },
+        {
+          "id": "p4",
+          "x": "Riverside Logistics",
+          "value": 31
+        },
+        {
+          "id": "p5",
+          "x": "Stonebridge Logistics",
+          "value": 15
+        },
+        {
+          "id": "p6",
+          "x": "Southmere Terminal",
+          "value": 22
+        }
+      ]
+    }
+  ]
+}

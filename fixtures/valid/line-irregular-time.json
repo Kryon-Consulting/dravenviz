@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "line-irregular-time",
+  "kind": "cartesian",
+  "title": "Audits at irregular dates",
+  "xAxis": {
+    "id": "day",
+    "scale": "time"
+  },
+  "yAxes": [
+    {
+      "id": "v",
+      "label": "Findings",
+      "unit": "count"
+    }
+  ],
+  "series": [
+    {
+      "id": "s",
+      "label": "Findings",
+      "mark": "line",
+      "yAxisId": "v",
+      "points": [
+        {
+          "id": "p1",
+          "x": "2026-07-01",
+          "value": 3
+        },
+        {
+          "id": "p2",
+          "x": "2026-07-02",
+          "value": 4
+        },
+        {
+          "id": "p3",
+          "x": "2026-07-09",
+          "value": 5
+        },
+        {
+          "id": "p4",
+          "x": "2026-08-09",
+          "value": 6
+        }
+      ]
+    }
+  ]
+}
