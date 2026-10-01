@@ -1,0 +1,84 @@
+@page {
+  size: A4;
+  margin: 16mm;
+}
+
+html,
+body {
+  margin: 0;
+  background: #fff;
+  color: #1a1a1a;
+  font:
+    9pt/1.3 'Noto Sans',
+    sans-serif;
+}
+
+h1 {
+  margin: 0 0 4mm;
+  font-size: 14pt;
+  font-weight: 600;
+}
+
+.inst {
+  width: 178mm;
+  margin: 0 0 7mm;
+  break-inside: avoid;
+}
+
+/* The frame is the link and is exactly the SVG's box. */
+.dv-frame {
+  display: block;
+  position: relative;
+  width: 178mm;
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * Scale the chart to the frame: DravenViz draws 680 x 320 logical units, and the print host
+ * scales that box to 178 mm. The Recharts wrapper carries inline pixel sizes, hence !important.
+ * The aspect ratio matches the width and height passed to mountCharts in bootstrap.js.
+ */
+.dv-frame .dravenviz-root {
+  display: block;
+  width: 100%;
+}
+
+.dv-frame .recharts-wrapper {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 680 / 320;
+}
+
+.dv-frame svg {
+  display: block;
+}
+
+/* Instrumentation tokens: 1 pt text in the background colour. */
+.dv-token,
+.dv-corner {
+  font-size: 1pt;
+  line-height: 1pt;
+  color: #fff;
+}
+
+.dv-corner {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.dv-corner.tl {
+  top: 0;
+  left: 0;
+}
+
+.dv-corner.br {
+  right: 0;
+  bottom: 0;
+}
+
+.dv-table {
+  margin-top: 2mm;
+}

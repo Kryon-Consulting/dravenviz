@@ -1,0 +1,23 @@
+{
+  "method": "link-dest",
+  "linkDest": {
+    "destOffsetPt": {
+      "dx": -45.6328125,
+      "dy": 45.4356689453125
+    },
+    "destTolerancePt": 2.0,
+    "edgeTolerancePt": 0.25
+  },
+  "markers": {
+    "tl": {
+      "dx": 0.0,
+      "dy": 0.31434413364955355
+    },
+    "br": {
+      "dx": -0.1942138671875,
+      "dy": 0.029170989990234375
+    },
+    "residualTolerancePt": 0.25,
+    "passed": false
+  }
+}

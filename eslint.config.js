@@ -50,6 +50,8 @@ export default tseslint.config(
       'spikes/**',
       'docs/**',
       '.superpowers/**',
+      '**/.venv/**',
+      'evidence/**',
       // Ajv standalone output bundled by scripts/gen-validator.ts; machine-written, drift-checked.
       'src/core/validate/ajv.gen.js',
     ],
@@ -113,5 +115,10 @@ export default tseslint.config(
   {
     files: ['examples/html/**/*.js'],
     languageOptions: { globals: { ...globals.browser } },
+  },
+  // The DravenPDF report bundle loads the browser bundle (global `DravenViz`) as a classic script.
+  {
+    files: ['examples/dravenpdf/**/*.js'],
+    languageOptions: { globals: { ...globals.browser, DravenViz: 'readonly' } },
   },
 );
