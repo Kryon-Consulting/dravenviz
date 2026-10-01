@@ -44,7 +44,7 @@ test('real chart exports without renderer metadata', async ({ page }) => {
   const svg = await h(page).renderToSvg('line-weekly-flow', o);
   expect(svg).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
   expect(svg).toMatch(/viewBox="0 0 680 320"/);
-  expect(svg).toMatch(/<title id="x-weekly-flow-1">Items opened and closed<\/title>/);
+  expect(svg).toMatch(/<title id="x_weekly-flow-1">Items opened and closed<\/title>/);
   // `(^|\s)style="` rather than `style="`: font-style="normal" is a materialized presentation attribute.
   expect(svg).not.toMatch(/class=|(^|\s)style="|recharts|foreignObject|<script|on[a-z]+=/i);
   expect(svg).toMatch(/@font-face[^}]*url\("fonts\/NotoSans-Regular.woff2"\)/);
@@ -62,11 +62,26 @@ test('the empty style-guard group is dropped and live-only attributes never leak
   expect(svg).not.toMatch(/display:/);
 });
 
+test('exports for namespace a + chart b-c and namespace a-b + chart c share no ids', async ({
+  page,
+}) => {
+  const base = await h(page).fixture<{ id: string }>('line-estimated-monotone');
+  const one = await h(page).renderToSvg({ ...base, id: 'b-c' }, { ...o, namespace: 'a' });
+  const two = await h(page).renderToSvg({ ...base, id: 'c' }, { ...o, namespace: 'a-b' });
+  const idsOf = (svg: string): string[] => [...svg.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]!);
+  const a = idsOf(one);
+  const b = idsOf(two);
+  expect(a.length).toBeGreaterThan(3);
+  expect(a.every((id, i) => id === `a_b-c-${i + 1}`)).toBe(true);
+  expect(b.every((id, i) => id === `a-b_c-${i + 1}`)).toBe(true);
+  expect(a.filter((id) => b.includes(id))).toEqual([]);
+});
+
 test('every id is namespaced in document order and every reference follows', async ({ page }) => {
   const svg = await h(page).renderToSvg('line-estimated-monotone', { ...o, namespace: 'ab' });
   const ids = [...svg.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   expect(ids.length).toBeGreaterThan(3);
-  expect(ids).toEqual(ids.map((_, i) => `ab-line-estimated-monotone-${i + 1}`));
+  expect(ids).toEqual(ids.map((_, i) => `ab_line-estimated-monotone-${i + 1}`));
   const refs = [...svg.matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1]);
   expect(refs.length).toBeGreaterThan(0);
   for (const r of refs) expect(ids).toContain(r);
@@ -147,7 +162,7 @@ test('exporting a chart that is already mounted with the same namespace is not r
 }) => {
   await h(page).mount(['line-weekly-flow'], { width: 680, height: 320, namespace: 'x' });
   const svg = await h(page).renderToSvg('line-weekly-flow', o);
-  expect(svg).toMatch(/id="x-weekly-flow-1"/);
+  expect(svg).toMatch(/id="x_weekly-flow-1"/);
   expect((await h(page).counts()).svgs).toBe(1);
 });
 
@@ -204,7 +219,7 @@ test('export uses effective style over attribute', async ({ page }) => {
   }, svg);
   expect(facts.s).toBe('#ff0000');
   expect(facts.pat).toBe(`url(#${facts.patId})`);
-  expect(facts.patId).toMatch(/^x-weekly-flow-\d+$/);
+  expect(facts.patId).toMatch(/^x_weekly-flow-\d+$/);
   const err = await h(page).exportError(
     'line-weekly-flow',
     o,

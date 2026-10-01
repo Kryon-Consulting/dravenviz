@@ -6,6 +6,7 @@ import type { Theme } from '../core/index';
 import { ChartView } from '../render/ChartView';
 import { RenderGuard } from '../render/RenderGuard';
 import type { LaidOutChart, TextMeasurer } from '../render/layout/types';
+import { idPrefix } from '../render/svg/ids';
 
 /**
  * Live React roots, for the browser tests (`harness.counts()`): after any batch finishes,
@@ -73,7 +74,7 @@ export function renderChart(input: RenderInput): MountedChart {
   }
   target.appendChild(element);
   // The identifier prefix namespaces every id React and Recharts generate for this chart.
-  const root = createRoot(element, { identifierPrefix: `${namespace}-${chartId}-` });
+  const root = createRoot(element, { identifierPrefix: idPrefix(namespace, chartId) });
   liveRoots.add(root);
   const mounted: MountedChart = { chartId, namespace, element, root, renderId, laid };
   let caught: unknown;

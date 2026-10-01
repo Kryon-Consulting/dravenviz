@@ -1,4 +1,13 @@
 /**
+ * The id prefix for one embedding identity: `<namespace>_<chartId>-`. A namespace can never
+ * contain `_` (its grammar is `^[a-z][a-z0-9-]{0,31}$`), so the first `_` always ends the
+ * namespace and two different (namespace, chartId) pairs never share a prefix (design section 9).
+ */
+export function idPrefix(namespace: string, chartId: string): string {
+  return `${namespace}_${chartId}-`;
+}
+
+/**
  * Rewrites every `id` to `<prefix><n>` in document order (n from 1) and every reference to match:
  * `url(#...)` in any attribute, `href`/`xlink:href`, `aria-labelledby` and `aria-describedby`
  * (design section 10, finalize). Recharts and React emit their own ids; none may survive.

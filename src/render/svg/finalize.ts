@@ -1,6 +1,6 @@
 import { DravenVizError } from '../../core/index';
 import type { FontFormat, ResolvedFontSet } from '../fonts/registry';
-import { rewriteIds } from './ids';
+import { idPrefix, rewriteIds } from './ids';
 import { MATERIALIZED_PROPERTIES } from './recharts-metadata';
 import { SVG_NS } from './validate';
 
@@ -211,7 +211,7 @@ export function finalizeSvg(el: SVGSVGElement, ctx: FinalizeContext): SvgExport 
   el.setAttribute('aria-labelledby', labelled.join(' '));
   el.prepend(...lead, ...styles);
 
-  rewriteIds(el, `${ctx.namespace}-${ctx.chartId}-`);
+  rewriteIds(el, idPrefix(ctx.namespace, ctx.chartId));
 
   for (const node of [el, ...Array.from(el.querySelectorAll('*'))]) {
     for (const attr of Array.from(node.attributes)) {

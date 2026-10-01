@@ -698,7 +698,7 @@ Mapping rules:
 
 - If `target` is an array, `specs[i]` mounts into `target[i]`. Different lengths throw `INVALID_OPTIONS` synchronously.
 - If `target` is a single element, a child `<div class="dravenviz-root" data-dravenviz-chart="<id>">` is appended per spec, in order.
-- **Embedding identity** is the pair (namespace, chartId). Every SVG ID is `<namespace>-<chartId>-<n>`, and the root carries `data-dravenviz-ns` and `data-dravenviz-chart`.
+- **Embedding identity** is the pair (namespace, chartId). Every SVG ID is `<namespace>_<chartId>-<n>`. The `_` cannot occur in a namespace (`^[a-z][a-z0-9-]{0,31}$`), so the first `_` ends the namespace and namespace `a` with chart `b-c` never collides with namespace `a-b` with chart `c`. The root carries `data-dravenviz-ns` and `data-dravenviz-chart`.
 - The same spec can be mounted more than once (for example two instances of `line-weekly-flow`) as long as each instance has a distinct namespace, through `namespaces[i]` or separate calls with different `namespace` values. The spec and its `id` are never modified.
 - A pair that repeats within a batch, or that already exists in the document, is rejected with `INVALID_OPTIONS` (`duplicate-chart-embedding`) before anything mounts.
 - React `<Chart>` defaults `namespace` to a sanitized `useId()` value, so instances are distinct without configuration and the value is stable across SSR and hydration.
@@ -784,7 +784,7 @@ Export has three stages: **normalize**, **validate strictly**, then **finalize**
   - `embedded` mode: the same rules with `data:font/<format>;base64,...` built from the exact bytes in the font registry (section 9, step 2), with the SHA-256 recorded in a `data-dv-font-sha256` attribute on the `<style>`.
   - `renderToSvgWithAssets` returns the list of font files and hrefs, so callers relocating an external-mode SVG copy exactly those files to `<svg directory>/<fontHrefPrefix>`.
 - *Addition (Task 13):* `renderToSvg` mounts the live chart under a reserved internal namespace (`__export-<n>`, unique per call, which can never match the public namespace pattern), so exporting a chart that is already mounted with the same (namespace, chartId) is not rejected as a duplicate. The exported ids use the caller's `namespace`. `data-dv-render-id` is never exported (it changes on every mount and would break byte-identical output).
-- IDs are rewritten to `<namespace>-<chartId>-<n>` in document order. References (`url(#…)`, `href="#…"`, `aria-labelledby`) are rewritten to match. Two exports with different embedding identities share no IDs (tested).
+- IDs are rewritten to `<namespace>_<chartId>-<n>` in document order. References (`url(#…)`, `href="#…"`, `aria-labelledby`) are rewritten to match. Two exports with different embedding identities share no IDs (tested).
 - Serialization is `XMLSerializer` followed by deterministic attribute ordering and fixed number precision (2 decimals). The same inputs and environment give byte-identical SVG.
 
 Export tests, in the slice 1 spike and then in `test:browser`:

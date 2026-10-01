@@ -75,6 +75,20 @@ export function verifyAndReport(
       issues: [{ rule: 'missing-svg', path: '', message: 'The chart did not produce an SVG.' }],
     });
   }
+  const rendered = svg.getBoundingClientRect();
+  if (!(rendered.width > 0) || !(rendered.height > 0)) {
+    throw new DravenVizError('RENDER_FAILED', 'The committed chart has no rendered size.', {
+      chartId,
+      issues: [
+        {
+          rule: 'zero-rendered-size',
+          path: '',
+          message:
+            'The committed chart has no rendered size (a host rule may hide or collapse it).',
+        },
+      ],
+    });
+  }
   verifyCommitted(svg, laid.model.manifest, renderId, width, height, expectationsOf(laid));
   const effectivePt = laid.metrics.effectivePt;
   return {

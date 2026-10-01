@@ -43,8 +43,8 @@ type Item = string | object;
 interface HarnessOptions extends Omit<MountOptions, 'width' | 'height'> {
   width?: number;
   height?: number;
-  /** `hidden` mounts into a `display: none` host. */
-  host?: 'visible' | 'hidden';
+  /** `hidden` mounts into a `display: none` host; `zero-width` into a rendered host 0 px wide. */
+  host?: 'visible' | 'hidden' | 'zero-width';
 }
 
 interface SerializedError {
@@ -82,6 +82,7 @@ function newHost(kind: HarnessOptions['host']): HTMLElement {
   host.setAttribute('data-test-host', String(++sequence));
   host.style.width = '720px';
   if (kind === 'hidden') host.style.display = 'none';
+  if (kind === 'zero-width') host.style.width = '0px';
   document.body.appendChild(host);
   return host;
 }

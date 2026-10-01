@@ -1,6 +1,7 @@
 import type { LaidOutChart } from '../layout/types';
+import { idPrefix } from '../svg/ids';
 
-/** Deterministic, namespaced SVG ids: `<namespace>-<chartId>-<n>` (design section 9). */
+/** Deterministic, namespaced SVG ids: `<namespace>_<chartId>-<n>` (design section 9). */
 export interface ChartIds {
   /** The id for a structural key such as `clip:solid:0:1`. Throws for a key that was never planned. */
   get(key: string): string;
@@ -14,7 +15,7 @@ export interface ChartIds {
 export function planIds(laid: LaidOutChart, namespace: string): ChartIds {
   const ids = new Map<string, string>();
   const add = (key: string): void => {
-    ids.set(key, `${namespace}-${laid.model.chartId}-${ids.size + 1}`);
+    ids.set(key, `${idPrefix(namespace, laid.model.chartId)}${ids.size + 1}`);
   };
   laid.model.series.forEach((s, si) => {
     s.segments.forEach((seg, gi) => {
