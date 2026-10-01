@@ -1,0 +1,198 @@
+diff --git a/docs/design.md b/docs/design.md
+index 07b8727..fe0e696 100644
+--- a/docs/design.md
++++ b/docs/design.md
+@@ -666,6 +666,8 @@ interface MountOptions extends RenderOptions {
+   staticLabels?: boolean;                   // default true
+   namespaces?: string[];                    // per-spec embedding namespaces, same length as specs;
+                                             // default: every chart uses `namespace`
++  fit?: "fixed" | "width";                  // default "fixed"; "width" scales each chart to its
++                                            // container's width, aspect kept (needs dravenviz.css)
+ }
+ interface MountHandle {
+   readonly ready: Promise<ReadyInfo[]>;     // one entry per spec, in order
+diff --git a/examples/dravenpdf/bundle/bootstrap.js b/examples/dravenpdf/bundle/bootstrap.js
+index 9e15d3a..11882a0 100644
+--- a/examples/dravenpdf/bundle/bootstrap.js
++++ b/examples/dravenpdf/bundle/bootstrap.js
+@@ -17,6 +17,7 @@ const handle = DravenViz.mountCharts(
+     width: 680,
+     height: 320,
+     theme: 'print',
++    fit: 'width', // scale the 680 x 320 chart to its 178 mm frame
+     namespaces: entries.map((e) => e.namespace),
+     locale: 'en-US',
+     timezone: 'UTC',
+diff --git a/examples/dravenpdf/bundle/report.css b/examples/dravenpdf/bundle/report.css
+index 1d2d06b..c0ebd10 100644
+--- a/examples/dravenpdf/bundle/report.css
++++ b/examples/dravenpdf/bundle/report.css
+@@ -34,22 +34,7 @@ h1 {
+   text-decoration: none;
+ }
+ 
+-/*
+- * Scale the chart to the frame: DravenViz draws 680 x 320 logical units, and the print host
+- * scales that box to 178 mm. The Recharts wrapper carries inline pixel sizes, hence !important.
+- * The aspect ratio matches the width and height passed to mountCharts in bootstrap.js.
+- */
+-.dv-frame .dravenviz-root {
+-  display: block;
+-  width: 100%;
+-}
+-
+-.dv-frame .recharts-wrapper {
+-  width: 100% !important;
+-  height: auto !important;
+-  aspect-ratio: 680 / 320;
+-}
+-
++/* The chart scales to the frame through mountCharts' `fit: "width"` (dravenviz.css). */
+ .dv-frame svg {
+   display: block;
+ }
+diff --git a/src/print/lifecycle.ts b/src/print/lifecycle.ts
+index 464071b..7003b9e 100644
+--- a/src/print/lifecycle.ts
++++ b/src/print/lifecycle.ts
+@@ -50,6 +50,8 @@ export interface RenderInput {
+   renderId: number;
+   fontFamily: string;
+   measure: TextMeasurer;
++  /** `"width"` scales the chart to its container (rules in dravenviz.css). */
++  fit?: 'fixed' | 'width';
+ }
+ 
+ /**
+@@ -66,6 +68,10 @@ export function renderChart(input: RenderInput): MountedChart {
+   element.style.opacity = '1';
+   element.setAttribute('data-dravenviz-ns', namespace);
+   element.setAttribute('data-dravenviz-chart', chartId);
++  if (input.fit === 'width') {
++    element.setAttribute('data-dv-fit', 'width');
++    element.style.setProperty('--dv-aspect', `${laid.width} / ${laid.height}`);
++  }
+   target.appendChild(element);
+   // The identifier prefix namespaces every id React and Recharts generate for this chart.
+   const root = createRoot(element, { identifierPrefix: `${namespace}-${chartId}-` });
+diff --git a/src/print/mount.ts b/src/print/mount.ts
+index f25adc2..e43ab26 100644
+--- a/src/print/mount.ts
++++ b/src/print/mount.ts
+@@ -175,6 +175,7 @@ export function mountBatch(
+             renderId: nextRenderId(),
+             fontFamily: fontStack(fonts),
+             measure,
++            fit: resolved.fit,
+           }),
+         );
+       });
+diff --git a/src/print/options.ts b/src/print/options.ts
+index a3af4c7..49c1170 100644
+--- a/src/print/options.ts
++++ b/src/print/options.ts
+@@ -41,6 +41,11 @@ export interface MountOptions extends RenderOptions {
+   staticLabels?: boolean;
+   /** Per-spec embedding namespaces, same length as `specs`; default: every chart uses `namespace`. */
+   namespaces?: string[];
++  /**
++   * `"fixed"` (default): the chart is `width` x `height` CSS pixels. `"width"`: it scales to its
++   * container's width with the aspect ratio kept. Needs `dravenviz.css`; layout is unchanged.
++   */
++  fit?: 'fixed' | 'width';
+ }
+ 
+ export const DEFAULT_TIMEOUT_MS = 10_000;
+@@ -59,6 +64,7 @@ export interface ResolvedOptions {
+   timeoutMs: number;
+   limits: Partial<Limits> | undefined;
+   staticLabels: boolean;
++  fit: 'fixed' | 'width';
+ }
+ 
+ const invalid = (message: string, path?: string): DravenVizError =>
+@@ -105,6 +111,10 @@ export function resolveOptions(options: MountOptions, count: number): ResolvedOp
+   if (typeof locale !== 'string' || typeof timezone !== 'string') {
+     throw invalid('locale and timezone must be strings.');
+   }
++  const fit = options.fit ?? 'fixed';
++  if (fit !== 'fixed' && fit !== 'width') {
++    throw invalid('fit must be "fixed" or "width".', '/fit');
++  }
+   // Same-origin and relative-URL checks happen here, before any request (design section 12).
+   const fonts = options.fonts ?? defaultFontAssets(options.assetBaseUrl);
+   return {
+@@ -119,5 +129,6 @@ export function resolveOptions(options: MountOptions, count: number): ResolvedOp
+     timeoutMs,
+     limits: options.limits,
+     staticLabels: options.staticLabels ?? true,
++    fit,
+   };
+ }
+diff --git a/src/styles/dravenviz.css b/src/styles/dravenviz.css
+index a06b48d..c36de1f 100644
+--- a/src/styles/dravenviz.css
++++ b/src/styles/dravenviz.css
+@@ -73,3 +73,19 @@
+ .dravenviz-root .dravenviz-table th[data-align='end'] {
+   text-align: end;
+ }
++
++/*
++ * `fit: "width"` (mountCharts): the chart scales to its container's width with the aspect ratio
++ * kept. The logical layout and the SVG viewBox are unchanged. The chart's inner box carries inline
++ * pixel sizes, hence !important; only DravenViz-owned attributes are matched.
++ */
++.dravenviz-root[data-dv-fit='width'] {
++  display: block;
++  width: 100%;
++}
++
++.dravenviz-root[data-dv-fit='width'] > div {
++  width: 100% !important;
++  height: auto !important;
++  aspect-ratio: var(--dv-aspect);
++}
+diff --git a/tests/browser/mount.spec.ts b/tests/browser/mount.spec.ts
+index d4e8e22..a0efd61 100644
+--- a/tests/browser/mount.spec.ts
++++ b/tests/browser/mount.spec.ts
+@@ -437,3 +437,38 @@ test('a category with no point draws two separate paths (cat-absent)', async ({
+   await h(page).mount([spec], opts);
+   expect(await page.locator('[data-dv-mark="series:A:segment"] path').count()).toBe(2);
+ });
++
++test('fit "width" scales the chart to its container and keeps the aspect ratio', async ({
++  page,
++}) => {
++  await page.addStyleTag({ path: 'src/styles/dravenviz.css' });
++  // Mount into a 178 mm wide host: the first harness host is created by `start`, so size it after.
++  const infoPromise = h(page).mount(['line-weekly-flow'], { ...opts, fit: 'width' });
++  await page.addStyleTag({ content: '[data-test-host]{width:178mm !important}' });
++  const [info] = await infoPromise;
++  expect(info).toEqual(
++    expect.objectContaining({ chartId: 'weekly-flow', width: 680, height: 320 }),
++  );
++  const svg = page.locator('svg[data-dravenviz-chart="weekly-flow"]');
++  await expect(svg).toHaveAttribute('viewBox', '0 0 680 320');
++  const box = await svg.evaluate((el) => {
++    const r = el.getBoundingClientRect();
++    const host = el.closest('[data-test-host]')!.getBoundingClientRect();
++    return { w: r.width, h: r.height, host: host.width };
++  });
++  expect(box.w).toBeCloseTo(box.host, 1);
++  expect(box.w).toBeCloseTo((178 / 25.4) * 96, 0);
++  expect(box.h / box.w).toBeCloseTo(320 / 680, 3);
++  // Plot geometry scales proportionally: the backdrop rect (680 wide in viewBox units) spans the svg.
++  const marks = await page
++    .locator('[data-dv-mark="series:closed:segment"] path')
++    .first()
++    .evaluate((p) => p.getBoundingClientRect().width);
++  expect(marks).toBeGreaterThan(0);
++  expect(marks).toBeLessThan(box.w);
++});
++
++test('an invalid fit option is INVALID_OPTIONS', async ({ page }) => {
++  const err = await h(page).mountError(['line-weekly-flow'], { ...opts, fit: 'stretch' });
++  expect(err.code).toBe('INVALID_OPTIONS');
++});
