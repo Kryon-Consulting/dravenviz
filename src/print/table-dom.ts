@@ -1,6 +1,6 @@
 import { toDataTable, type DataTable, type VizSpec } from '../core/index';
 
-export interface DataTableOptions {
+export interface RenderDataTableOptions {
   /** Visually hide the table but keep it for assistive technology and print text extraction. */
   visuallyHidden?: boolean;
   locale?: string;
@@ -58,7 +58,7 @@ export function buildTableElement(doc: Document, model: DataTable): HTMLTableEle
 export function renderDataTable(
   target: Element,
   spec: VizSpec,
-  options: DataTableOptions = {},
+  options: RenderDataTableOptions = {},
 ): () => void {
   const doc = target.ownerDocument;
   const model = toDataTable(spec, {

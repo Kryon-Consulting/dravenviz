@@ -264,18 +264,16 @@ test('concurrent loads of the same URL share one request', async ({ page }) => {
   expect(requests).toHaveLength(2);
 });
 
-test('mount, exportSvg and counts are stubs until Task 12/13', async ({ page }) => {
-  const msgs = await page.evaluate(() =>
-    (['mount', 'exportSvg', 'counts'] as const).map((k) => {
-      try {
-        (window.__h[k] as () => unknown)();
-        return '';
-      } catch (e) {
-        return (e as Error).message;
-      }
-    }),
-  );
-  expect(msgs).toEqual(Array(3).fill('not implemented until Task 12/13'));
+test('exportSvg is a stub until Task 13', async ({ page }) => {
+  const msg = await page.evaluate(() => {
+    try {
+      (window.__h.exportSvg as () => unknown)();
+      return '';
+    } catch (e) {
+      return (e as Error).message;
+    }
+  });
+  expect(msg).toBe('not implemented until Task 13');
 });
 
 test('verification fails when the registered faces are gone (negative control)', async ({
