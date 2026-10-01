@@ -1,8 +1,8 @@
 name: ci
 
+# Manual only: run from the Actions tab ("Run workflow") or `gh workflow run ci --ref <branch>`.
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
