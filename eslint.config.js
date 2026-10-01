@@ -109,4 +109,9 @@ export default tseslint.config(
     files: ['src/print/**/*.{ts,tsx}'],
     rules: restrict(banned.recharts, banned.reactFromPrint),
   },
+  // Example pages run in a browser.
+  {
+    files: ['examples/html/**/*.js'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
 );

@@ -40,7 +40,7 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "build": "sh -c 'echo \"not implemented until Task 15\" >&2; exit 1'",
+    "build": "pnpm gen && tsup && tsx scripts/build-browser.ts && tsx scripts/build-manifest.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json --noEmit && tsc -p tsconfig.build.json --noEmit",
     "lint": "eslint . && prettier --check .",
     "test": "vitest run",
@@ -49,12 +49,14 @@
     "gen": "tsx scripts/gen-types.ts && tsx scripts/gen-validator.ts",
     "test:pdf": "sh -c 'echo \"not implemented until Task 16\" >&2; exit 1'",
     "test:package": "sh -c 'echo \"not implemented until Task 18\" >&2; exit 1'",
-    "pack:local": "sh -c 'echo \"not implemented until Task 15\" >&2; exit 1'",
+    "pack:local": "pnpm build && tsx scripts/pack-local.ts",
     "dev:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
     "build:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
     "preview:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
     "test:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
-    "measure": "sh -c 'echo \"not implemented until Task 20\" >&2; exit 1'"
+    "measure": "sh -c 'echo \"not implemented until Task 20\" >&2; exit 1'",
+    "stage": "tsx scripts/stage-consumer.ts",
+    "notices": "tsx scripts/build-manifest.ts --notices"
   },
   "dependencies": {
     "recharts": "3.10.1"
@@ -101,7 +103,9 @@
     "publint": "0.3.24",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-dom18": "npm:react-dom@18.3.1",
     "react-is": "19.3.0",
+    "react18": "npm:react@18.3.1",
     "tsup": "8.5.1",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
