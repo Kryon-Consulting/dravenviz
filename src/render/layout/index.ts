@@ -183,7 +183,12 @@ function pass(
     const rowHeight = (items: LegendItem[]): number =>
       Math.max(...items.map((i) => legendLabels[i.id]!.length)) * lh(sizeLabel);
     for (const item of model.legend) {
-      const lines = wrapWords(item.label, labelMax, measure, fLabel);
+      // A quality entry states what its mark means: "Partial — Hollow marker: ..." (R28).
+      const text =
+        item.kind === 'quality' && item.meaning !== undefined
+          ? `${item.label} — ${item.meaning}`
+          : item.label;
+      const lines = wrapWords(text, labelMax, measure, fLabel);
       legendLabels[item.id] = lines;
       const w = swatch + tickGap + Math.max(0, ...lines.map((l) => measure(l, fLabel).width));
       itemW.push(w);

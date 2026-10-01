@@ -133,7 +133,15 @@ function cartesianTable(spec: CartesianSpec, options: DataTableOptions): DataTab
       (p.value > range[1] ? entry.above : entry.below).push(p.value);
       clipped.set(s.yAxisId, entry);
     }
-    return { text: p.displayValue ?? num(p.value, a), value: p.value, state };
+    const shown = p.displayValue ?? num(p.value, a);
+    // The quality word travels with the number (also in the legend): a table has no marks.
+    const word =
+      state === 'partial' || state === 'lagging' || state === 'estimated' ? state : undefined;
+    return {
+      text: word === undefined ? shown : `${shown} (${capitalise(word)})`,
+      value: p.value,
+      state,
+    };
   };
 
   const notes: string[] = [];
@@ -149,7 +157,7 @@ function cartesianTable(spec: CartesianSpec, options: DataTableOptions): DataTab
 
   const annotationNotes = (spec.annotations ?? [])
     .filter((a) => a.detail !== undefined)
-    .map((a) => `${a.label} — ${a.detail as string}`);
+    .map((a, i) => `(${i + 1}) ${a.label} — ${a.detail as string}`);
   const clipNotes: string[] = [];
   for (const a of spec.yAxes) {
     const entry = clipped.get(a.id);

@@ -33,13 +33,15 @@ describe('toDataTable(line-weekly-flow)', () => {
 
   test('quality words become cell states', () => {
     const partial = t.rows.find((r) => r.id === '2026-07-20')!;
-    expect(partial.cells[0]).toEqual({ text: '18', value: 18, state: 'partial' });
+    expect(partial.cells[0]).toEqual({ text: '18 (Partial)', value: 18, state: 'partial' });
     const lagging = t.rows.find((r) => r.id === '2026-07-27')!;
-    expect(lagging.cells[1]?.state).toBe('lagging');
+    expect(lagging.cells[1]).toEqual({ text: '16 (Lagging)', value: 16, state: 'lagging' });
   });
 
   test('notes carry the annotation detail; the caption states the unit', () => {
-    expect(t.notes.some((n) => n.includes('Collection paused 22–24 Jul'))).toBe(true);
+    expect(t.notes).toContain(
+      '(1) Partial week — Collection paused 22–24 Jul; value is a partial count.',
+    );
     expect(t.caption).toBe('Items opened and closed (count)');
   });
 });
@@ -56,6 +58,7 @@ describe('toDataTable edge cases', () => {
   test('estimated points are marked estimated', () => {
     const t = table('line-estimated-monotone');
     const forecast = t.rows.map((r) => r.cells[0]?.state);
+    expect(t.rows[3]?.cells[0]?.text).toBe('18 (Estimated)');
     expect(forecast).toEqual([
       'measured',
       'measured',

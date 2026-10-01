@@ -47,7 +47,15 @@ function duplicate(chartId: string, index: number, where: string): DravenVizErro
 }
 
 /** Step 1: validate every spec and the embedding identities before the DOM is touched. */
-function validateBatch(specs: unknown[], options: ResolvedOptions, doc: Document): VizSpec[] {
+/** Identities reserved by batches that are still in flight (the document check cannot see them yet). */
+const pending = new Set<string>();
+
+function validateBatch(
+  specs: unknown[],
+  options: ResolvedOptions,
+  doc: Document,
+  reserved: string[],
+): VizSpec[] {
   const validated = specs.map((raw) =>
     validateSpec(raw, options.limits === undefined ? undefined : { limits: options.limits }),
   );
@@ -62,8 +70,12 @@ function validateBatch(specs: unknown[], options: ResolvedOptions, doc: Document
     const key = `${options.namespaces[i]}\u0000${spec.id}`;
     if (seen.has(key)) throw duplicate(spec.id, i, 'in this batch');
     if (existing.has(key)) throw duplicate(spec.id, i, 'in the document');
+    if (pending.has(key)) throw duplicate(spec.id, i, 'in another batch that is still mounting');
     seen.add(key);
   });
+  // Reserve synchronously with the check, so two back-to-back calls cannot both pass.
+  for (const key of seen) pending.add(key);
+  reserved.push(...seen);
   return validated;
 }
 
@@ -94,6 +106,10 @@ export function mountCharts(
     throw new DravenVizError('INVALID_OPTIONS', 'target and specs must have the same length.');
   }
   const batch = new Batch();
+  const reserved: string[] = [];
+  const release = (): void => {
+    for (const key of reserved.splice(0)) pending.delete(key);
+  };
   const abort = new AbortController();
   let settled = false;
   let rejectDeadline!: (e: DravenVizError) => void;
@@ -119,7 +135,7 @@ export function mountCharts(
       }
     }
     const doc = (targets[0] ?? document.body).ownerDocument;
-    const validated = validateBatch(specs, resolved, doc);
+    const validated = validateBatch(specs, resolved, doc, reserved);
     const timer = setTimeout(() => {
       abortReason = timedOut;
       rejectDeadline(timedOut());
@@ -219,12 +235,14 @@ export function mountCharts(
   const ready = Promise.race([work, deadline]).then(
     (infos) => {
       settled = true;
+      release();
       return infos;
     },
     (e: unknown) => {
       settled = true;
       abort.abort();
       batch.disposeAll();
+      release();
       throw e;
     },
   );
@@ -240,6 +258,7 @@ export function mountCharts(
         abort.abort();
       }
       batch.disposeAll();
+      release();
     },
   };
 }

@@ -232,7 +232,7 @@ export function buildCartesianModel(
         else if (p.value < axis.domain[0]) clipped.push({ pointId: p.id, side: 'below' });
       }
     }
-    const { segments, isolated } = buildSegments(points);
+    const { segments, isolated } = buildSegments(points, xAxis.scale === 'category');
     const markers = buildMarkers(points, isolated, s.marker?.show ?? 'quality', clipped);
     return {
       id: s.id,

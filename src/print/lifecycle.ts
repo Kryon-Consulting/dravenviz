@@ -57,6 +57,7 @@ export function renderChart(input: RenderInput): MountedChart {
   const doc = target.ownerDocument;
   const element = doc.createElement('div');
   element.className = 'dravenviz-root';
+  element.style.opacity = '1';
   element.setAttribute('data-dravenviz-ns', namespace);
   element.setAttribute('data-dravenviz-chart', chartId);
   target.appendChild(element);
@@ -123,10 +124,14 @@ export class Batch {
   }
 
   add(chart: MountedChart): void {
+    if (this.closed) {
+      disposeChart(chart);
+      throw new DravenVizError('DISPOSED', 'The chart batch was disposed.');
+    }
     this.charts.push(chart);
   }
 
-  /** Disposes every mount; later `add` calls are the caller's bug, so a closed batch refuses them. */
+  /** Disposes every mount. A closed batch refuses later `add` calls (DISPOSED). */
   disposeAll(): void {
     this.closed = true;
     for (const chart of this.charts.splice(0)) disposeChart(chart);

@@ -71,6 +71,7 @@ async function run(page: Page, c: Case): Promise<string | null> {
         yDomain: () => q('[data-dv-probe-y]').setAttribute('data-dv-domain', '[0,12]'),
         xDomain: () => q('[data-dv-probe-x]').setAttribute('data-dv-domain', '["a","c"]'),
         noProbe: () => q('[data-dv-probe]').remove(),
+        extraGroup: () => el('g', { 'data-dv-mark': 'series:zz:marker' }, svg),
       };
       (EDITS[edit as string] as () => void)();
       const expected = {
@@ -105,6 +106,11 @@ const cases: Case[] = [
   { name: 'a plot area within 0.5 passes', edit: 'plotNear', rule: null },
   { name: 'a y domain mismatch fails', edit: 'yDomain', rule: 'domain-mismatch' },
   { name: 'an x domain mismatch fails', edit: 'xDomain', rule: 'domain-mismatch' },
+  {
+    name: 'a mark group the manifest does not list fails',
+    edit: 'extraGroup',
+    rule: 'unexpected-mark',
+  },
   { name: 'a missing probe fails', edit: 'noProbe', rule: 'probe-missing' },
 ];
 

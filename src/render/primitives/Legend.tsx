@@ -19,8 +19,10 @@ function Swatch(props: {
   width: number;
   midY: number;
   theme: Theme;
+  /** Whether the series draws markers on its line (`marker.show: "all"`). */
+  withMarker: boolean;
 }): ReactElement {
-  const { item, x, width, midY, theme } = props;
+  const { item, x, width, midY, theme, withMarker } = props;
   const cx = x + width / 2;
   const color = item.color ?? theme.color.text;
   const line = (extra: Parameters<typeof strokeStyle>[0]): ReactElement => (
@@ -50,7 +52,7 @@ function Swatch(props: {
   return (
     <g>
       {line({ color, width: theme.stroke.line, dash: item.dash ?? 'solid' })}
-      {item.shape === undefined || item.shape === 'none' ? null : (
+      {!withMarker || item.shape === undefined || item.shape === 'none' ? null : (
         <Marker
           cx={cx}
           cy={midY}
@@ -105,6 +107,9 @@ export function Legend({ laid, theme, family, measure }: LegendProps): ReactElem
                     width={swatch}
                     midY={rowTop + lh / 2}
                     theme={theme}
+                    withMarker={laid.model.series.some(
+                      (s) => s.id === item.id && s.markers.some((m) => m.reason === 'all'),
+                    )}
                   />
                   {itemLines.map((line, k) => (
                     <DvText

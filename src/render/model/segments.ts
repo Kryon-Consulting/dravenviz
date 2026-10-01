@@ -12,18 +12,24 @@ const connects = (p: PointModel): boolean => p.value !== null && p.renderHint ==
  * Split points, in order, into line segments (design 5.2). A point joins the current segment only
  * when it has a value and `renderHint` is "line". `marker-only` and `gap` points and nulls close
  * the segment. A one-point segment is dropped and its point reported as isolated. Clipped points
- * stay in their segment: the curve is clipped at the plot edge, not broken.
+ * stay in their segment: the curve is clipped at the plot edge, not broken. With `categorical`, a
+ * category index skipped between two points closes the segment too.
  */
-export function buildSegments(points: PointModel[]): SegmentResult {
+export function buildSegments(points: PointModel[], categorical = false): SegmentResult {
   const runs: PointModel[][] = [];
   let current: PointModel[] = [];
   const close = (): void => {
     if (current.length > 0) runs.push(current);
     current = [];
   };
+  let prev: PointModel | undefined;
   for (const p of points) {
+    // On a category axis a skipped category (no point at all) is a gap, like a null: the table
+    // reports that position "Not measured", so the line must not bridge it.
+    if (categorical && prev !== undefined && p.xValue - prev.xValue > 1) close();
     if (connects(p)) current.push(p);
     else close();
+    prev = p;
   }
   close();
 

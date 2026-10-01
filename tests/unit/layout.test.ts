@@ -389,3 +389,12 @@ describe('fix round 1', () => {
     expect(Number(m[1])).toBeLessThan(250);
   });
 });
+
+describe('quality legend entries carry their meaning (R28)', () => {
+  test('the reserved legend text is "Label — meaning" and is within the legend box', () => {
+    const l = lay('line-weekly-flow');
+    const item = l.model.legend.find((i) => i.id === 'quality:partial')!;
+    expect(item.meaning).toBeTruthy();
+    expect(l.legendLabels[item.id]!.join(' ')).toBe(`${item.label} — ${item.meaning}`);
+  });
+});

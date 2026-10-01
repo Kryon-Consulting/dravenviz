@@ -264,3 +264,44 @@ describe('line model', () => {
     expect(ticks.map((t) => t.label)).not.toContain('Mar 8, 02:00');
   });
 });
+
+describe('omitted category positions (R27)', () => {
+  const cats = ['a', 'b', 'c', 'd', 'e'];
+  const spec = (xs: string[], axis: object = { scale: 'category', categories: cats }) => ({
+    schemaVersion: 1,
+    id: 'gap',
+    kind: 'cartesian',
+    title: 'gap',
+    xAxis: { id: 'x', ...axis },
+    yAxes: [{ id: 'v' }],
+    series: [
+      {
+        id: 's',
+        label: 's',
+        mark: 'line',
+        yAxisId: 'v',
+        points: xs.map((x, i) => ({ id: `p${i}`, x, value: i + 1 })),
+      },
+    ],
+  });
+
+  test('a category with no point closes the segment like a null', () => {
+    const m = model2(spec(['a', 'b', 'd', 'e']));
+    expect(m.series[0]!.segments.map((g) => g.pointIds)).toEqual([
+      ['p0', 'p1'],
+      ['p2', 'p3'],
+    ]);
+  });
+
+  test('consecutive categories stay one segment; an isolated survivor becomes a marker', () => {
+    expect(model2(spec(['a', 'b', 'c'])).series[0]!.segments).toHaveLength(1);
+    const m = model2(spec(['a', 'c', 'd']));
+    expect(m.series[0]!.markers.map((k) => [k.pointId, k.reason])).toEqual([['p0', 'isolated']]);
+  });
+
+  test('irregular numeric x is not a gap', () => {
+    const raw = spec(['a'], { scale: 'linear' });
+    raw.series[0]!.points = [0, 5, 9].map((x, i) => ({ id: `p${i}`, x, value: i + 1 })) as never;
+    expect(model2(raw).series[0]!.segments).toHaveLength(1);
+  });
+});

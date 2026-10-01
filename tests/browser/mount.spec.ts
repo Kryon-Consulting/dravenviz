@@ -314,3 +314,126 @@ test('renderDataTable renders a table from text nodes and removes itself', async
   expect(out.info.notes[0]).toContain('Collection paused');
   expect(out.left).toBe(0);
 });
+
+test('host opacity, letter-spacing and font-style rules cannot restyle the chart', async ({
+  page,
+}) => {
+  await page.addStyleTag({
+    content:
+      '*{opacity:.5} g{opacity:.5} svg{opacity:.5} text{letter-spacing:3px;font-style:italic}',
+  });
+  await h(page).mount(['line-weekly-flow'], opts);
+  const res = await page.evaluate(() => {
+    const svg = document.querySelector('svg[data-dravenviz-chart]')!;
+    const bad: string[] = [];
+    for (const el of [svg, ...svg.querySelectorAll('*')]) {
+      if (el.closest('defs,clipPath,title,desc') || el.hasAttribute('data-dv-probe')) continue;
+      let product = 1;
+      // Walk up to the svg root: the chart's own ancestors are the host's business.
+      for (let n: Element | null = el; n; n = n === svg ? null : n.parentElement) {
+        product *= Number(getComputedStyle(n).opacity);
+      }
+      if (Math.abs(product - 1) > 1e-9)
+        bad.push(`${el.localName}.${el.getAttribute('class') ?? ''} ${product}`);
+    }
+    const texts = Array.from(svg.querySelectorAll('text')).map((t) => {
+      const cs = getComputedStyle(t);
+      return `${cs.letterSpacing}/${cs.fontStyle}`;
+    });
+    return { bad: bad.slice(0, 8), n: bad.length, texts: [...new Set(texts)] };
+  });
+  expect(res.bad).toEqual([]);
+  expect(res.texts).toEqual(['normal/normal']);
+});
+
+test('quality legend entries draw their meaning and stay inside the chart', async ({ page }) => {
+  await h(page).mount(['line-weekly-flow'], opts);
+  const res = await page.evaluate(() => {
+    const items = Array.from(document.querySelectorAll('[data-dv-legend-item^="quality:"]'));
+    const svg = document.querySelector('svg[data-dravenviz-chart]') as SVGSVGElement;
+    return items.map((i) => ({
+      text: Array.from(i.querySelectorAll('text'))
+        .map((t) => t.textContent)
+        .join(' '),
+      right: Math.max(
+        ...Array.from(i.querySelectorAll('text')).map(
+          (t) => (t as SVGGraphicsElement).getBBox().x + (t as SVGGraphicsElement).getBBox().width,
+        ),
+      ),
+      width: svg.viewBox.baseVal.width,
+    }));
+  });
+  expect(res).toHaveLength(2);
+  expect(res[0]!.text).toContain('Partial — Hollow marker');
+  expect(res[1]!.text).toContain('Lagging — Ringed marker');
+  for (const r of res) expect(r.right).toBeLessThanOrEqual(r.width - 16 + 0.5);
+});
+
+test('legend swatches draw a marker only when the series draws markers', async ({ page }) => {
+  const spec = await h(page).fixture<{ id: string; series: { marker?: unknown }[] }>(
+    'line-weekly-flow',
+  );
+  spec.id = 'swatch';
+  spec.series[1]!.marker = { show: 'all' };
+  await h(page).mount([spec], opts);
+  const count = (id: string) =>
+    page
+      .locator(
+        `[data-dv-legend-item="${id}"] circle, [data-dv-legend-item="${id}"] rect, [data-dv-legend-item="${id}"] path`,
+      )
+      .count();
+  expect(await count('opened')).toBe(0);
+  expect(await count('closed')).toBeGreaterThan(0);
+});
+
+test('concurrent batches with the same embedding identity: the second is rejected', async ({
+  page,
+}) => {
+  const res = await page.evaluate(async (o) => {
+    const a = window.__h.start(['line-weekly-flow'], o as never);
+    const b = window.__h.start(['line-weekly-flow'], o as never);
+    const rb = await window.__h.outcome(b);
+    const ra = await window.__h.outcome(a);
+    const svgs = document.querySelectorAll('svg[data-dravenviz-ns="r"]').length;
+    window.__h.dispose(a);
+    const again = await window.__h.mount(['line-weekly-flow'], o as never);
+    return { ra: ra.ok, rb: rb.ok ? null : rb.error, svgs, again: again.ok };
+  }, opts);
+  expect(res.ra).toBe(true);
+  expect(res.rb).toMatchObject({ code: 'INVALID_OPTIONS', rule: 'duplicate-chart-embedding' });
+  expect(res.svgs).toBe(1);
+  expect(res.again).toBe(true);
+});
+
+test('a failed batch releases its pending identities', async ({ page }) => {
+  const bad = await h(page).mountError(['line-weekly-flow', 'invalid-unknown-field'], opts);
+  expect(bad.code).toBe('INVALID_SPEC');
+  await expect(h(page).mount(['line-weekly-flow'], opts)).resolves.toHaveLength(1);
+});
+
+test('a category with no point draws two separate paths (cat-absent)', async ({ page }) => {
+  const spec = {
+    schemaVersion: 1,
+    id: 'cat-absent',
+    kind: 'cartesian',
+    title: 'cat-absent',
+    xAxis: { id: 'x', scale: 'category', categories: ['a', 'b', 'c', 'd', 'e', 'f'] },
+    yAxes: [{ id: 'v', label: 'V', unit: 'count' }],
+    series: [
+      {
+        id: 'A',
+        label: 'A',
+        mark: 'line',
+        yAxisId: 'v',
+        points: [
+          { id: 'a1', x: 'a', value: 1 },
+          { id: 'a2', x: 'b', value: 2 },
+          { id: 'a4', x: 'd', value: 4 },
+          { id: 'a5', x: 'e', value: 5 },
+        ],
+      },
+    ],
+  };
+  await h(page).mount([spec], opts);
+  expect(await page.locator('[data-dv-mark="series:A:segment"] path').count()).toBe(2);
+});

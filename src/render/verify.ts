@@ -171,6 +171,13 @@ export function verifyCommitted(
       );
     }
   }
+  const listed = new Set(manifest.groups.map((g) => g.key));
+  for (const el of svg.querySelectorAll('[data-dv-mark]')) {
+    const key = el.getAttribute('data-dv-mark') as string;
+    if (!listed.has(key)) {
+      fail(svg, 'unexpected-mark', `The mark group "${key}" is not in the expected-mark manifest.`);
+    }
+  }
   checkFinite(svg);
   if (expected !== undefined) checkProbe(svg, expected);
 }

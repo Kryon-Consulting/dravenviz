@@ -11,6 +11,7 @@ import { baselineCentred } from '../primitives/style';
 import { DvText } from '../primitives/Text';
 import { Title } from '../primitives/Title';
 import { planIds } from './ids';
+import { StyleGuard } from './StyleGuard';
 import {
   Annotations,
   chartRows,
@@ -208,9 +209,11 @@ export function CartesianChart(props: CartesianChartProps): ReactElement {
       data-dravenviz-ns={namespace}
       data-dravenviz-chart={model.chartId}
       role="img"
+      style={{ opacity: 1 }}
       title={model.title}
       {...(model.description === undefined ? {} : { desc: model.description })}
     >
+      <StyleGuard />
       <Backdrop {...ctx} />
       <GridLines {...ctx} />
       {xAxis}
