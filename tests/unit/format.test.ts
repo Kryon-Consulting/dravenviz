@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { DravenVizError } from '../../src/core/errors';
+import { DravenVizError, type InvalidSpecError } from '../../src/core/errors';
 import { formatNumber, formatTime, parseTimeValue } from '../../src/core/format';
 
 describe('test environment', () => {
   test('this file runs under a non-UTC machine timezone', () => {
     // Guards the leak test below from passing vacuously.
-    expect(new Date(0).getTimezoneOffset()).not.toBe(0);
+    expect([240, 300]).toContain(new Date(0).getTimezoneOffset());
     expect(process.env.TZ).toBe('America/New_York');
   });
 });
@@ -62,14 +62,64 @@ describe('formatNumber', () => {
   });
 });
 
+describe('formatNumber percent and compact (fix round 1)', () => {
+  test('percent rounds like decimal', () => {
+    expect(formatNumber(19.95, { style: 'percent', maximumFractionDigits: 1 }, 'en-US')).toBe(
+      '20%',
+    );
+    expect(formatNumber(-19.775, { style: 'percent', maximumFractionDigits: 2 }, 'en-US')).toBe(
+      '-19.78%',
+    );
+    expect(formatNumber(45.2, { style: 'percent', maximumFractionDigits: 1 }, 'de-DE')).toMatch(
+      /^45,2\s%$/,
+    );
+  });
+  test('percent output equals decimal output plus %', () => {
+    for (let i = -3000; i <= 3000; i += 7) {
+      const v = i / 100 + 0.005;
+      for (const d of [0, 1, 2]) {
+        expect(formatNumber(v, { style: 'percent', maximumFractionDigits: d }, 'en-US')).toBe(
+          `${formatNumber(v, { maximumFractionDigits: d }, 'en-US')}%`,
+        );
+      }
+    }
+  });
+  test('compact defaults to one digit', () => {
+    expect(formatNumber(1500, { style: 'compact' }, 'en-US')).toBe('1.5K');
+    expect(formatNumber(2000, { style: 'compact' }, 'en-US')).toBe('2K');
+    expect(formatNumber(1499, { style: 'compact' }, 'en-US')).toBe('1.5K');
+  });
+  test('non-finite values throw INVALID_OPTIONS', () => {
+    for (const v of [NaN, Infinity]) {
+      expect(() => formatNumber(v, undefined, 'en-US')).toThrow(DravenVizError);
+    }
+    try {
+      formatNumber(NaN, undefined, 'en-US');
+    } catch (e) {
+      expect((e as DravenVizError).code).toBe('INVALID_OPTIONS');
+    }
+  });
+});
+
 describe('parseTimeValue', () => {
   test('date-only is a UTC calendar day', () => {
     expect(parseTimeValue('2026-07-06')).toEqual({ epochMs: Date.UTC(2026, 6, 6), kind: 'date' });
   });
   test('date-time without offset rejected', () => {
-    expect(() => parseTimeValue('2026-07-06T10:00:00')).toThrow(
-      /time-without-offset|no UTC offset/,
-    );
+    try {
+      parseTimeValue('2026-07-06T10:00:00');
+      expect.unreachable();
+    } catch (e) {
+      expect((e as InvalidSpecError).issues[0]?.rule).toBe('time-without-offset');
+    }
+  });
+  test('invalid date has rule invalid-time', () => {
+    try {
+      parseTimeValue('2026-13-45');
+      expect.unreachable();
+    } catch (e) {
+      expect((e as InvalidSpecError).issues[0]?.rule).toBe('invalid-time');
+    }
   });
 });
 
@@ -118,5 +168,23 @@ describe('formatTime', () => {
   });
   test('invalid timezone is rejected even for date kind', () => {
     expect(() => formatTime(t, 'date', 'day', 'en-US', 'Not/AZone')).toThrow(DravenVizError);
+  });
+  test('quarter year uses the locale digits', () => {
+    const out = formatTime(Date.UTC(2026, 6, 7), 'date', 'quarter', 'ar-EG', 'UTC');
+    expect(out).toMatch(/^Q3 \p{Nd}+$/u);
+    expect(out).not.toContain('2026');
+  });
+  test('non-finite epoch and raw offset zones throw INVALID_OPTIONS', () => {
+    for (const bad of [NaN, Infinity]) {
+      expect(() => formatTime(bad, 'instant', 'day', 'en-US', 'UTC')).toThrow(DravenVizError);
+    }
+    for (const tz of ['+05:00', '-0800']) {
+      try {
+        formatTime(0, 'instant', 'day', 'en-US', tz);
+        expect.unreachable();
+      } catch (e) {
+        expect((e as DravenVizError).code).toBe('INVALID_OPTIONS');
+      }
+    }
   });
 });

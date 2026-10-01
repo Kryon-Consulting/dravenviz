@@ -113,7 +113,8 @@ const UNIT_OPTIONS: Record<Exclude<TimeTickUnit, 'quarter'>, Intl.DateTimeFormat
 /**
  * Format a tick or label time. The zone is always explicit: `UTC` for a calendar day
  * (`kind: "date"`), otherwise the given IANA `timezone`. The machine timezone is never used.
- * Quarter labels ("Q3 2026") are computed from the zoned month, not the Intl output.
+ * Quarter labels ("Q3 2026") are computed from the zoned month; the year uses the locale's
+ * digits and the "Q" prefix is deliberately not localised.
  * Throws `DravenVizError` `INVALID_OPTIONS` for an unknown timezone or locale.
  */
 export function formatTime(
@@ -123,6 +124,16 @@ export function formatTime(
   locale: string,
   timezone: string,
 ): string {
+  if (!Number.isFinite(epochMs)) {
+    throw new DravenVizError('INVALID_OPTIONS', 'A time format needs a finite epoch value.');
+  }
+  // Raw offsets ("+05:00") are accepted by some Intl engines but are not IANA names (R15).
+  if (/^[+-]\d/.test(timezone)) {
+    throw new DravenVizError(
+      'INVALID_OPTIONS',
+      'The timezone must be an IANA name, not an offset.',
+    );
+  }
   // Validate the zone name even when a date-only value will format in UTC.
   dateTimeFormat(locale, timezone, {});
   const timeZone = kind === 'date' ? 'UTC' : timezone;
@@ -132,7 +143,7 @@ export function formatTime(
       month: 'numeric',
     }).formatToParts(epochMs);
     const month = Number(parts.find((p) => p.type === 'month')?.value);
-    const year = parts.find((p) => p.type === 'year')?.value ?? '';
+    const year = dateTimeFormat(locale, timeZone, { year: 'numeric' }).format(epochMs);
     return `Q${Math.floor((month - 1) / 3) + 1} ${year}`;
   }
   return dateTimeFormat(locale, timeZone, UNIT_OPTIONS[unit]).format(epochMs);
