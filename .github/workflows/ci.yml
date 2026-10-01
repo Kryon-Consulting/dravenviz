@@ -66,9 +66,10 @@ jobs:
       - run: pnpm build
       # The gating step: every browser regression fails here, whatever the visual state.
       - run: pnpm exec playwright test --project=browser
-      # The `visual` project fails with `pending owner review` until the owner approves baselines
-      # in tests/visual/REVIEW.md (D4, R38, R41). Red here, with the step above green, means only
-      # that the baselines are still pending.
+      # The `visual` project compares against the owner-approved baselines in
+      # tests/visual/baselines/approved (D4, R41) in the full Chromium (`channel: 'chromium'`, R46).
+      # Red here, with the step above green, means a pixel difference or, on a new runner image,
+      # different font rasterization (the baselines may then need owner re-approval).
       - run: pnpm exec playwright test --project=visual
 
   # Packs the library and checks it as a consumer: test:package (React 18/19/core consumers, Vite,

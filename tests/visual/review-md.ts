@@ -11,7 +11,7 @@ const HEADER = '# Visual review (slice 1)\n';
 export function replaceBlock(name: string, body: string): void {
   const begin = `<!-- ${name}:begin -->`;
   const end = `<!-- ${name}:end -->`;
-  const block = `${begin}\n${body.trimEnd()}\n${end}`;
+  const block = `${begin}\n\n${body.trim()}\n\n${end}`;
   let text = existsSync(REVIEW_FILE) ? readFileSync(REVIEW_FILE, 'utf8') : HEADER;
   const a = text.indexOf(begin);
   const b = text.indexOf(end);

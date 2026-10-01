@@ -5,12 +5,14 @@ import { resolveTheme, toDataTable, validateSpec, type DataTable } from '../../s
 import { loadFixture, specHash } from '../../fixtures/index';
 import {
   CANDIDATES,
+  APPROVED_DIR,
   CANDIDATE_DIR,
   EVIDENCE_DIR,
   HEIGHT,
   ROOT,
   SCALE,
   WIDTH,
+  approvalRecordOf,
   decisionOf,
   type Candidate,
 } from './candidates';
@@ -164,6 +166,7 @@ async function main(): Promise<void> {
     hash: string;
     themeVersion: string;
     decision: string;
+    approvedBad: boolean;
     pngBytes: number;
     svgBytes: number;
     svgRatio: number;
@@ -186,9 +189,16 @@ async function main(): Promise<void> {
       const decision = decisionOf(c.id);
       // An approved reference lives in baselines/approved/ (only the owner's approval puts it there);
       // the generator never re-creates a candidate copy of it.
+      let approvedDiff: number | undefined;
       if (!decision.startsWith('approved by ')) {
         writeFileSync(path.join(CANDIDATE_DIR, `${c.id}.png`), png);
+      } else {
+        // The approved PNG is the reference: a live render that no longer matches it is shown on
+        // the review page and in REVIEW.md, never silently replaced.
+        const file = path.join(APPROVED_DIR, `${c.id}.png`);
+        approvedDiff = existsSync(file) ? diffPng(png, readFileSync(file)).ratio : 1;
       }
+      const approvedBad = approvedDiff !== undefined && approvedDiff > tol.sameBrowser;
       writeFileSync(
         path.join(EVIDENCE_DIR, 'svg', `${c.id}.svg`),
         await exportSvgExternal(page, c),
@@ -226,7 +236,7 @@ async function main(): Promise<void> {
             ]
           : []),
       ].join('');
-      const card = `<section class="card" id="${id}"><header><h3>${id}</h3><span class="pill">decision: ${esc(decision)}</span>${fl.map((f) => `<span class="pill flag">${f.code}</span>`).join('')}</header>
+      const card = `<section class="card" id="${id}"><header><h3>${id}</h3><span class="pill">decision: ${esc(decision)}</span>${approvedBad ? `<span class="pill flag">MISMATCH with approved PNG (${((approvedDiff ?? 1) * 100).toFixed(3)} %)</span>` : ''}${fl.map((f) => `<span class="pill flag">${f.code}</span>`).join('')}</header>
 <dl><dt>Fixture</dt><dd><code>${esc(c.fixture)}</code></dd><dt>Theme</dt><dd>${c.theme} (theme version ${esc(themeVersion)})</dd><dt>Size</dt><dd>${WIDTH} &times; ${HEIGHT} logical units, PNG at ${SCALE}&times; (${WIDTH * SCALE} &times; ${HEIGHT * SCALE})</dd><dt>Spec hash</dt><dd><code>${hash}</code></dd><dt>Decision</dt><dd><strong>${esc(decision)}</strong>${decision === 'pending' ? ` (reply &ldquo;approve ${id}&rdquo; or &ldquo;changes requested on ${id}: &hellip;&rdquo;)` : ''}</dd></dl>
 ${fl.length > 0 ? `<ul class="flags attn">${fl.map((f) => `<li><strong>${f.code}.</strong> ${esc(f.text)}</li>`).join('')}</ul>` : ''}
 <div class="figs">${figs}</div>
@@ -236,6 +246,7 @@ ${fl.length > 0 ? `<ul class="flags attn">${fl.map((f) => `<li><strong>${f.code}
         hash,
         themeVersion,
         decision,
+        approvedBad,
         pngBytes: png.length,
         svgBytes: svg.svg.length,
         svgRatio,
@@ -310,7 +321,14 @@ ${rows.map((r) => r.card).join('\n')}
       ...(r.decision.startsWith('approved by ')
         ? [
             `- **Approved PNG:** \`tests/visual/baselines/approved/${r.c.id}.png\` (${r.pngBytes} bytes); standalone SVG \`evidence/visual/svg/${r.c.id}.svg\``,
-            '- **Approval record:** owner approval in chat after reviewing the published review page; SHA-256 verified against the approved-candidates list.',
+            ...(approvalRecordOf(r.c.id) === undefined
+              ? []
+              : [`- **Approval record:** ${approvalRecordOf(r.c.id)}`]),
+            ...(r.approvedBad
+              ? [
+                  '- **WARNING:** the live render differs from the approved PNG; investigate before re-approving.',
+                ]
+              : []),
           ]
         : [
             `- **Candidate PNG:** \`tests/visual/baselines/candidates/${r.c.id}.png\` (${r.pngBytes} bytes); standalone SVG \`evidence/visual/svg/${r.c.id}.svg\``,

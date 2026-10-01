@@ -42,8 +42,8 @@ Run on 2026-10-01 in the development container (Node 22.22.0, Chromium 141.0.739
 | `pnpm check:drift`                                 | pass: "Generated files are up to date."                                                              |
 | `pnpm test`                                        | pass: 500 passed, 20 files (project `unit`, `unit-jsdom`, `unit-tz-new-york`)                                                                                           |
 | `pnpm test:matrix`, `pnpm check:matrix`            | pass: 11 tests passed; "verification matrix: OK"                                                                                         |
-| `pnpm exec playwright test --project=browser` (the CI gating step, R41) | pass: 133 passed                                                                                     |
-| `pnpm exec playwright test --project=visual` (separate CI step)         | pass: 28 passed (14 structure, 14 baseline against `tests/visual/baselines/approved/`; owner approved all 14 on 2026-10-01, SHA-256 verified) |
+| `pnpm exec playwright test --project=browser` (the CI gating step, R41) | pass (container run): 133 passed                                                                                     |
+| `pnpm exec playwright test --project=visual` (separate CI step)         | pass (container run; CI unverified until the GitHub browser job is green): 28 passed (14 structure, 14 baseline against `tests/visual/baselines/approved/`; owner approved all 14 on 2026-10-01, SHA-256 verified) |
 | `pnpm test:package`                                | pass: "all checks passed" (React 18.3.1 and 19.3.0 consumers, Vite, publint, attw, plain HTML)       |
 | `pnpm build:docs`, `pnpm test:docs`                | pass: stage ok, 13 passed                                                                            |
 | `pnpm test:pdf`                                    | pass: PASS, path http, 6 pages A4, 114 labels in 8 frames, worst crop diff 0.263 % (limit 0.363 %)   |
@@ -51,5 +51,6 @@ Run on 2026-10-01 in the development container (Node 22.22.0, Chromium 141.0.739
 | `pnpm test:dist`                                   | pass: 18 passed                                                                                      |
 
 The owner approved all 14 visual candidates on 2026-10-01 (D4; decisions in `tests/visual/REVIEW.md`), so the
-`visual` step is green and VISUAL-REFS and GC-13 are `pass` from the run above. Baselines are compared in the full
-Chromium 141 they were rendered in.
+`visual` step is green here and VISUAL-REFS and GC-13 are `pass` from that container run. CI is unverified until
+the GitHub browser job is green: the visual project compares in the full Chromium of revision 1194
+(`channel: 'chromium'`, R46), and a runner whose font rasterization differs would need owner re-approval.

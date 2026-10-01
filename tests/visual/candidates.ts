@@ -51,21 +51,31 @@ export const APPROVED_DIR = path.join(VISUAL_DIR, 'baselines', 'approved');
 export const REVIEW_FILE = path.join(VISUAL_DIR, 'REVIEW.md');
 export const EVIDENCE_DIR = path.join(ROOT, 'evidence', 'visual');
 
+function sectionOf(id: string): string | undefined {
+  let text: string;
+  try {
+    text = readFileSync(REVIEW_FILE, 'utf8');
+  } catch {
+    return undefined;
+  }
+  const start = text.indexOf(`### ${id}\n`);
+  if (start < 0) return undefined;
+  const rest = text.slice(start + id.length + 5);
+  const next = rest.search(/^### /m);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
 /**
  * The decision recorded in REVIEW.md for `id` (`pending`, `approved by <owner> on <date>` or
  * `changes requested`). Anything unreadable counts as pending.
  */
 export function decisionOf(id: string): string {
-  let text: string;
-  try {
-    text = readFileSync(REVIEW_FILE, 'utf8');
-  } catch {
-    return 'pending';
-  }
-  const start = text.indexOf(`### ${id}\n`);
-  if (start < 0) return 'pending';
-  const rest = text.slice(start + id.length + 5);
-  const next = rest.search(/^### /m);
-  const section = next < 0 ? rest : rest.slice(0, next);
+  const section = sectionOf(id);
+  if (section === undefined) return 'pending';
   return /^- \*\*Decision:\*\* `?(.+?)`?\s*$/m.exec(section)?.[1] ?? 'pending';
+}
+
+/** The approval record text of `id` in REVIEW.md, kept verbatim by the generator (or undefined). */
+export function approvalRecordOf(id: string): string | undefined {
+  return /^- \*\*Approval record:\*\* (.+?)\s*$/m.exec(sectionOf(id) ?? '')?.[1];
 }

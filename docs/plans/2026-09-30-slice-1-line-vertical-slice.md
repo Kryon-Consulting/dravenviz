@@ -163,7 +163,7 @@ test('5 real chart survives normalize + strict allowlist', async ({ page }) => {
   - `packageManager: "pnpm@10.33.0"`.
   - The `exports` map exactly as in §3.
   - Dev dependencies pinned exactly: `recharts@3.10.1` (a runtime dependency), `react@19.3.0`, `react-dom@19.3.0`, `react-is@19.3.0`, `typescript@6.0.3`, `@playwright/test@1.56.1`, `vitest@5.0.3`, `ajv@8.20.0`, `json-schema-to-typescript@16.0.0`, `tsup@8.5.1`, `esbuild` (tsup's), `pixelmatch`, `pngjs`, `publint`, `@arethetypeswrong/cli`.
-  - `playwright.config.ts` sets `use.launchOptions.executablePath` from `PW_CHROMIUM_PATH` when that is set; otherwise it uses the Playwright-managed revision 1194 (the `visual` project defaults to the full Chromium at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` when present, because its pixel baselines are rendered there).
+  - `playwright.config.ts` sets `use.launchOptions.executablePath` from `PW_CHROMIUM_PATH` when that is set; otherwise it uses the Playwright-managed revision 1194. The `visual` project sets `channel: 'chromium'` (the full Chromium of revision 1194 from the active browsers path, ruling R46), because its pixel baselines are rendered there and the headless shell used by the `browser` project rasterizes text differently.
 
 - [ ] **Step 1: Write the failing test** `tests/unit/boundaries.test.ts`:
 

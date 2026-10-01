@@ -8,3 +8,4 @@ playwright-report
 .venv
 __pycache__
 *.pyc
+evidence/visual/diff/
