@@ -1,0 +1,118 @@
+{
+  "name": "@draven/viz",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./print": {
+      "types": "./dist/print/index.d.ts",
+      "import": "./dist/print/index.js"
+    },
+    "./browser": "./dist/dravenviz.browser.js",
+    "./styles.css": "./dist/dravenviz.css",
+    "./schema.json": "./schema/viz-spec-v1.schema.json",
+    "./asset-manifest.json": "./dist/asset-manifest.json",
+    "./fonts/*": "./assets/fonts/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "assets",
+    "README.md",
+    "CHANGELOG.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "pnpm gen && tsup && tsx scripts/build-browser.ts && tsx scripts/build-manifest.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json --noEmit && tsc -p tsconfig.build.json --noEmit",
+    "lint": "eslint . && prettier --check .",
+    "test": "vitest run --project unit --project unit-jsdom --project unit-tz-new-york",
+    "test:browser": "playwright test",
+    "check:drift": "tsx scripts/check-drift.ts",
+    "gen": "tsx scripts/gen-types.ts && tsx scripts/gen-validator.ts",
+    "test:pdf": "tsx scripts/test-pdf.ts",
+    "test:package": "sh -c 'echo \"not implemented until Task 18\" >&2; exit 1'",
+    "pack:local": "pnpm build && tsx scripts/pack-local.ts",
+    "dev:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "build:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "preview:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "test:docs": "sh -c 'echo \"not implemented until Task 17\" >&2; exit 1'",
+    "measure": "sh -c 'echo \"not implemented until Task 20\" >&2; exit 1'",
+    "stage": "tsx scripts/stage-consumer.ts",
+    "notices": "tsx scripts/build-manifest.ts --notices",
+    "test:dist": "pnpm pack:local && vitest run --project dist"
+  },
+  "dependencies": {
+    "recharts": "3.10.1"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0",
+    "react-is": "^18.3.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "react-is": {
+      "optional": true
+    }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.56.1",
+    "@types/fontkit": "2.0.9",
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "ajv": "8.20.0",
+    "esbuild": "0.27.7",
+    "eslint": "10.11.0",
+    "fontkit": "2.0.4",
+    "globals": "17.12.0",
+    "jsdom": "27.0.0",
+    "json-schema-to-typescript": "16.0.0",
+    "pixelmatch": "7.2.0",
+    "pngjs": "7.0.0",
+    "prettier": "3.9.9",
+    "publint": "0.3.24",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-dom18": "npm:react-dom@18.3.1",
+    "react-is": "19.3.0",
+    "react18": "npm:react@18.3.1",
+    "tsup": "8.5.1",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vite": "8.3.1",
+    "vitest": "5.0.3",
+    "wawoff2": "2.0.1"
+  }
+}

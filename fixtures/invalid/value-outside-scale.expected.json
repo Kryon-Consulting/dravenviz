@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "value-outside-scale",
+  "path": "/cells/0/value"
+}

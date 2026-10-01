@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "horizontal-requires-bars",
+  "path": "/orientation"
+}

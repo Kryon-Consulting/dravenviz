@@ -1,0 +1,28 @@
+/* Probe only: three pages, caption targets in reverse order, a ground-truth rectangle per frame. */
+.inst {
+  margin-bottom: 4mm;
+}
+
+.inst.brk {
+  break-before: page;
+}
+
+/* The ground truth: a div exactly covering the frame, outlined inside its own box. */
+.dv-frame .gt {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 0.5pt solid #ff00ff;
+  pointer-events: none;
+}
+
+/* Only the captions (the link targets) are needed; keep the probe at three pages. */
+.caps .dv-table {
+  margin: 0;
+}
+
+.caps .dravenviz-table thead,
+.caps .dravenviz-table tbody,
+.caps .dravenviz-table-notes {
+  display: none;
+}

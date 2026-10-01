@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DravenViz host isolation example</title>
+    <link rel="stylesheet" href="dravenviz.css" />
+    <style>
+      /* Hostile but ordinary (non-!important) host rules. The charts must ignore all of them. */
+      * {
+        font-family: 'Comic Sans MS';
+      }
+      text {
+        fill: red;
+        font-size: 20px;
+      }
+      path {
+        stroke-width: 5;
+      }
+      body {
+        zoom: 1.3;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>DravenViz host isolation example</h1>
+    <div id="host-react"></div>
+    <div id="chart-a" style="width: 680px; height: 320px"></div>
+    <div id="chart-b" style="width: 680px; height: 320px"></div>
+    <!-- The host page's own React 18 (local UMD builds, never a CDN). -->
+    <script src="react18.production.min.js"></script>
+    <script src="react-dom18.production.min.js"></script>
+    <script src="dravenviz.browser.js"></script>
+    <script src="host-isolation.js"></script>
+  </body>
+</html>

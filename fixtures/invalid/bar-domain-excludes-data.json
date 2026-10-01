@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "min-bar",
+  "kind": "cartesian",
+  "title": "Items by region",
+  "xAxis": {
+    "id": "region",
+    "scale": "category",
+    "categories": ["north", "south"],
+    "labels": ["North", "South"]
+  },
+  "yAxes": [
+    {
+      "id": "count",
+      "label": "Items",
+      "unit": "count",
+      "domain": {
+        "policy": "fixed",
+        "min": 10,
+        "max": 20
+      }
+    }
+  ],
+  "series": [
+    {
+      "id": "items",
+      "label": "Items",
+      "mark": "bar",
+      "yAxisId": "count",
+      "points": [
+        {
+          "id": "n",
+          "x": "north",
+          "value": 4
+        },
+        {
+          "id": "s",
+          "x": "south",
+          "value": 0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "empty-tick-values",
+  "path": "/yAxes/0/ticks/values"
+}

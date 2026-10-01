@@ -1,0 +1,14 @@
+[project]
+name = "dravenviz-dravenpdf-example"
+version = "0.1.0"
+description = "Renders a DravenViz report to an A4 PDF through DravenPDF and checks the result."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "dravenpdf[server] @ git+https://github.com/Kryon-Consulting/dravenpdf@7a249e0",
+    "httpx>=0.27",
+    "pypdfium2>=4.30",
+    "pillow>=10.0",
+]
+
+[tool.uv]
+package = false

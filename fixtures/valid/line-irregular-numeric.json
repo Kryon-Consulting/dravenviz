@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "line-irregular-numeric",
+  "kind": "cartesian",
+  "title": "Readings at irregular intervals",
+  "xAxis": {
+    "id": "hours",
+    "scale": "linear",
+    "label": "Elapsed",
+    "unit": "h"
+  },
+  "yAxes": [
+    {
+      "id": "v",
+      "label": "Reading",
+      "unit": "count"
+    }
+  ],
+  "series": [
+    {
+      "id": "s",
+      "label": "Reading",
+      "mark": "line",
+      "yAxisId": "v",
+      "points": [
+        {
+          "id": "p1",
+          "x": 0,
+          "value": 3
+        },
+        {
+          "id": "p2",
+          "x": 1,
+          "value": 4
+        },
+        {
+          "id": "p3",
+          "x": 2,
+          "value": 5
+        },
+        {
+          "id": "p4",
+          "x": 10,
+          "value": 6
+        },
+        {
+          "id": "p5",
+          "x": 11,
+          "value": 7
+        }
+      ]
+    }
+  ]
+}

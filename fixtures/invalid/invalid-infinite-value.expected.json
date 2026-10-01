@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "non-finite-number",
+  "path": "/series/0/points/0/value"
+}

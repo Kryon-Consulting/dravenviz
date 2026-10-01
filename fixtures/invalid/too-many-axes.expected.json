@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "too-many-axes",
+  "path": "/yAxes"
+}

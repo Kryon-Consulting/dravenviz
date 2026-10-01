@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "currency-required",
+  "path": "/yAxes/0/format/currency"
+}

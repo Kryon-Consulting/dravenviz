@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "id": "empty-tick-values",
+  "kind": "cartesian",
+  "title": "Items opened and closed",
+  "description": "Weekly counts; one week was only partially measured.",
+  "xAxis": {
+    "id": "week",
+    "scale": "category",
+    "categories": ["2026-07-06", "2026-07-13", "2026-07-20", "2026-07-27"],
+    "labels": ["6 Jul", "13 Jul", "20 Jul", "27 Jul"]
+  },
+  "yAxes": [
+    {
+      "id": "count",
+      "label": "Items",
+      "unit": "count",
+      "domain": {
+        "policy": "include-zero"
+      },
+      "ticks": {
+        "values": []
+      }
+    }
+  ],
+  "series": [
+    {
+      "id": "opened",
+      "label": "Opened",
+      "mark": "line",
+      "yAxisId": "count",
+      "interpolation": "linear",
+      "points": [
+        {
+          "id": "o1",
+          "x": "2026-07-06",
+          "value": 12
+        },
+        {
+          "id": "o2",
+          "x": "2026-07-13",
+          "value": null
+        },
+        {
+          "id": "o3",
+          "x": "2026-07-20",
+          "value": 18,
+          "quality": "partial",
+          "renderHint": "marker-only"
+        },
+        {
+          "id": "o4",
+          "x": "2026-07-27",
+          "value": 21
+        }
+      ]
+    },
+    {
+      "id": "closed",
+      "label": "Closed",
+      "mark": "line",
+      "yAxisId": "count",
+      "interpolation": "linear",
+      "points": [
+        {
+          "id": "c1",
+          "x": "2026-07-06",
+          "value": 8
+        },
+        {
+          "id": "c2",
+          "x": "2026-07-13",
+          "value": 10
+        },
+        {
+          "id": "c3",
+          "x": "2026-07-20",
+          "value": 14
+        },
+        {
+          "id": "c4",
+          "x": "2026-07-27",
+          "value": 16,
+          "quality": "lagging"
+        }
+      ]
+    }
+  ],
+  "referenceLines": [
+    {
+      "id": "target",
+      "axisId": "count",
+      "value": 15,
+      "label": "Target"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "partial-week",
+      "x": "2026-07-20",
+      "label": "Partial week",
+      "detail": "Collection paused 22\u201324 Jul; value is a partial count."
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "negative-slice",
+  "path": "/slices/1/value"
+}

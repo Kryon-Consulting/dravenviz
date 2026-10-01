@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "id": "line-estimated-monotone",
+  "kind": "cartesian",
+  "title": "Forecast against actual",
+  "xAxis": {
+    "id": "month",
+    "scale": "category",
+    "categories": ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"],
+    "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
+  },
+  "yAxes": [
+    {
+      "id": "count",
+      "label": "Items",
+      "unit": "count"
+    }
+  ],
+  "series": [
+    {
+      "id": "forecast",
+      "label": "Forecast",
+      "mark": "line",
+      "yAxisId": "count",
+      "interpolation": "monotone",
+      "points": [
+        {
+          "id": "f1",
+          "x": "2026-01",
+          "value": 10
+        },
+        {
+          "id": "f2",
+          "x": "2026-02",
+          "value": 14
+        },
+        {
+          "id": "f3",
+          "x": "2026-03",
+          "value": 13
+        },
+        {
+          "id": "f4",
+          "x": "2026-04",
+          "value": 18,
+          "quality": "estimated"
+        },
+        {
+          "id": "f5",
+          "x": "2026-05",
+          "value": 24,
+          "quality": "estimated"
+        },
+        {
+          "id": "f6",
+          "x": "2026-06",
+          "value": 23
+        }
+      ]
+    },
+    {
+      "id": "actual",
+      "label": "Actual",
+      "mark": "line",
+      "yAxisId": "count",
+      "interpolation": "linear",
+      "points": [
+        {
+          "id": "a1",
+          "x": "2026-01",
+          "value": 12
+        },
+        {
+          "id": "a2",
+          "x": "2026-02",
+          "value": 12
+        },
+        {
+          "id": "a3",
+          "x": "2026-03",
+          "value": 15
+        },
+        {
+          "id": "a4",
+          "x": "2026-04",
+          "value": 17
+        },
+        {
+          "id": "a5",
+          "x": "2026-05",
+          "value": null
+        },
+        {
+          "id": "a6",
+          "x": "2026-06",
+          "value": null
+        }
+      ]
+    }
+  ]
+}

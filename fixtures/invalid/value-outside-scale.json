@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "min-heatmap",
+  "kind": "heatmap",
+  "title": "Counts",
+  "rows": [
+    {
+      "id": "r1",
+      "label": "Alpha"
+    }
+  ],
+  "columns": [
+    {
+      "id": "c1",
+      "label": "Low"
+    },
+    {
+      "id": "c2",
+      "label": "High"
+    }
+  ],
+  "cells": [
+    {
+      "row": "r1",
+      "column": "c1",
+      "value": 11
+    },
+    {
+      "row": "r1",
+      "column": "c2",
+      "value": null
+    }
+  ],
+  "scale": {
+    "type": "sequential",
+    "domain": [0, 10],
+    "colors": ["#f4f6f8", "#1f4e79"]
+  }
+}

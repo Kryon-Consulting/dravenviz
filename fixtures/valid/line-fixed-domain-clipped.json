@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "line-fixed-domain-clipped",
+  "kind": "cartesian",
+  "title": "Coverage with clipped values",
+  "xAxis": {
+    "id": "week",
+    "scale": "category",
+    "categories": ["2026-07-06", "2026-07-13", "2026-07-20", "2026-07-27", "2026-08-03"],
+    "labels": ["6 Jul", "13 Jul", "20 Jul", "27 Jul", "3 Aug"]
+  },
+  "yAxes": [
+    {
+      "id": "pct",
+      "label": "Coverage",
+      "unit": "%",
+      "format": {
+        "style": "percent"
+      },
+      "domain": {
+        "policy": "fixed",
+        "min": 0,
+        "max": 100,
+        "overflow": "clip-indicated"
+      }
+    }
+  ],
+  "series": [
+    {
+      "id": "s",
+      "label": "Coverage",
+      "mark": "line",
+      "yAxisId": "pct",
+      "points": [
+        {
+          "id": "p1",
+          "x": "2026-07-06",
+          "value": 40
+        },
+        {
+          "id": "p2",
+          "x": "2026-07-13",
+          "value": 130
+        },
+        {
+          "id": "p3",
+          "x": "2026-07-20",
+          "value": 85
+        },
+        {
+          "id": "p4",
+          "x": "2026-07-27",
+          "value": -10
+        },
+        {
+          "id": "p5",
+          "x": "2026-08-03",
+          "value": 60
+        }
+      ]
+    }
+  ]
+}

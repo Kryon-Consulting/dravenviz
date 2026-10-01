@@ -1,0 +1,16 @@
+/* Noto Sans v2.015 (SIL OFL 1.1). See PROVENANCE.md and OFL.txt. */
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('NotoSans-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url('NotoSans-SemiBold.woff2') format('woff2');
+}

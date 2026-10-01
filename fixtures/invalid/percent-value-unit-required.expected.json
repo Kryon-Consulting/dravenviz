@@ -1,0 +1,5 @@
+{
+  "code": "INVALID_SPEC",
+  "rule": "percent-value-unit-required",
+  "path": "/stacking/valueUnit"
+}

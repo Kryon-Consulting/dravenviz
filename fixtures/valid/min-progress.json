@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "min-progress",
+  "kind": "progress",
+  "title": "Readiness",
+  "variant": "ring",
+  "domain": {
+    "min": 0,
+    "max": 100
+  },
+  "unit": "%",
+  "format": {
+    "style": "percent"
+  },
+  "items": [
+    {
+      "id": "a",
+      "label": "East",
+      "value": 72,
+      "target": 80
+    },
+    {
+      "id": "b",
+      "label": "West",
+      "value": null
+    }
+  ]
+}

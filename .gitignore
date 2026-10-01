@@ -1,0 +1,10 @@
+node_modules
+dist
+.pack
+.stage
+coverage
+test-results
+playwright-report
+.venv
+__pycache__
+*.pyc

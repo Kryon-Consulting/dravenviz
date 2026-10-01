@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "id": "line-category-labels-thin",
+  "kind": "cartesian",
+  "title": "Load by site (60 sites)",
+  "xAxis": {
+    "id": "site",
+    "scale": "category",
+    "categories": [
+      "Northgate Warehouse",
+      "Lakeshore Warehouse",
+      "Westbrook Distribution",
+      "Riverside Logistics",
+      "Stonebridge Logistics",
+      "Southmere Terminal",
+      "Westbrook Exchange",
+      "Eastfield Junction",
+      "Harborview Crossing",
+      "Riverside Warehouse",
+      "Stonebridge Warehouse",
+      "Southmere Distribution",
+      "Harborview Logistics",
+      "Ashworth Logistics",
+      "Lakeshore Terminal",
+      "Southmere Exchange",
+      "Westbrook Junction",
+      "Eastfield Crossing",
+      "Harborview Warehouse",
+      "Ashworth Warehouse",
+      "Highland Distribution",
+      "Eastfield Logistics",
+      "Northgate Terminal",
+      "Stonebridge Terminal",
+      "Lakeshore Exchange",
+      "Southmere Junction",
+      "Westbrook Crossing",
+      "Eastfield Warehouse",
+      "Northgate Distribution",
+      "Lakeshore Distribution",
+      "Westbrook Logistics",
+      "Riverside Terminal",
+      "Northgate Exchange",
+      "Stonebridge Exchange",
+      "Lakeshore Junction",
+      "Southmere Crossing",
+      "Westbrook Warehouse",
+      "Riverside Distribution",
+      "Stonebridge Distribution",
+      "Southmere Logistics",
+      "Harborview Terminal",
+      "Riverside Exchange",
+      "Northgate Junction",
+      "Stonebridge Junction",
+      "Lakeshore Crossing",
+      "Southmere Warehouse",
+      "Harborview Distribution",
+      "Ashworth Distribution",
+      "Highland Logistics",
+      "Eastfield Terminal",
+      "Harborview Exchange",
+      "Riverside Junction",
+      "Northgate Crossing",
+      "Stonebridge Crossing",
+      "Highland Warehouse",
+      "Eastfield Distribution",
+      "Northgate Logistics",
+      "Lakeshore Logistics",
+      "Westbrook Terminal",
+      "Eastfield Exchange"
+    ]
+  },
+  "yAxes": [
+    {
+      "id": "count",
+      "label": "Load",
+      "unit": "count"
+    }
+  ],
+  "series": [
+    {
+      "id": "s",
+      "label": "Load",
+      "mark": "line",
+      "yAxisId": "count",
+      "points": [
+        {
+          "id": "p1",
+          "x": "Northgate Warehouse",
+          "value": 10
+        },
+        {
+          "id": "p2",
+          "x": "Lakeshore Warehouse",
+          "value": 17
+        },
+        {
+          "id": "p3",
+          "x": "Westbrook Distribution",
+          "value": 24
+        },
+        {
+          "id": "p4",
+          "x": "Riverside Logistics",
+          "value": 31
+        },
+        {
+          "id": "p5",
+          "x": "Stonebridge Logistics",
+          "value": 15
+        },
+        {
+          "id": "p6",
+          "x": "Southmere Terminal",
+          "value": 22
+        },
+        {
+          "id": "p7",
+          "x": "Westbrook Exchange",
+          "value": 29
+        },
+        {
+          "id": "p8",
+          "x": "Eastfield Junction",
+          "value": 13
+        },
+        {
+          "id": "p9",
+          "x": "Harborview Crossing",
+          "value": 20
+        },
+        {
+          "id": "p10",
+          "x": "Riverside Warehouse",
+          "value": 27
+        },
+        {
+          "id": "p11",
+          "x": "Stonebridge Warehouse",
+          "value": 11
+        },
+        {
+          "id": "p12",
+          "x": "Southmere Distribution",
+          "value": 18
+        },
+        {
+          "id": "p13",
+          "x": "Harborview Logistics",
+          "value": 25
+        },
+        {
+          "id": "p14",
+          "x": "Ashworth Logistics",
+          "value": 32
+        },
+        {
+          "id": "p15",
+          "x": "Lakeshore Terminal",
+          "value": 16
+        },
+        {
+          "id": "p16",
+          "x": "Southmere Exchange",
+          "value": 23
+        },
+        {
+          "id": "p17",
+          "x": "Westbrook Junction",
+          "value": 30
+        },
+        {
+          "id": "p18",
+          "x": "Eastfield Crossing",
+          "value": 14
+        },
+        {
+          "id": "p19",
+          "x": "Harborview Warehouse",
+          "value": 21
+        },
+        {
+          "id": "p20",
+          "x": "Ashworth Warehouse",
+          "value": 28
+        },
+        {
+          "id": "p21",
+          "x": "Highland Distribution",
+          "value": 12
+        },
+        {
+          "id": "p22",
+          "x": "Eastfield Logistics",
+          "value": 19
+        },
+        {
+          "id": "p23",
+          "x": "Northgate Terminal",
+          "value": 26
+        },
+        {
+          "id": "p24",
+          "x": "Stonebridge Terminal",
+          "value": 10
+        },
+        {
+          "id": "p25",
+          "x": "Lakeshore Exchange",
+          "value": 17
+        },
+        {
+          "id": "p26",
+          "x": "Southmere Junction",
+          "value": 24
+        },
+        {
+          "id": "p27",
+          "x": "Westbrook Crossing",
+          "value": 31
+        },
+        {
+          "id": "p28",
+          "x": "Eastfield Warehouse",
+          "value": 15
+        },
+        {
+          "id": "p29",
+          "x": "Northgate Distribution",
+          "value": 22
+        },
+        {
+          "id": "p30",
+          "x": "Lakeshore Distribution",
+          "value": 29
+        },
+        {
+          "id": "p31",
+          "x": "Westbrook Logistics",
+          "value": 13
+        },
+        {
+          "id": "p32",
+          "x": "Riverside Terminal",
+          "value": 20
+        },
+        {
+          "id": "p33",
+          "x": "Northgate Exchange",
+          "value": 27
+        },
+        {
+          "id": "p34",
+          "x": "Stonebridge Exchange",
+          "value": 11
+        },
+        {
+          "id": "p35",
+          "x": "Lakeshore Junction",
+          "value": 18
+        },
+        {
+          "id": "p36",
+          "x": "Southmere Crossing",
+          "value": 25
+        },
+        {
+          "id": "p37",
+          "x": "Westbrook Warehouse",
+          "value": 32
+        },
+        {
+          "id": "p38",
+          "x": "Riverside Distribution",
+          "value": 16
+        },
+        {
+          "id": "p39",
+          "x": "Stonebridge Distribution",
+          "value": 23
+        },
+        {
+          "id": "p40",
+          "x": "Southmere Logistics",
+          "value": 30
+        },
+        {
+          "id": "p41",
+          "x": "Harborview Terminal",
+          "value": 14
+        },
+        {
+          "id": "p42",
+          "x": "Riverside Exchange",
+          "value": 21
+        },
+        {
+          "id": "p43",
+          "x": "Northgate Junction",
+          "value": 28
+        },
+        {
+          "id": "p44",
+          "x": "Stonebridge Junction",
+          "value": 12
+        },
+        {
+          "id": "p45",
+          "x": "Lakeshore Crossing",
+          "value": 19
+        },
+        {
+          "id": "p46",
+          "x": "Southmere Warehouse",
+          "value": 26
+        },
+        {
+          "id": "p47",
+          "x": "Harborview Distribution",
+          "value": 10
+        },
+        {
+          "id": "p48",
+          "x": "Ashworth Distribution",
+          "value": 17
+        },
+        {
+          "id": "p49",
+          "x": "Highland Logistics",
+          "value": 24
+        },
+        {
+          "id": "p50",
+          "x": "Eastfield Terminal",
+          "value": 31
+        },
+        {
+          "id": "p51",
+          "x": "Harborview Exchange",
+          "value": 15
+        },
+        {
+          "id": "p52",
+          "x": "Riverside Junction",
+          "value": 22
+        },
+        {
+          "id": "p53",
+          "x": "Northgate Crossing",
+          "value": 29
+        },
+        {
+          "id": "p54",
+          "x": "Stonebridge Crossing",
+          "value": 13
+        },
+        {
+          "id": "p55",
+          "x": "Highland Warehouse",
+          "value": 20
+        },
+        {
+          "id": "p56",
+          "x": "Eastfield Distribution",
+          "value": 27
+        },
+        {
+          "id": "p57",
+          "x": "Northgate Logistics",
+          "value": 11
+        },
+        {
+          "id": "p58",
+          "x": "Lakeshore Logistics",
+          "value": 18
+        },
+        {
+          "id": "p59",
+          "x": "Westbrook Terminal",
+          "value": 25
+        },
+        {
+          "id": "p60",
+          "x": "Eastfield Exchange",
+          "value": 32
+        }
+      ]
+    }
+  ]
+}
