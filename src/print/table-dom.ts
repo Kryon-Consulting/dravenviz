@@ -1,10 +1,20 @@
-import { toDataTable, type DataTable, type VizSpec } from '../core/index';
+import {
+  toDataTable,
+  type DataTable,
+  type Theme,
+  type ThemeName,
+  type ThemeOverrides,
+  type VizSpec,
+} from '../core/index';
 
 export interface RenderDataTableOptions {
   /** Visually hide the table but keep it for assistive technology and print text extraction. */
   visuallyHidden?: boolean;
   locale?: string;
   timezone?: string;
+  /** Source of the table's strings. Default `"print"`. */
+  theme?: ThemeName | Theme;
+  themeOverrides?: ThemeOverrides;
 }
 
 function text(doc: Document, tag: string, content: string): HTMLElement {
@@ -64,6 +74,8 @@ export function renderDataTable(
   const model = toDataTable(spec, {
     ...(options.locale === undefined ? {} : { locale: options.locale }),
     ...(options.timezone === undefined ? {} : { timezone: options.timezone }),
+    ...(options.theme === undefined ? {} : { theme: options.theme }),
+    ...(options.themeOverrides === undefined ? {} : { themeOverrides: options.themeOverrides }),
   });
   const wrap = doc.createElement('div');
   wrap.className =

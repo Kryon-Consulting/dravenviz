@@ -143,6 +143,41 @@ const UNIT_OPTIONS: Record<Exclude<TimeTickUnit, 'quarter'>, Intl.DateTimeFormat
 };
 
 /**
+ * Format a point label for a tooltip, announcement or data-table row header: always a full date
+ * (year, month, day), plus hour and minute for an instant, so two different positions never read
+ * alike. `withZone` appends the render timezone to an instant (not needed where the column header
+ * already names it). A calendar day always formats in UTC. The machine timezone is never used.
+ */
+export function formatTimeLabel(
+  epochMs: number,
+  kind: TimeKind,
+  locale: string,
+  timezone: string,
+  withZone = false,
+): string {
+  if (!Number.isFinite(epochMs)) {
+    throw new DravenVizError('INVALID_OPTIONS', 'A time format needs a finite epoch value.');
+  }
+  assertLocaleAndTimezone(locale, timezone);
+  if (kind === 'date') {
+    return dateTimeFormat(locale, 'UTC', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(epochMs);
+  }
+  return dateTimeFormat(locale, timezone, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    ...(withZone ? { timeZoneName: 'short' as const } : {}),
+  }).format(epochMs);
+}
+
+/**
  * Format a tick or label time. The zone is always explicit: `UTC` for a calendar day
  * (`kind: "date"`), otherwise the given IANA `timezone`. The machine timezone is never used.
  * Quarter labels ("Q3 2026") are computed from the zoned month; the year uses the locale's

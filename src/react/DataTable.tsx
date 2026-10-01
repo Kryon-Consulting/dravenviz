@@ -1,5 +1,11 @@
 import type { ReactElement } from 'react';
-import { toDataTable, type VizSpec } from '../core/index';
+import {
+  toDataTable,
+  type Theme,
+  type ThemeName,
+  type ThemeOverrides,
+  type VizSpec,
+} from '../core/index';
 
 export interface DataTableProps {
   spec: VizSpec;
@@ -7,6 +13,9 @@ export interface DataTableProps {
   visuallyHidden?: boolean;
   locale?: string;
   timezone?: string;
+  /** Source of the table's strings. Default `"print"`. */
+  theme?: ThemeName | Theme;
+  themeOverrides?: ThemeOverrides;
 }
 
 /**
@@ -18,6 +27,8 @@ export function DataTable(props: DataTableProps): ReactElement {
   const model = toDataTable(props.spec, {
     ...(props.locale === undefined ? {} : { locale: props.locale }),
     ...(props.timezone === undefined ? {} : { timezone: props.timezone }),
+    ...(props.theme === undefined ? {} : { theme: props.theme }),
+    ...(props.themeOverrides === undefined ? {} : { themeOverrides: props.themeOverrides }),
   });
   const cls =
     props.visuallyHidden === true

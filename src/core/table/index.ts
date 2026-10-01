@@ -8,9 +8,10 @@
  */
 import { DravenVizError } from '../errors';
 import { formatNumber } from '../format/number';
-import { formatTime, parseTimeValue, type TimeKind } from '../format/time';
+import { formatTimeLabel, parseTimeValue, type TimeKind } from '../format/time';
 import type { CartesianSpec, Point, Quality, Series, ValueAxis, VizSpec } from '../spec/index';
-import { themes } from '../theme/resolve';
+import { resolveTheme } from '../theme/resolve';
+import type { Theme, ThemeName, ThemeOverrides } from '../theme/index';
 
 export type CellState =
   | 'measured'
@@ -40,9 +41,10 @@ export interface DataTable {
 export interface DataTableOptions {
   locale?: string;
   timezone?: string;
+  /** Source of the table's strings (such as "Not measured"). Default `"print"`. */
+  theme?: ThemeName | Theme;
+  themeOverrides?: ThemeOverrides;
 }
-
-const NOT_MEASURED = themes.print.strings.notMeasured;
 
 function notImplemented(spec: VizSpec): never {
   throw new DravenVizError(
@@ -77,6 +79,8 @@ function qualityState(q: Quality | undefined): CellState {
 function cartesianTable(spec: CartesianSpec, options: DataTableOptions): DataTable {
   const locale = options.locale ?? 'en-US';
   const timezone = options.timezone ?? 'UTC';
+  const notMeasured = resolveTheme(options.theme ?? 'print', options.themeOverrides).strings
+    .notMeasured;
   const axis = spec.xAxis;
   const yById = new Map<string, ValueAxis>(spec.yAxes.map((a) => [a.id, a]));
   const num = (v: number, a: ValueAxis | undefined): string => formatNumber(v, a?.format, locale);
@@ -107,8 +111,7 @@ function cartesianTable(spec: CartesianSpec, options: DataTableOptions): DataTab
   }
   const headerOf = (p: Position): string => {
     if (axis.scale === 'category') return axis.labels?.[p.at] ?? String(p.raw);
-    if (axis.scale === 'time')
-      return formatTime(p.at, timeKind, timeKind === 'date' ? 'day' : 'hour', locale, timezone);
+    if (axis.scale === 'time') return formatTimeLabel(p.at, timeKind, locale, timezone);
     return formatNumber(p.at, axis.format, locale);
   };
 
@@ -122,7 +125,7 @@ function cartesianTable(spec: CartesianSpec, options: DataTableOptions): DataTab
   const clipped = new Map<string, { above: number[]; below: number[] }>();
   const cellFor = (s: Series, p: Point | undefined): DataTableCell => {
     if (p === undefined || p.value === null) {
-      return { text: NOT_MEASURED, value: null, state: 'missing' };
+      return { text: notMeasured, value: null, state: 'missing' };
     }
     const a = yById.get(s.yAxisId);
     const range = clipRange(a);
@@ -179,8 +182,11 @@ function cartesianTable(spec: CartesianSpec, options: DataTableOptions): DataTab
   const units = [
     ...new Set(spec.yAxes.map((a) => a.unit).filter((u): u is string => u !== undefined)),
   ];
-  const xLabel =
+  const baseLabel =
     axis.label ?? (axis.scale === 'time' ? 'Date' : capitalise(axis.id.replace(/[-_]+/g, ' ')));
+  // An instant row header carries no zone, so the column header names the render timezone.
+  const xLabel =
+    axis.scale === 'time' && timeKind === 'instant' ? `${baseLabel} (${timezone})` : baseLabel;
   return {
     caption: units.length > 0 ? `${spec.title} (${units.join(', ')})` : spec.title,
     columns: [
