@@ -82,6 +82,14 @@ describe('built-in themes', () => {
     }
   });
 
+  test('every palette slot has at least 3:1 contrast against its background', () => {
+    for (const n of NAMES) {
+      const t = themes[n];
+      for (const c of t.palette)
+        expect(contrast(c, t.color.background), `${n} ${c}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   test('dark has a dark background and light text', () => {
     expect(rel(themes.dark.color.background)).toBeLessThan(0.05);
     expect(rel(themes.dark.color.text)).toBeGreaterThan(0.5);
@@ -136,6 +144,19 @@ describe('resolveTheme', () => {
     expect(bad({ roles: { a: { color: '#000000', shape: 'star' } } }).path).toBe('/roles/a/shape');
     expect(bad({ roles: { a: { pattern: 'dots' } } }).path).toBe('/roles/a/color');
     expect(bad('x').code).toBe('INVALID_OPTIONS');
+  });
+
+  test('sparse arrays and non-plain objects are rejected', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sparse arrays are not typeable
+    expect(bad({ palette: new Array(8) as any })).toMatchObject({
+      code: 'INVALID_OPTIONS',
+      path: '/palette/0',
+    });
+    expect(bad({ seriesStyles: new Array(8) }).path).toBe('/seriesStyles/0');
+    const pal: string[] = Array.from({ length: 8 }, () => '#111111');
+    delete pal[5];
+    expect(bad({ palette: pal }).path).toBe('/palette/5');
+    expect(bad({ color: new Date() })).toMatchObject({ code: 'INVALID_OPTIONS', path: '/color' });
   });
 
   test('arrays are replaced whole and keep exactly 8 entries', () => {

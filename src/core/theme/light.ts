@@ -16,7 +16,7 @@ export const light: Theme = {
     threshold: '#a61b1b',
     annotation: '#333333',
   },
-  palette: ['#1f4e99', '#c4510a', '#2fb39f', '#e3b505', '#b5527f', '#6b4fa0', '#8c5a3c', '#6f7780'],
+  palette: ['#1f4e99', '#c4510a', '#2a9d8f', '#b1902c', '#b5527f', '#6b4fa0', '#8c5a3c', '#6f7780'],
   roles: {},
   seriesStyles: cloneStyles(),
   sequential: ['#f1f5fb', '#c6d6ec', '#8fadd6', '#4f7cb8', '#1f4e99'],

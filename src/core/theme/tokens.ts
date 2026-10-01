@@ -66,7 +66,9 @@ export type DeepPartial<T> = T extends readonly unknown[]
     : T;
 
 /** Typed, validated overrides. Arrays are replaced whole; `roles` merges by role key. */
-export type ThemeOverrides = DeepPartial<Omit<Theme, 'name'>>;
+export type ThemeOverrides = DeepPartial<Omit<Theme, 'name' | 'roles'>> & {
+  roles?: Record<string, ThemeRole>;
+};
 
 export const THEME_VERSION = '1.0.0';
 

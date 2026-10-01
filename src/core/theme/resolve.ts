@@ -111,8 +111,11 @@ const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 const esc = (k: string): string => k.replace(/~/g, '~0').replace(/\//g, '~1');
 const has = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
-const isPlain = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v);
+const isPlain = (v: unknown): v is Record<string, unknown> => {
+  if (typeof v !== 'object' || v === null) return false;
+  const proto: unknown = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+};
 
 function fail(path: string, message: string): never {
   throw new DravenVizError('INVALID_OPTIONS', `Invalid theme at ${path || '/'}: ${message}`, {
@@ -155,7 +158,12 @@ function check(node: Node, value: unknown, path: string): unknown {
             ? `expected exactly ${node.min} entries.`
             : `expected ${node.min} to ${node.max} entries.`,
         );
-      return value.map((v, i) => check(node.item, v, `${path}/${i}`));
+      const out: unknown[] = [];
+      for (let i = 0; i < value.length; i++) {
+        if (!(i in value)) fail(`${path}/${i}`, 'missing entry.');
+        out.push(check(node.item, value[i], `${path}/${i}`));
+      }
+      return out;
     }
     case 'rec': {
       if (!isPlain(value)) fail(path, 'expected an object.');
