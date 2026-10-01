@@ -44,6 +44,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # dist, browser-bundle and stage tests read the packed build output.
+      - run: pnpm pack:local
       - run: pnpm test
 
   browser:
@@ -58,4 +60,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
       - run: pnpm test:browser
+
+  # Placeholder; the full package matrix (React 18/19/core consumers, publint, attw) is Task 21.
+  package:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm pack:local
+      - run: pnpm stage react
