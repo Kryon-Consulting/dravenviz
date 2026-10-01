@@ -40,10 +40,10 @@ Run on 2026-10-01 in the development container (Node 22.22.0, Chromium 141.0.739
 | `pnpm lint`                                        | pass: eslint and prettier clean (re-run after the new files were added; the first run flagged the unformatted test file)                                                                                           |
 | `pnpm typecheck`                                   | pass: all three tsconfig projects (re-run after the new files were added)                                                                                             |
 | `pnpm check:drift`                                 | pass: "Generated files are up to date."                                                              |
-| `pnpm test`                                        | pass: 489 passed, 19 files (project `unit`, `unit-jsdom`, `unit-tz-new-york`)                                                                                           |
-| `pnpm test:matrix`, `pnpm check:matrix`            | pass: 8 tests passed; "verification matrix: OK"                                                                                         |
-| `pnpm test:browser`, project `browser`             | pass: 122 passed                                                                                     |
-| `pnpm test:browser`, project `visual`              | pending-review: 14 structural tests pass, 14 baseline tests fail with `pending owner review` (D4)    |
+| `pnpm test`                                        | pass: 500 passed, 20 files (project `unit`, `unit-jsdom`, `unit-tz-new-york`)                                                                                           |
+| `pnpm test:matrix`, `pnpm check:matrix`            | pass: 11 tests passed; "verification matrix: OK"                                                                                         |
+| `pnpm exec playwright test --project=browser` (the CI gating step, R41) | pass: 133 passed                                                                                     |
+| `pnpm exec playwright test --project=visual` (separate CI step)         | pending-review: 14 structural tests pass, 14 baseline tests fail with `pending owner review` (D4)    |
 | `pnpm test:package`                                | pass: "all checks passed" (React 18.3.1 and 19.3.0 consumers, Vite, publint, attw, plain HTML)       |
 | `pnpm build:docs`, `pnpm test:docs`                | pass: stage ok, 13 passed                                                                            |
 | `pnpm test:pdf`                                    | pass: PASS, path http, 6 pages A4, 114 labels in 8 frames, worst crop diff 0.263 % (limit 0.363 %)   |
